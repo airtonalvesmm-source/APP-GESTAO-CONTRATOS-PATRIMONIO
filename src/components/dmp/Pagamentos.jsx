@@ -6,6 +6,7 @@ import { fmtM, fmtData, nVal, norm, diasAte, totaisPagamento, valorEmpenhado, fi
 import { ADITIVOS, FALTAS } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { FormOcorrencia } from "./Contratos";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
@@ -89,6 +90,22 @@ export default function Pagamentos({ data, refresh }) {
       <TelaCab titulo="Pagamentos" desc="Notas fiscais de cada contrato, com valor pago, valor retido e o motivo da retenção."
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <ImportarCSV entityName="Pagamento" refresh={refresh} data={data}
+            colunas={[
+              { header: "Contrato", campo: "_contratoNum", obrigatorio: true },
+              { header: "Nota fiscal", campo: "nf", obrigatorio: true },
+              { header: "Emissão", campo: "dataNF", tipo: "date" },
+              { header: "Valor da nota", campo: "valorNF", tipo: "number", obrigatorio: true },
+              { header: "Valor pago", campo: "valorPago", tipo: "number" },
+              { header: "Data do pagamento", campo: "dataPagamento", tipo: "date" },
+              { header: "Motivo da retenção", campo: "motivo" }
+            ]}
+            preProcess={(rec, data) => {
+              const c = (data.contratos || []).find(x => norm(x.tipo + " " + x.numero) === norm(rec._contratoNum) || norm(x.numero) === norm(rec._contratoNum));
+              if (!c) return null;
+              return { contratoId: c.id, nf: rec.nf, dataNF: rec.dataNF, valorNF: rec.valorNF, valorPago: rec.valorPago || 0, dataPagamento: rec.dataPagamento, motivo: rec.motivo };
+            }}
+            ajuda="O campo 'Contrato' deve conter o número do contrato/empenho já cadastrado (ex.: '45/2026'). Linhas sem contrato correspondente serão ignoradas. Datas no formato dd/mm/aaaa." />
           <Btn variant="forte" onClick={() => setNfContratoId(contratos[0]?.id || null)} disabled={contratos.length === 0}><Plus className="w-4 h-4 inline mr-1" />Lançar nota fiscal</Btn>
         </>} />
 

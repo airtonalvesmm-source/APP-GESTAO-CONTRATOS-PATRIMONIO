@@ -4,6 +4,7 @@ import { ORDEM, UNIDADES_ORCAMENTARIAS, SITUACOES_OBJETO, URGENCIAS } from "@/li
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { Plus, Pencil, Trash2, FileText, Printer, Sparkles } from "lucide-react";
 
 export default function PlanoAnual({ data, refresh }) {
@@ -101,6 +102,21 @@ export default function PlanoAnual({ data, refresh }) {
           {modo === "plan" && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Incluir item</Btn>}
           {modo === "dfd" && <Btn variant="forte" onClick={() => setDfdNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Emitir novo DFD</Btn>}
           {modo !== "dfd" && <Btn onClick={() => modo === "exec" ? csvExecucao() : csvPlano()}>Baixar CSV</Btn>}
+          {modo === "plan" && <ImportarCSV entityName="PCAItem" refresh={refresh} data={data}
+            colunas={[
+              { header: "Código PCA", campo: "codigo" },
+              { header: "CATMAT", campo: "_catmat", obrigatorio: true },
+              { header: "Exercício", campo: "exercicio", tipo: "number", obrigatorio: true },
+              { header: "Quantidade", campo: "qtd", tipo: "number", obrigatorio: true },
+              { header: "Valor unitário", campo: "valor", tipo: "number" },
+              { header: "Justificativa", campo: "justificativa" }
+            ]}
+            preProcess={(rec, data) => {
+              const b = (data.catalog || []).find(x => String(x.catmat) === String(rec._catmat));
+              if (!b) return null;
+              return { benId: b.id, codigo: rec.codigo, exercicio: rec.exercicio, qtd: rec.qtd, valor: rec.valor, justificativa: rec.justificativa };
+            }}
+            ajuda="O CATMAT é usado para vincular ao item do catálogo. Linhas com CATMAT inexistente no catálogo serão ignoradas." />}
           {modo !== "dfd" && <Btn onClick={() => window.print()}>Imprimir</Btn>}
         </>} />
 

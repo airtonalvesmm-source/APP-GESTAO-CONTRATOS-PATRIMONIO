@@ -4,6 +4,7 @@ import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
 export default function Atas({ data, refresh }) {
@@ -78,6 +79,22 @@ export default function Atas({ data, refresh }) {
       <TelaCab titulo="Atas de registro de preços" desc="Cadastre as atas vigentes e acompanhe o saldo de cada item conforme os contratos e empenhos lançados."
         direita={<>
           <Btn onClick={exportCSV}>Baixar saldos (CSV)</Btn>
+          <ImportarCSV entityName="Ata" refresh={refresh} data={data}
+            colunas={[
+              { header: "Número da ata", campo: "numero", obrigatorio: true },
+              { header: "Processo", campo: "processo" },
+              { header: "Órgão gerenciador", campo: "gerenciador" },
+              { header: "Categoria", campo: "categoria", obrigatorio: true },
+              { header: "CNPJ do fornecedor", campo: "_cnpj", obrigatorio: true },
+              { header: "Início da vigência", campo: "inicio", tipo: "date" },
+              { header: "Fim da vigência", campo: "fim", tipo: "date" }
+            ]}
+            preProcess={(rec, data) => {
+              const f = (data.fornecedores || []).find(x => norm(x.cnpj) === norm(rec._cnpj));
+              if (!f) return null;
+              return { numero: rec.numero, processo: rec.processo, gerenciador: rec.gerenciador, categoria: rec.categoria, fornecedorId: f.id, fornecedor: f.razao, cnpj: f.cnpj, inicio: rec.inicio, fim: rec.fim, itens: [] };
+            }}
+            ajuda="O CNPJ do fornecedor deve já estar cadastrado em Fornecedores. A ata será criada sem itens — edite-a depois para registrar os itens e quantidades. Datas no formato dd/mm/aaaa." />
           <Btn variant="forte" onClick={() => setNovo(true)} disabled={fornecedores.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar ata</Btn>
         </>} />
 

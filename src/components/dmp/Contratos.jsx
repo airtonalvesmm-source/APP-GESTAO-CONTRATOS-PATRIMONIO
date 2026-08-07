@@ -6,6 +6,7 @@ import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, u
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
 export default function Contratos({ data, refresh }) {
@@ -72,10 +73,41 @@ export default function Contratos({ data, refresh }) {
     await refresh();
   }
 
+  function exportCSV() {
+    if (!contratos.length) return alert("Não há contratos lançados.");
+    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
+    contratos.forEach(c => {
+      const a = atas.find(x => x.id === c.ataId);
+      const val = (c.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
+      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
+    });
+    baixarCSV("contratos.csv", l);
+  }
+
   return (
     <div>
       <TelaCab titulo="Contratos e notas de empenho" desc="Cada item lançado aqui baixa o saldo da ata correspondente."
-        direita={<Btn variant="forte" onClick={() => setNovo(true)} disabled={atas.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>} />
+        direita={<>
+          <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <ImportarCSV entityName="Contrato" refresh={refresh} data={data}
+            colunas={[
+              { header: "Tipo", campo: "tipo" },
+              { header: "Número", campo: "numero", obrigatorio: true },
+              { header: "Processo", campo: "processo" },
+              { header: "Nota de empenho", campo: "notaEmpenho" },
+              { header: "Número da ata", campo: "_ataNumero", obrigatorio: true },
+              { header: "Objeto", campo: "objeto" },
+              { header: "Início da vigência", campo: "inicio", tipo: "date" },
+              { header: "Fim da vigência", campo: "fim", tipo: "date" }
+            ]}
+            preProcess={(rec, data) => {
+              const a = (data.atas || []).find(x => norm(x.numero) === norm(rec._ataNumero));
+              if (!a) return null;
+              return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, inicio: rec.inicio, fim: rec.fim, itens: [] };
+            }}
+            ajuda="O número da ata deve já estar cadastrado. O fornecedor e CNPJ virão da ata vinculada. O contrato será criado sem itens — edite-o depois para lançar os itens (o saldo da ata será baixado). Datas no formato dd/mm/aaaa." />
+          <Btn variant="forte" onClick={() => setNovo(true)} disabled={atas.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
+        </>} />
 
       {atas.length === 0 && <div className="border border-amber-300 bg-amber-50 rounded-sm px-4 py-3 text-sm text-amber-900 mb-4">Cadastre uma ata antes de lançar contratos.</div>}
 

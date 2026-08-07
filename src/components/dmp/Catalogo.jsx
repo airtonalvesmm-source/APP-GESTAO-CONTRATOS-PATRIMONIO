@@ -2,8 +2,9 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ORDEM, NOMES_ARTE, TRACOS } from "@/lib/dmp-data";
 import { Desenho } from "@/components/dmp/Desenho";
-import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid } from "@/lib/dmp-utils";
+import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV } from "@/lib/dmp-utils";
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } from "./ui";
+import ImportarCSV from "./ImportarCSV";
 import { Plus, Upload } from "lucide-react";
 
 const ORD_CATALOGO = {
@@ -52,12 +53,35 @@ export default function Catalogo({ data, refresh }) {
     await refresh();
   }
 
+  function exportCSV() {
+    if (!catalog.length) return alert("Catálogo vazio.");
+    const l = [["Denominação", "PDM", "CATMAT", "Categoria", "Unidade", "Aplicação", "Especificação técnica", "Ilustração", "Foto (URL)"]];
+    catalog.filter(b => !b.oculto).forEach(b => {
+      l.push([b.objeto, b.pdm || "", b.catmat, b.categoria, b.unidade || "UNIDADE", b.aplicacao || "", b.descricao || "", b.arte || "generico", b.imagem || ""]);
+    });
+    baixarCSV("catalogo.csv", l);
+  }
+
   return (
     <div>
       <TelaCab
         titulo="Catálogo de bens permanentes"
         desc="Cada item traz PDM, CATMAT, aplicação e especificação técnica. A ilustração pode ser trocada por foto real a qualquer momento."
         direita={<>
+          <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <ImportarCSV entityName="CatalogItem" refresh={refresh}
+            colunas={[
+              { header: "Denominação", campo: "objeto", obrigatorio: true },
+              { header: "PDM", campo: "pdm" },
+              { header: "CATMAT", campo: "catmat", obrigatorio: true },
+              { header: "Categoria", campo: "categoria", obrigatorio: true },
+              { header: "Unidade", campo: "unidade" },
+              { header: "Aplicação", campo: "aplicacao" },
+              { header: "Especificação técnica", campo: "descricao" },
+              { header: "Ilustração", campo: "arte" },
+              { header: "Foto (URL)", campo: "imagem" }
+            ]}
+            ajuda="A categoria deve ser uma das: Ar-condicionado, Eletroeletrônicos, Mobiliário, Segurança. A ilustração é opcional (padrão: generico)." />
           <Btn variant="forte" onClick={() => setEditId("novo")}><Plus className="w-4 h-4 inline mr-1" />Adicionar item</Btn>
         </>}
       />

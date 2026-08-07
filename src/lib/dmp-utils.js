@@ -117,3 +117,28 @@ export function baixarCSV(nome, linhas) {
 }
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+// Parser de CSV (separador ; ou ,) — retorna array de objetos keyed por cabeçalho
+export function parsearCSV(texto) {
+  const sep = (texto.split("\n")[0] || "").split(";").length > texto.split("\n")[0].split(",").length ? ";" : ",";
+  const linhas = texto.replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim() !== "");
+  if (linhas.length < 2) return [];
+  const dividir = (linha) => {
+    const out = []; let cur = ""; let asp = false;
+    for (let i = 0; i < linha.length; i++) {
+      const ch = linha[i];
+      if (ch === '"') { asp = !asp; continue; }
+      if (ch === sep && !asp) { out.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    out.push(cur);
+    return out.map(c => c.trim());
+  };
+  const cab = dividir(linhas[0]);
+  return linhas.slice(1).map(linha => {
+    const vals = dividir(linha);
+    const obj = {};
+    cab.forEach((c, i) => { obj[c] = vals[i] != null ? vals[i] : ""; });
+    return obj;
+  });
+}

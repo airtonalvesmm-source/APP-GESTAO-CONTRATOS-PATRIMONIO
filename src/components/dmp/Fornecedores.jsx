@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { fmtM } from "@/lib/dmp-utils";
+import { fmtM, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, inputCls, Modal } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { valorEmpenhado } from "@/lib/dmp-utils";
 import { Plus } from "lucide-react";
 
@@ -21,10 +22,31 @@ export default function Fornecedores({ data, refresh }) {
     await refresh();
   }
 
+  function exportCSV() {
+    if (!fornecedores.length) return alert("Não há fornecedores cadastrados.");
+    const l = [["Razão social", "CNPJ", "Atas", "Contratos", "Valor contratado (R$)"]];
+    fornecedores.forEach(f => {
+      const atasN = atas.filter(a => a.fornecedorId === f.id).length;
+      const cts = contratos.filter(c => c.fornecedorId === f.id);
+      const valor = cts.reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
+      l.push([f.razao, f.cnpj || "", atasN, cts.length, fmtM(valor)]);
+    });
+    baixarCSV("fornecedores.csv", l);
+  }
+
   return (
     <div>
       <TelaCab titulo="Fornecedores" desc="Razão social e CNPJ usados nas atas e nos contratos."
-        direita={<Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar fornecedor</Btn>} />
+        direita={<>
+          <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <ImportarCSV entityName="Fornecedor" refresh={refresh}
+            colunas={[
+              { header: "Razão social", campo: "razao", obrigatorio: true },
+              { header: "CNPJ", campo: "cnpj" }
+            ]}
+            ajuda="Cadastre fornecedores em lote. A razão social é obrigatória; o CNPJ é opcional." />
+          <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar fornecedor</Btn>
+        </>} />
 
       {fornecedores.length === 0 ? (
         <Vazio titulo="Nenhum fornecedor cadastrado" texto="O cadastro também é criado ao registrar uma ata com fornecedor novo." />

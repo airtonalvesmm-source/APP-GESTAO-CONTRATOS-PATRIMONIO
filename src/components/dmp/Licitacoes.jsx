@@ -4,6 +4,7 @@ import { CAT_ARP, MODALIDADES, STATUS_LIC } from "@/lib/dmp-data";
 import { fmtM, fmtQ, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
+import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 
 export default function Licitacoes({ data, refresh }) {
@@ -71,6 +72,19 @@ export default function Licitacoes({ data, refresh }) {
       <TelaCab titulo="Licitações" desc="Certames que originam as atas de registro de preços e as contratações diretas."
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <ImportarCSV entityName="Licitacao" refresh={refresh}
+            colunas={[
+              { header: "Número", campo: "numero", obrigatorio: true },
+              { header: "Ano", campo: "ano", obrigatorio: true },
+              { header: "Modalidade", campo: "modalidade", obrigatorio: true },
+              { header: "Processo", campo: "processo" },
+              { header: "Categoria", campo: "categoria" },
+              { header: "Registro de preços", campo: "srp" },
+              { header: "Status", campo: "status" },
+              { header: "Qtd. de itens", campo: "qtdItens", tipo: "number" },
+              { header: "Valor global", campo: "valorGlobal", tipo: "number" }
+            ]}
+            ajuda="Categoria deve ser: Mobiliário, Segurança, Climatização ou Eletroeletrônicos. Status e modalidade conforme listas do sistema." />
           <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar licitação</Btn>
         </>} />
 
