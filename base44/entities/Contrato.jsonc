@@ -1,0 +1,85 @@
+{
+  "name": "Contrato",
+  "type": "object",
+  "properties": {
+    "tipo": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "Contrato",
+        "Nota de empenho"
+      ],
+      "default": "Contrato"
+    },
+    "numero": {
+      "type": "string",
+      "title": "N\u00famero"
+    },
+    "processo": {
+      "type": "string",
+      "title": "Processo"
+    },
+    "notaEmpenho": {
+      "type": "string",
+      "title": "Nota de empenho"
+    },
+    "ataId": {
+      "type": "string",
+      "title": "ID da ata vinculada"
+    },
+    "fornecedorId": {
+      "type": "string",
+      "title": "ID do fornecedor"
+    },
+    "fornecedor": {
+      "type": "string",
+      "title": "Nome do fornecedor"
+    },
+    "cnpj": {
+      "type": "string",
+      "title": "CNPJ"
+    },
+    "objeto": {
+      "type": "string",
+      "title": "Objeto"
+    },
+    "inicio": {
+      "type": "string",
+      "title": "In\u00edcio da vig\u00eancia",
+      "format": "date"
+    },
+    "fim": {
+      "type": "string",
+      "title": "Fim da vig\u00eancia",
+      "format": "date"
+    },
+    "itens": {
+      "type": "array",
+      "title": "Itens contratados",
+      "items": {
+        "type": "object",
+        "properties": {
+          "itemAtaId": {
+            "type": "string"
+          },
+          "benId": {
+            "type": "string"
+          },
+          "qtd": {
+            "type": "number"
+          },
+          "valor": {
+            "type": "number"
+          },
+          "pcaId": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "numero",
+    "ataId"
+  ]
+}

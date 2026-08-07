@@ -1,0 +1,148 @@
+{
+  "name": "DFD",
+  "type": "object",
+  "properties": {
+    "processo": {
+      "type": "string",
+      "title": "Processo SEI"
+    },
+    "unidadeRequisitante": {
+      "type": "string",
+      "title": "Unidade requisitante"
+    },
+    "responsavelNome": {
+      "type": "string",
+      "title": "Respons\u00e1vel pela demanda \u2014 nome"
+    },
+    "responsavelCargo": {
+      "type": "string",
+      "title": "Respons\u00e1vel pela demanda \u2014 cargo"
+    },
+    "responsavelEmail": {
+      "type": "string",
+      "title": "Respons\u00e1vel pela demanda \u2014 e-mail"
+    },
+    "uoSigla": {
+      "type": "string",
+      "title": "Unidade or\u00e7ament\u00e1ria (sigla)",
+      "default": "PGJ"
+    },
+    "urgencia": {
+      "type": "string",
+      "title": "Grau de urg\u00eancia",
+      "enum": [
+        "Baixo",
+        "M\u00e9dio",
+        "Alto"
+      ],
+      "default": "M\u00e9dio"
+    },
+    "situacaoObjeto": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o do objeto",
+      "default": "N\u00e3o existem os materiais/servi\u00e7os"
+    },
+    "necessidadeCorrelata": {
+      "type": "string",
+      "title": "Necessidade de contrata\u00e7\u00e3o correlata",
+      "default": "nao"
+    },
+    "unidadeBeneficiaria": {
+      "type": "string",
+      "title": "Unidade benefici\u00e1ria"
+    },
+    "inicio": {
+      "type": "string",
+      "title": "Previs\u00e3o de in\u00edcio",
+      "format": "date"
+    },
+    "fim": {
+      "type": "string",
+      "title": "Previs\u00e3o de t\u00e9rmino",
+      "format": "date"
+    },
+    "equipeNome": {
+      "type": "string",
+      "title": "Equipe de planejamento \u2014 nome"
+    },
+    "equipeEmail": {
+      "type": "string",
+      "title": "Equipe de planejamento \u2014 e-mail"
+    },
+    "equipeSetor": {
+      "type": "string",
+      "title": "Equipe de planejamento \u2014 setor"
+    },
+    "equipeRamal": {
+      "type": "string",
+      "title": "Equipe de planejamento \u2014 ramal"
+    },
+    "fiscalNome": {
+      "type": "string",
+      "title": "Fiscaliza\u00e7\u00e3o \u2014 nome"
+    },
+    "fiscalEmail": {
+      "type": "string",
+      "title": "Fiscaliza\u00e7\u00e3o \u2014 e-mail"
+    },
+    "fiscalRamal": {
+      "type": "string",
+      "title": "Fiscaliza\u00e7\u00e3o \u2014 ramal"
+    },
+    "objetivosEstrategicos": {
+      "type": "string",
+      "title": "Objetivos estrat\u00e9gicos"
+    },
+    "alinhamentoPDTIC": {
+      "type": "string",
+      "title": "Alinhamento ao PDTIC",
+      "default": "N\u00e3o se aplica"
+    },
+    "alinhamentoPCA": {
+      "type": "string",
+      "title": "Alinhamento ao PCA vigente"
+    },
+    "necessidade": {
+      "type": "string",
+      "title": "Necessidade"
+    },
+    "justificativa": {
+      "type": "string",
+      "title": "Motiva\u00e7\u00e3o / justificativa"
+    },
+    "resultadoObjetivo": {
+      "type": "string",
+      "title": "Objetivo da contrata\u00e7\u00e3o"
+    },
+    "resultadoMeta": {
+      "type": "string",
+      "title": "Meta a ser alcan\u00e7ada"
+    },
+    "resultadoIndicador": {
+      "type": "string",
+      "title": "Indicador (resultado alcan\u00e7ado)"
+    },
+    "respPreenchimentoNome": {
+      "type": "string",
+      "title": "Respons\u00e1vel pelo preenchimento \u2014 nome"
+    },
+    "respPreenchimentoCargo": {
+      "type": "string",
+      "title": "Respons\u00e1vel pelo preenchimento \u2014 cargo"
+    },
+    "exercicio": {
+      "type": "number",
+      "title": "Exerc\u00edcio do PCA"
+    },
+    "itensIds": {
+      "type": "array",
+      "title": "IDs dos itens do PCA selecionados",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "processo"
+  ]
+}

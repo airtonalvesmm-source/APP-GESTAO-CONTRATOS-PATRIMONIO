@@ -1,0 +1,50 @@
+{
+  "name": "Ocorrencia",
+  "type": "object",
+  "properties": {
+    "contratoId": {
+      "type": "string",
+      "title": "ID do contrato"
+    },
+    "tipo": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "Aditivo de prazo",
+        "Aditivo de valor",
+        "Aditivo de quantitativo",
+        "Apostilamento",
+        "Descumprimento \u2014 atraso na entrega",
+        "Descumprimento \u2014 especifica\u00e7\u00e3o divergente",
+        "Penalidade aplicada",
+        "Outra ocorr\u00eancia"
+      ]
+    },
+    "data": {
+      "type": "string",
+      "title": "Data",
+      "format": "date"
+    },
+    "processo": {
+      "type": "string",
+      "title": "Processo"
+    },
+    "dias": {
+      "type": "number",
+      "title": "Prorroga\u00e7\u00e3o (dias)",
+      "default": 0
+    },
+    "valor": {
+      "type": "string",
+      "title": "Acr\u00e9scimo ou supress\u00e3o (R$)"
+    },
+    "descricao": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "contratoId",
+    "tipo"
+  ]
+}

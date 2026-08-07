@@ -1,0 +1,82 @@
+{
+  "name": "Ata",
+  "type": "object",
+  "properties": {
+    "numero": {
+      "type": "string",
+      "title": "N\u00famero da ata"
+    },
+    "processo": {
+      "type": "string",
+      "title": "Processo"
+    },
+    "gerenciador": {
+      "type": "string",
+      "title": "\u00d3rg\u00e3o gerenciador"
+    },
+    "categoria": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "Mobili\u00e1rio",
+        "Seguran\u00e7a",
+        "Climatiza\u00e7\u00e3o",
+        "Eletroeletr\u00f4nicos"
+      ]
+    },
+    "licitacaoId": {
+      "type": "string",
+      "title": "ID da licita\u00e7\u00e3o de origem"
+    },
+    "fornecedorId": {
+      "type": "string",
+      "title": "ID do fornecedor"
+    },
+    "fornecedor": {
+      "type": "string",
+      "title": "Nome do fornecedor"
+    },
+    "cnpj": {
+      "type": "string",
+      "title": "CNPJ"
+    },
+    "inicio": {
+      "type": "string",
+      "title": "In\u00edcio da vig\u00eancia",
+      "format": "date"
+    },
+    "fim": {
+      "type": "string",
+      "title": "Fim da vig\u00eancia",
+      "format": "date"
+    },
+    "itens": {
+      "type": "array",
+      "title": "Itens registrados",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "benId": {
+            "type": "string"
+          },
+          "numItem": {
+            "type": "string"
+          },
+          "qtd": {
+            "type": "number"
+          },
+          "valor": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "numero",
+    "categoria"
+  ]
+}

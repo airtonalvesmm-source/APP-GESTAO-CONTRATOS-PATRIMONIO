@@ -90,3 +90,15 @@
     @apply bg-background text-foreground font-body;
   }
 }
+
+/* DFD */
+.dfd-doc p { margin: 0 0 4px; font-size: 12.5px; }
+.dfd-doc .whitespace-pre-wrap { white-space: pre-wrap; }
+
+/* Line clamp utility */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

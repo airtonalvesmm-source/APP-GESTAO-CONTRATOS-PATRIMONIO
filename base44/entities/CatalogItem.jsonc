@@ -1,0 +1,70 @@
+{
+  "name": "CatalogItem",
+  "type": "object",
+  "properties": {
+    "objeto": {
+      "type": "string",
+      "title": "Denomina\u00e7\u00e3o do bem"
+    },
+    "pdm": {
+      "type": "string",
+      "title": "PDM"
+    },
+    "catmat": {
+      "type": "string",
+      "title": "CATMAT"
+    },
+    "categoria": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "Ar-condicionado",
+        "Eletroeletr\u00f4nicos",
+        "Mobili\u00e1rio",
+        "Seguran\u00e7a"
+      ]
+    },
+    "unidade": {
+      "type": "string",
+      "title": "Unidade",
+      "default": "UNIDADE"
+    },
+    "aplicacao": {
+      "type": "string",
+      "title": "Aplica\u00e7\u00e3o"
+    },
+    "descricao": {
+      "type": "string",
+      "title": "Especifica\u00e7\u00e3o t\u00e9cnica"
+    },
+    "nota": {
+      "type": "string",
+      "title": "Ressalva de cataloga\u00e7\u00e3o"
+    },
+    "arte": {
+      "type": "string",
+      "title": "Tipo de ilustra\u00e7\u00e3o",
+      "default": "generico"
+    },
+    "imagem": {
+      "type": "string",
+      "title": "URL da foto",
+      "format": "uri"
+    },
+    "ehProprio": {
+      "type": "boolean",
+      "title": "Cadastrado na DMP",
+      "default": false
+    },
+    "oculto": {
+      "type": "boolean",
+      "title": "Exclu\u00eddo do cat\u00e1logo",
+      "default": false
+    }
+  },
+  "required": [
+    "objeto",
+    "catmat",
+    "categoria"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "PCAItem",
+  "type": "object",
+  "properties": {
+    "codigo": {
+      "type": "string",
+      "title": "C\u00f3digo do PCA"
+    },
+    "benId": {
+      "type": "string",
+      "title": "ID do item do cat\u00e1logo"
+    },
+    "exercicio": {
+      "type": "number",
+      "title": "Exerc\u00edcio"
+    },
+    "qtd": {
+      "type": "number",
+      "title": "Quantidade"
+    },
+    "valor": {
+      "type": "number",
+      "title": "Valor unit\u00e1rio estimado"
+    },
+    "justificativa": {
+      "type": "string",
+      "title": "Justificativa da necessidade"
+    }
+  },
+  "required": [
+    "benId",
+    "exercicio",
+    "qtd"
+  ]
+}
