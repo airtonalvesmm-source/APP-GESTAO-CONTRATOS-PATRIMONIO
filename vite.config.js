@@ -7,6 +7,14 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom']
   },
+  optimizeDeps: {
+    force: true
+  },
+  server: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  },
   plugins: [
     base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
