@@ -333,11 +333,8 @@ function FormAta({ a, data, refresh, onClose }) {
   }
 
   function opcoesBens(sel) {
-    return ORDEM.map(c => (
-      <optgroup key={c} label={c}>
-        {catalog.filter(b => b.categoria === c).map(b => <option key={b.id} value={b.id} selected={b.id === sel}>{b.objeto}</option>)}
-      </optgroup>
-    ));
+    const daCategoria = catalog.filter(b => b.categoria === form.categoria);
+    return daCategoria.map(b => <option key={b.id} value={b.id} selected={b.id === sel}>{b.objeto}</option>);
   }
 
   return (
