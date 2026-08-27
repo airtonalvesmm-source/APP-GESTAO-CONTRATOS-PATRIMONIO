@@ -5,7 +5,7 @@ import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, r
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
-import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { Plus, ChevronDown, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
 
 export default function Atas({ data, refresh }) {
   const { atas, contratos, catalog, licitacoes, fornecedores } = data;
@@ -215,11 +215,101 @@ function FormAta({ a, data, refresh, onClose }) {
     inicio: a?.inicio || "", fim: a?.fim || ""
   });
   const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [iaLoading, setIaLoading] = useState(false);
+  const [iaStatus, setIaStatus] = useState("");
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setItem(i, k, v) { setItens(arr => arr.map((it, idx) => idx === i ? { ...it, [k]: v } : it)); }
   function addItem() { setItens(arr => [...arr, { id: uid(), benId: catalog[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]); }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
+
+  async function importarComIA(file) {
+    if (!file || iaLoading) return;
+    setIaLoading(true); setIaStatus("Enviando arquivo…");
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setIaStatus("Extraindo dados da ata com IA…");
+      const resp = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: "object",
+          properties: {
+            numero: { type: "string" },
+            processo: { type: "string" },
+            gerenciador: { type: "string" },
+            categoria: { type: "string" },
+            fornecedor: { type: "string" },
+            cnpj: { type: "string" },
+            inicio: { type: "string" },
+            fim: { type: "string" },
+            itens: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  numItem: { type: "string" },
+                  descricao: { type: "string" },
+                  catmat: { type: "string" },
+                  qtd: { type: "number" },
+                  valor: { type: "number" }
+                }
+              }
+            }
+          }
+        }
+      });
+      if (resp.status !== "success" || !resp.output) { setIaStatus("Não foi possível extrair dados do arquivo."); return; }
+      const d = resp.output;
+      function parseData(s) {
+        if (!s) return "";
+        s = String(s).trim();
+        const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+        const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (m2) return `${m2[1]}-${m2[2].padStart(2, "0")}-${m2[3].padStart(2, "0")}`;
+        return "";
+      }
+      const cleanCnpj = (s) => String(s || "").replace(/\D/g, "");
+      let fornId = form.fornecedorId;
+      const cnpjNum = cleanCnpj(d.cnpj);
+      if (cnpjNum) {
+        const existente = fornecedores.find(f => cleanCnpj(f.cnpj) === cnpjNum);
+        if (existente) { fornId = existente.id; }
+        else if (d.fornecedor) {
+          const novo = await base44.entities.Fornecedor.create({ razao: d.fornecedor, cnpj: d.cnpj || "" });
+          fornId = novo.id;
+          await refresh();
+        }
+      }
+      const catExtraida = d.categoria ? CAT_ARP.find(c => norm(c) === norm(d.categoria)) : null;
+      const itensExtraidos = (d.itens || []).map(it => {
+        const catmatStr = it.catmat ? String(it.catmat).trim() : "";
+        const bem = catmatStr ? catalog.find(b => String(b.catmat || "").trim() === catmatStr) : null;
+        return { id: uid(), benId: bem ? bem.id : (catalog[0]?.id || ""), numItem: String(it.numItem || ""), qtd: it.qtd || "", valor: it.valor || "", _match: !!bem };
+      });
+      const matched = itensExtraidos.filter(i => i._match).length;
+      const unmatched = itensExtraidos.length - matched;
+      setForm(f => ({
+        ...f,
+        numero: d.numero || f.numero,
+        processo: d.processo || f.processo,
+        gerenciador: d.gerenciador || f.gerenciador,
+        categoria: catExtraida || f.categoria,
+        fornecedorId: fornId,
+        inicio: parseData(d.inicio) || f.inicio,
+        fim: parseData(d.fim) || f.fim
+      }));
+      if (itensExtraidos.length) setItens(itensExtraidos.map(({ _match, ...rest }) => rest));
+      let msg = `${itensExtraidos.length} itens extraídos (${matched} vinculados ao catálogo`;
+      if (unmatched > 0) msg += `, ${unmatched} sem CATMAT correspondente — revise manualmente`;
+      msg += "). Revise os dados antes de salvar.";
+      setIaStatus(msg);
+    } catch (e) {
+      setIaStatus("Erro ao processar o arquivo: " + (e.message || e));
+    } finally {
+      setIaLoading(false);
+    }
+  }
 
   async function salvar() {
     if (!form.numero.trim()) return alert("Informe o número da ata.");
@@ -253,6 +343,21 @@ function FormAta({ a, data, refresh, onClose }) {
   return (
     <Modal sobre="Registro de preços" titulo={a ? "Editar ata" : "Cadastrar ata"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar ata</Btn></>}>
+      <div className="mb-4 p-3.5 border border-amber-300 bg-amber-50/60 rounded-sm">
+        <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-amber-800 mb-2 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5" />Importar ata com IA
+        </h4>
+        <p className="font-sans text-[12px] text-amber-900 mb-2.5">Carregue o PDF ou imagem da ata de registro de preços. A IA extrai número, processo, fornecedor, vigência e itens, e vincula os itens ao catálogo pelo CATMAT.</p>
+        <div className="flex gap-2 items-center flex-wrap">
+          <Btn variant="forte">
+            <label className="cursor-pointer flex items-center">
+              <Upload className="w-4 h-4 inline mr-1" />{iaLoading ? "Processando…" : "Carregar arquivo"}
+              <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => { const f = e.target.files[0]; if (f) importarComIA(f); e.target.value = ""; }} />
+            </label>
+          </Btn>
+          {iaStatus && <span className="font-sans text-[12px] text-amber-900">{iaStatus}</span>}
+        </div>
+      </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Número da ata"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 12/2026" /></Campo>
         <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
