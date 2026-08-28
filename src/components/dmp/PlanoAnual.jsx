@@ -244,6 +244,24 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
 }
 
 function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }) {
+  const [termo, setTermo] = useState("");
+  const [status, setStatus] = useState("");
+  const statusNomes = { nao: "Não iniciado", parcial: "Parcial", concluido: "Concluído", acima: "Acima do plano" };
+  function statusDoItem(p) {
+    const e = execucaoDoItem(p);
+    const falta = nQtd(p.qtd) - e.qtd;
+    if (e.qtd === 0) return "nao";
+    if (falta > 0) return "parcial";
+    if (falta === 0) return "concluido";
+    return "acima";
+  }
+  const filtrados = itens.filter(p => {
+    const b = bem(p.benId);
+    const t = norm(termo.trim());
+    if (t && norm([p.codigo, b.objeto, b.catmat, b.pdm].join(" ")).indexOf(t) < 0) return false;
+    if (status && statusDoItem(p) !== status) return false;
+    return true;
+  });
   let plQ = 0, plV = 0, exQ = 0, exV = 0;
   return (
     <>
@@ -251,13 +269,21 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
         <Vazio titulo={`Nada a comparar no exercício de ${exercicio}`} texto="Inclua itens no plano e vincule os itens dos contratos ao código do PCA." />
       ) : (
         <>
+          <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
+            <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por item, código do PCA ou CATMAT" /></Campo></div>
+            <div className="min-w-[160px]"><Campo label="Status"><select value={status} onChange={e => setStatus(e.target.value)} className={inputCls}><option value="">Todos</option>{Object.entries(statusNomes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Campo></div>
+            <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto self-center">{filtrados.length} {filtrados.length === 1 ? "item" : "itens"}</span>
+          </div>
+          {filtrados.length === 0 ? (
+            <Vazio titulo="Nenhum item corresponde aos filtros" texto="Ajuste a busca ou o status." />
+          ) : (
           <div className="overflow-x-auto border border-slate-300 rounded-sm bg-white">
             <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
               <thead><tr className="bg-stone-50">
                 <Th>Código PCA</Th><Th>Item</Th><Th className="text-right">Planejado</Th><Th className="text-right">Contratado</Th><Th className="text-right">Execução</Th><Th className="text-right">A contratar</Th><Th>Lançamentos</Th><Th></Th>
               </tr></thead>
               <tbody>
-                {itens.map(p => {
+                {filtrados.map(p => {
                   const b = bem(p.benId);
                   const e = execucaoDoItem(p);
                   const planV = nQtd(p.qtd) * nVal(p.valor);
@@ -280,7 +306,7 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                 })}
               </tbody>
               <tfoot><tr className="border-t border-slate-300 bg-stone-50">
-                <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={2}>Exercício {exercicio} — {itens.length} itens do plano</td>
+                <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={2}>Exercício {exercicio} — {filtrados.length} {filtrados.length === 1 ? "item" : "itens"} do plano</td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtQ(plQ)}<br /><span className="font-mono text-xs">R$ {fmtM(plV)}</span></td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtQ(exQ)}<br /><span className="font-mono text-xs">R$ {fmtM(exV)}</span></td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{plQ ? fmtQ(Math.round(exQ / plQ * 100)) : "0"}%</td>
@@ -288,6 +314,7 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
               </tr></tfoot>
             </table>
           </div>
+          )}
           {itensSemVinculo.length > 0 && (
             <div className="mt-5">
               <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mb-2">Contratações sem vínculo com o plano</p>

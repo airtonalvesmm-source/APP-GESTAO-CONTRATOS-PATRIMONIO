@@ -6,6 +6,7 @@ import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, text
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
+import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 
 export default function Atas({ data, refresh }) {
   const { atas, contratos, catalog, licitacoes, fornecedores } = data;
@@ -16,6 +17,8 @@ export default function Atas({ data, refresh }) {
   const [cat, setCat] = useState("");
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("vigencia");
+  const [agrupar, setAgrupar] = useState(false);
+  const [vigencia, setVigencia] = useState("");
 
   const anos = Array.from(new Set(atas.map(a => a.inicio?.slice(0, 4) || a.fim?.slice(0, 4) || "").filter(Boolean))).sort().reverse();
   const categorias = CAT_ARP;
@@ -28,6 +31,11 @@ export default function Atas({ data, refresh }) {
     let res = atas.filter(a => {
       if (cat && catDaAta(a) !== cat) return false;
       if (ano && String(anoDaAta(a)) !== String(ano)) return false;
+      if (vigencia) {
+        const sv = situacaoAta(a);
+        if (vigencia === "vigente" && !(sv.dias !== null && sv.dias >= 0)) return false;
+        if (vigencia === "vencido" && !(sv.dias !== null && sv.dias < 0)) return false;
+      }
       if (t && norm([a.numero, a.processo, a.fornecedor, a.cnpj, a.categoria, ...(a.itens || []).map(it => catalog.find(b => b.id === it.benId)?.objeto || "")].join(" ")).indexOf(t) < 0) return false;
       return true;
     });
@@ -39,7 +47,7 @@ export default function Atas({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [atas, termo, cat, ano, ord, contratos, catalog]);
+  }, [atas, termo, cat, ano, ord, contratos, catalog, vigencia]);
 
   function alertasAtas() {
     const out = [];
@@ -74,6 +82,74 @@ export default function Atas({ data, refresh }) {
     baixarCSV("saldos-atas.csv", l);
   }
 
+  const grupos = useMemo(() => agrupar ? agruparPorAnoCategoria(lista, a => anoDaAta(a), a => catDaAta(a)) : [], [lista, agrupar]);
+
+  function renderItem(a) {
+    const s = situacaoAta(a), r = resumoAta(a, contratos);
+    const aberto = abertos.has(a.id);
+    return (
+      <div key={a.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
+        <button onClick={() => toggle(a.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
+          <span className="font-mono text-[15px] font-semibold text-slate-800">Ata {a.numero}</span>
+          <span className="font-sans text-[13px] font-semibold text-slate-600">{a.fornecedor || "Fornecedor não informado"}</span>
+          <span className="font-mono text-[11px] text-slate-500">{(a.itens || []).length} itens · saldo R$ {fmtM(r.sal)}</span>
+          <span className="ml-auto flex gap-2 items-center flex-wrap">
+            {a.categoria && <Pill tipo="neutro">{a.categoria}</Pill>}
+            <Pill tipo={s.classe}>{s.txt}</Pill>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        {aberto && (
+          <div className="px-4 pb-4 border-t border-slate-100">
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados da ata</p>
+            <p className="font-sans text-[13.5px] text-slate-600 mb-3">
+              Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {a.gerenciador || "—"} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
+            </p>
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens e saldos</p>
+            {(a.itens || []).length ? (
+              <div className="overflow-x-auto border border-slate-300 rounded-sm">
+                <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
+                  <thead><tr className="bg-stone-50">
+                    <Th>Item</Th><Th>Objeto</Th><Th className="text-right">Registrado</Th><Th className="text-right">Consumido</Th><Th className="text-right">Saldo</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Saldo (R$)</Th>
+                  </tr></thead>
+                  <tbody>
+                    {a.itens.map(it => {
+                      const b = catalog.find(x => x.id === it.benId) || { objeto: "(item removido)", catmat: "—", unidade: "—" };
+                      const c = consumido(a.id, it.id, contratos), sal = nQtd(it.qtd) - c;
+                      const pct = nQtd(it.qtd) ? Math.max(0, Math.min(100, sal / nQtd(it.qtd) * 100)) : 0;
+                      const cl = sal <= 0 ? "critico" : (pct <= 25 ? "aviso" : "");
+                      return (
+                        <tr key={it.id} className="border-b border-slate-100 hover:bg-stone-50">
+                          <td className="px-3 py-2.5 font-mono text-xs">{it.numItem || "—"}</td>
+                          <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat} · {b.unidade}</span></td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(it.qtd)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(c)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm"><b>{fmtQ(sal)}</b><Barra pct={pct} classe={cl} /></td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(it.valor)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(sal * nVal(it.valor))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot><tr className="border-t border-slate-300 bg-stone-50">
+                    <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={5}>Valor registrado R$ {fmtM(r.reg)} · consumido R$ {fmtM(r.cons)}</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(r.sal)}</td>
+                  </tr></tfoot>
+                </table>
+              </div>
+            ) : (
+              <Vazio titulo="Ata sem itens" texto="Edite a ata para registrar os itens e as quantidades." />
+            )}
+            <div className="flex gap-2 flex-wrap mt-3.5">
+              <MiniBtn onClick={() => setEditId(a.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar ata</MiniBtn>
+              <MiniBtn variant="risco" onClick={() => excluir(a)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <TelaCab titulo="Atas de registro de preços" desc="Cadastre as atas vigentes e acompanhe o saldo de cada item conforme os contratos e empenhos lançados."
@@ -106,80 +182,18 @@ export default function Atas({ data, refresh }) {
         <Vazio titulo="Nenhuma ata cadastrada" texto="Cadastre a ata com fornecedor, vigência e itens registrados para o sistema controlar o saldo." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} vigencia={vigencia} setVigencia={setVigencia} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhuma ata corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
+          ) : agrupar ? (
+            <GrupoAnoCategoria grupos={grupos} renderItem={renderItem} />
           ) : (
             <div className="space-y-3.5">
-              {lista.map(a => {
-                const s = situacaoAta(a), r = resumoAta(a, contratos);
-                const aberto = abertos.has(a.id);
-                return (
-                  <div key={a.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
-                    <button onClick={() => toggle(a.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
-                      <span className="font-mono text-[15px] font-semibold text-slate-800">Ata {a.numero}</span>
-                      <span className="font-sans text-[13px] font-semibold text-slate-600">{a.fornecedor || "Fornecedor não informado"}</span>
-                      <span className="font-mono text-[11px] text-slate-500">{(a.itens || []).length} itens · saldo R$ {fmtM(r.sal)}</span>
-                      <span className="ml-auto flex gap-2 items-center flex-wrap">
-                        {a.categoria && <Pill tipo="neutro">{a.categoria}</Pill>}
-                        <Pill tipo={s.classe}>{s.txt}</Pill>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
-                      </span>
-                    </button>
-                    {aberto && (
-                      <div className="px-4 pb-4 border-t border-slate-100">
-                        <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados da ata</p>
-                        <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-                          Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {a.gerenciador || "—"} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
-                        </p>
-                        <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens e saldos</p>
-                        {(a.itens || []).length ? (
-                          <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                            <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
-                              <thead><tr className="bg-stone-50">
-                                <Th>Item</Th><Th>Objeto</Th><Th className="text-right">Registrado</Th><Th className="text-right">Consumido</Th><Th className="text-right">Saldo</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Saldo (R$)</Th>
-                              </tr></thead>
-                              <tbody>
-                                {a.itens.map(it => {
-                                  const b = catalog.find(x => x.id === it.benId) || { objeto: "(item removido)", catmat: "—", unidade: "—" };
-                                  const c = consumido(a.id, it.id, contratos), sal = nQtd(it.qtd) - c;
-                                  const pct = nQtd(it.qtd) ? Math.max(0, Math.min(100, sal / nQtd(it.qtd) * 100)) : 0;
-                                  const cl = sal <= 0 ? "critico" : (pct <= 25 ? "aviso" : "");
-                                  return (
-                                    <tr key={it.id} className="border-b border-slate-100 hover:bg-stone-50">
-                                      <td className="px-3 py-2.5 font-mono text-xs">{it.numItem || "—"}</td>
-                                      <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat} · {b.unidade}</span></td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(it.qtd)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(c)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm"><b>{fmtQ(sal)}</b><Barra pct={pct} classe={cl} /></td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(it.valor)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(sal * nVal(it.valor))}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                              <tfoot><tr className="border-t border-slate-300 bg-stone-50">
-                                <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={5}>Valor registrado R$ {fmtM(r.reg)} · consumido R$ {fmtM(r.cons)}</td>
-                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(r.sal)}</td>
-                              </tr></tfoot>
-                            </table>
-                          </div>
-                        ) : (
-                          <Vazio titulo="Ata sem itens" texto="Edite a ata para registrar os itens e as quantidades." />
-                        )}
-                        <div className="flex gap-2 flex-wrap mt-3.5">
-                          <MiniBtn onClick={() => setEditId(a.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar ata</MiniBtn>
-                          <MiniBtn variant="risco" onClick={() => excluir(a)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {lista.map(renderItem)}
             </div>
           )}
-        </>
-      )}
+          </>
+          )}
 
       {(novo || editId) && <FormAta a={editId ? atas.find(x => x.id === editId) : null} data={data} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />}
     </div>
@@ -190,10 +204,11 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar, vigencia, setVigencia }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por número, processo, fornecedor ou item" /></Campo></div>
+      <div className="min-w-[132px]"><Campo label="Situação"><select value={vigencia} onChange={e => setVigencia(e.target.value)} className={inputCls}><option value="">Todas</option><option value="vigente">Vigentes</option><option value="vencido">Vencidas</option></select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">
@@ -202,6 +217,7 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
           <option value="saldo">Maior saldo</option><option value="fornecedor">Fornecedor (A → Z)</option>
         </select>
       </Campo></div>
+      <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
       <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto self-center">{total} {total === 1 ? "ata" : "atas"}</span>
     </div>
   );

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { X, ChevronDown } from "lucide-react";
 
 export function Pill({ tipo, children }) {
   const classes = {
@@ -120,15 +120,19 @@ export const inputCls = "border border-slate-300 rounded-sm px-2.5 py-2 font-san
 export const textareaCls = inputCls + " font-serif text-[14.5px] min-h-[74px] resize-y";
 
 export function Alertas({ itens }) {
+  const [aberto, setAberto] = useState(true);
   if (!itens.length) return null;
   return (
     <div className="border border-amber-300 bg-amber-50 rounded-sm px-4 py-3.5 mb-5">
-      <h4 className="m-0 mb-2 font-sans text-[11px] tracking-widest uppercase text-amber-700">
-        {itens.length} ponto{itens.length === 1 ? "" : "s"} de atenção
-      </h4>
-      <ul className="m-0 pl-4 text-sm text-amber-900 space-y-1">
-        {itens.map((a, i) => <li key={i} dangerouslySetInnerHTML={{ __html: a.txt }} />)}
-      </ul>
+      <button onClick={() => setAberto(a => !a)} className="w-full flex items-center justify-between m-0 font-sans text-[11px] tracking-widest uppercase text-amber-700 cursor-pointer">
+        <span>{itens.length} ponto{itens.length === 1 ? "" : "s"} de atenção</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${aberto ? "rotate-180" : ""}`} />
+      </button>
+      {aberto && (
+        <ul className="m-0 pl-4 text-sm text-amber-900 space-y-1 mt-2">
+          {itens.map((a, i) => <li key={i} dangerouslySetInnerHTML={{ __html: a.txt }} />)}
+        </ul>
+      )}
     </div>
   );
 }

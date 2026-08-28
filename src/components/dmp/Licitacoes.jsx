@@ -6,6 +6,7 @@ import { Btn, MiniBtn, Campo, Vazio, Pill, Modal, inputCls, textareaCls } from "
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 
 export default function Licitacoes({ data, refresh }) {
   const { licitacoes, atas } = data;
@@ -16,6 +17,7 @@ export default function Licitacoes({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
   const [abertos, setAbertos] = useState(new Set());
+  const [agrupar, setAgrupar] = useState(false);
 
   const anos = Array.from(new Set(licitacoes.filter(l => l.ano).map(l => l.ano))).sort().reverse();
 
@@ -66,6 +68,64 @@ export default function Licitacoes({ data, refresh }) {
   }
 
   const categorias = Array.from(new Set(licitacoes.map(l => l.categoria).filter(Boolean)));
+  const grupos = useMemo(() => agrupar ? agruparPorAnoCategoria(lista, l => l.ano, l => l.categoria) : [], [lista, agrupar]);
+
+  function renderItem(l) {
+    const atasL = atas.filter(a => a.licitacaoId === l.id);
+    const aberto = abertos.has(l.id);
+    return (
+      <div key={l.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
+        <button onClick={() => toggle(l.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
+          <span className="font-mono text-[15px] font-semibold text-slate-800">{l.numero}/{l.ano}</span>
+          <span className="font-sans text-[13px] font-semibold text-slate-600">{l.modalidade}</span>
+          <span className="font-mono text-[11px] text-slate-500">{l.categoria || "—"} · {fmtQ(l.qtdItens)} itens · R$ {fmtM(l.valorGlobal)}</span>
+          <span className="ml-auto flex gap-2 items-center flex-wrap">
+            {l.srp === "Sim" && <Pill tipo="neutro">Registro de preços</Pill>}
+            <Pill tipo={situacao(l)}>{l.status}</Pill>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        {aberto && (
+          <div className="px-4 pb-4 border-t border-slate-100">
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados do certame</p>
+            <p className="font-sans text-[13.5px] text-slate-600 mb-3">
+              Processo: {l.processo || "—"} · Registro de preços: {l.srp} · Itens: {fmtQ(l.qtdItens)} · Valor global: R$ {fmtM(l.valorGlobal)}
+            </p>
+            {atasL.length > 0 ? (
+              <div className="overflow-x-auto border border-slate-300 rounded-sm">
+                <table className="w-full border-collapse text-[13.5px]">
+                  <thead><tr className="bg-stone-50">
+                    <Th>Ata</Th><Th>Fornecedor</Th><Th>Categoria</Th>
+                    <Th className="text-right">Itens</Th><Th className="text-right">Valor registrado (R$)</Th>
+                  </tr></thead>
+                  <tbody>
+                    {atasL.map(a => {
+                      const reg = (a.itens || []).reduce((t, it) => t + nQtd(it.qtd) * nVal(it.valor), 0);
+                      return (
+                        <tr key={a.id} className="border-b border-slate-100">
+                          <td className="px-3 py-2 font-mono text-xs">{a.numero}</td>
+                          <td className="px-3 py-2">{a.fornecedor || "—"}</td>
+                          <td className="px-3 py-2">{a.categoria || "—"}</td>
+                          <td className="px-3 py-2 text-right font-mono text-sm">{(a.itens || []).length}</td>
+                          <td className="px-3 py-2 text-right font-mono text-sm">{fmtM(reg)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Vazio titulo="Nenhuma ata vinculada" texto="Ao cadastrar a ata, escolha este certame em 'Licitação de origem'." />
+            )}
+            <div className="flex gap-2 flex-wrap mt-3.5">
+              <MiniBtn onClick={() => setEditId(l.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
+              <MiniBtn variant="risco" onClick={() => excluir(l)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -92,67 +152,14 @@ export default function Licitacoes({ data, refresh }) {
         <Vazio titulo="Nenhuma licitação cadastrada" texto="Cadastre o certame para vincular as atas de registro de preços a ele." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} categorias={categorias} total={lista.length} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} categorias={categorias} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhuma licitação corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
+          ) : agrupar ? (
+            <GrupoAnoCategoria grupos={grupos} renderItem={renderItem} />
           ) : (
             <div className="space-y-3.5">
-              {lista.map(l => {
-                const atasL = atas.filter(a => a.licitacaoId === l.id);
-                const aberto = abertos.has(l.id);
-                return (
-                  <div key={l.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
-                    <button onClick={() => toggle(l.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
-                      <span className="font-mono text-[15px] font-semibold text-slate-800">{l.numero}/{l.ano}</span>
-                      <span className="font-sans text-[13px] font-semibold text-slate-600">{l.modalidade}</span>
-                      <span className="font-mono text-[11px] text-slate-500">{l.categoria || "—"} · {fmtQ(l.qtdItens)} itens · R$ {fmtM(l.valorGlobal)}</span>
-                      <span className="ml-auto flex gap-2 items-center flex-wrap">
-                        {l.srp === "Sim" && <Pill tipo="neutro">Registro de preços</Pill>}
-                        <Pill tipo={situacao(l)}>{l.status}</Pill>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
-                      </span>
-                    </button>
-                    {aberto && (
-                      <div className="px-4 pb-4 border-t border-slate-100">
-                        <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados do certame</p>
-                        <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-                          Processo: {l.processo || "—"} · Registro de preços: {l.srp} · Itens: {fmtQ(l.qtdItens)} · Valor global: R$ {fmtM(l.valorGlobal)}
-                        </p>
-                        {atasL.length > 0 ? (
-                          <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                            <table className="w-full border-collapse text-[13.5px]">
-                              <thead><tr className="bg-stone-50">
-                                <Th>Ata</Th><Th>Fornecedor</Th><Th>Categoria</Th>
-                                <Th className="text-right">Itens</Th><Th className="text-right">Valor registrado (R$)</Th>
-                              </tr></thead>
-                              <tbody>
-                                {atasL.map(a => {
-                                  const reg = (a.itens || []).reduce((t, it) => t + nQtd(it.qtd) * nVal(it.valor), 0);
-                                  return (
-                                    <tr key={a.id} className="border-b border-slate-100">
-                                      <td className="px-3 py-2 font-mono text-xs">{a.numero}</td>
-                                      <td className="px-3 py-2">{a.fornecedor || "—"}</td>
-                                      <td className="px-3 py-2">{a.categoria || "—"}</td>
-                                      <td className="px-3 py-2 text-right font-mono text-sm">{(a.itens || []).length}</td>
-                                      <td className="px-3 py-2 text-right font-mono text-sm">{fmtM(reg)}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <Vazio titulo="Nenhuma ata vinculada" texto="Ao cadastrar a ata, escolha este certame em 'Licitação de origem'." />
-                        )}
-                        <div className="flex gap-2 flex-wrap mt-3.5">
-                          <MiniBtn onClick={() => setEditId(l.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
-                          <MiniBtn variant="risco" onClick={() => excluir(l)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {lista.map(renderItem)}
             </div>
           )}
         </>
@@ -167,7 +174,7 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, categorias, total }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, categorias, total, agrupar, setAgrupar }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]">
@@ -175,6 +182,7 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
           <input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por número, modalidade, processo ou status" />
         </Campo>
       </div>
+      <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
       {categorias.length > 0 && (
         <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{categorias.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       )}

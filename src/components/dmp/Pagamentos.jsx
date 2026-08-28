@@ -9,6 +9,7 @@ import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { FormOcorrencia } from "./Contratos";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 
 export default function Pagamentos({ data, refresh }) {
   const { contratos, ocorrencias, pagamentos, atas } = data;
@@ -20,6 +21,7 @@ export default function Pagamentos({ data, refresh }) {
   const [cat, setCat] = useState("");
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("retencao");
+  const [agrupar, setAgrupar] = useState(false);
 
   function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
@@ -85,6 +87,103 @@ export default function Pagamentos({ data, refresh }) {
     baixarCSV("pagamentos.csv", l);
   }
 
+  const grupos = useMemo(() => agrupar ? agruparPorAnoCategoria(lista, c => anoDoContrato(c), c => catDoContrato(c)) : [], [lista, agrupar]);
+
+  function renderItem(c) {
+    const t = totaisPagamento(c, pagamentos, ocorrencias);
+    const pct = t.empenhado ? Math.max(0, Math.min(100, t.pago / t.empenhado * 100)) : 0;
+    const cl = t.retido > 0 ? "critico" : (pct >= 100 ? "" : "aviso");
+    const aberto = abertos.has(c.id);
+    const ocs = ocorrenciasDe(c.id, ocorrencias);
+    return (
+      <div key={c.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
+        <button onClick={() => toggle(c.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
+          <span className="font-mono text-[15px] font-semibold text-slate-800">{c.tipo} {c.numero}</span>
+          <span className="font-sans text-[13px] font-semibold text-slate-600">{c.fornecedor || "—"}</span>
+          <span className="font-mono text-[11px] text-slate-500">Empenhado R$ {fmtM(t.empenhado)} · pago R$ {fmtM(t.pago)}</span>
+          <Barra pct={pct} classe={cl} />
+          <span className="ml-auto flex gap-2 items-center flex-wrap">
+            {temAditivo(c.id) && <Pill tipo="neutro">Aditivado</Pill>}
+            {temFalta(c.id) && <Pill tipo="critico">Descumprimento</Pill>}
+            {t.retido > 0 && <Pill tipo="critico">R$ {fmtM(t.retido)} retido</Pill>}
+            <Pill tipo={t.aPagar > 0 ? "aviso" : "ok"}>{t.aPagar > 0 ? "A pagar R$ " + fmtM(t.aPagar) : "Quitado"}</Pill>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        {aberto && (
+          <div className="px-4 pb-4 border-t border-slate-100">
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Execução financeira</p>
+            <p className="font-sans text-[13.5px] text-slate-600 mb-3">
+              Nota de empenho: {c.notaEmpenho || "—"} · Itens R$ {fmtM(valorItensContrato(c))}
+              {aditivoValor(c.id, ocorrencias) ? ` · aditivos R$ ${fmtM(aditivoValor(c.id, ocorrencias))}` : ""}
+              {" · valor empenhado R$ " + fmtM(t.empenhado)} · vigência até {fmtData(fimVigente(c, ocorrencias))}
+            </p>
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Notas fiscais</p>
+            {t.ps.length ? (
+              <div className="overflow-x-auto border border-slate-300 rounded-sm">
+                <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
+                  <thead><tr className="bg-stone-50">
+                    <Th>Nota fiscal</Th><Th>Emissão</Th><Th className="text-right">Valor da NF</Th><Th className="text-right">Pago</Th><Th className="text-right">Retido</Th><Th>Motivo da retenção</Th><Th>Pagamento</Th><Th></Th>
+                  </tr></thead>
+                  <tbody>
+                    {t.ps.map(p => {
+                      const ret = Math.max(0, nVal(p.valorNF) - nVal(p.valorPago));
+                      return (
+                        <tr key={p.id} className="border-b border-slate-100 hover:bg-stone-50">
+                          <td className="px-3 py-2.5 font-mono text-xs">{p.nf}</td>
+                          <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataNF)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valorNF)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valorPago)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{ret ? <b className="text-red-800">{fmtM(ret)}</b> : "—"}</td>
+                          <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{ret ? (p.motivo || "não informado") : "—"}</td>
+                          <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataPagamento)}</td>
+                          <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setEditNfId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirNF(p)}>Excluir</MiniBtn></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot><tr className="border-t border-slate-300 bg-stone-50">
+                    <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={2}>Total das notas</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.nf)}</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.pago)}</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.retido)}</td>
+                  </tr></tfoot>
+                </table>
+              </div>
+            ) : (
+              <Vazio titulo="Sem notas fiscais lançadas" texto="Use 'Lançar nota fiscal' para registrar a execução financeira." />
+            )}
+            {ocs.length > 0 && (
+              <>
+                <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Aditivos e ocorrências</p>
+                <div className="overflow-x-auto border border-slate-300 rounded-sm">
+                  <table className="w-full border-collapse text-[13.5px] min-w-[480px]">
+                    <thead><tr className="bg-stone-50"><Th>Data</Th><Th>Tipo</Th><Th>Descrição</Th><Th className="text-right">Efeito</Th><Th></Th></tr></thead>
+                    <tbody>
+                      {ocs.map(o => (
+                        <tr key={o.id} className="border-b border-slate-100 hover:bg-stone-50">
+                          <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.data)}</td>
+                          <td className="px-3 py-2.5"><Pill tipo={FALTAS.includes(o.tipo) ? "critico" : "neutro"}>{o.tipo}</Pill></td>
+                          <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{o.descricao || "—"}</td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm">{o.tipo === "Aditivo de prazo" ? `+${o.dias} dias` : (nVal(o.valor) ? `R$ ${fmtM(nVal(o.valor))}` : "—")}</td>
+                          <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => excluirOcorrencia(o)}>Excluir</MiniBtn></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            <div className="flex gap-2 flex-wrap mt-3.5">
+              <Btn variant="forte" onClick={() => setNfContratoId(c.id)}>Lançar nota fiscal</Btn>
+              <Btn onClick={() => setOcorrContratoId(c.id)}>Registrar aditivo ou ocorrência</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <TelaCab titulo="Pagamentos" desc="Notas fiscais de cada contrato, com valor pago, valor retido e o motivo da retenção."
@@ -114,107 +213,14 @@ export default function Pagamentos({ data, refresh }) {
       ) : (
         <>
           <Alertas itens={alertasContratos()} />
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhum contrato corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
+          ) : agrupar ? (
+            <GrupoAnoCategoria grupos={grupos} renderItem={renderItem} />
           ) : (
             <div className="space-y-3.5">
-              {lista.map(c => {
-                const t = totaisPagamento(c, pagamentos, ocorrencias);
-                const pct = t.empenhado ? Math.max(0, Math.min(100, t.pago / t.empenhado * 100)) : 0;
-                const cl = t.retido > 0 ? "critico" : (pct >= 100 ? "" : "aviso");
-                const aberto = abertos.has(c.id);
-                const ocs = ocorrenciasDe(c.id, ocorrencias);
-                return (
-                  <div key={c.id} className="bg-white border border-slate-300 rounded-sm overflow-hidden">
-                    <button onClick={() => toggle(c.id)} className="w-full px-4 py-3.5 flex gap-3.5 items-center flex-wrap text-left hover:bg-stone-50 transition-colors">
-                      <span className="font-mono text-[15px] font-semibold text-slate-800">{c.tipo} {c.numero}</span>
-                      <span className="font-sans text-[13px] font-semibold text-slate-600">{c.fornecedor || "—"}</span>
-                      <span className="font-mono text-[11px] text-slate-500">Empenhado R$ {fmtM(t.empenhado)} · pago R$ {fmtM(t.pago)}</span>
-                      <Barra pct={pct} classe={cl} />
-                      <span className="ml-auto flex gap-2 items-center flex-wrap">
-                        {temAditivo(c.id) && <Pill tipo="neutro">Aditivado</Pill>}
-                        {temFalta(c.id) && <Pill tipo="critico">Descumprimento</Pill>}
-                        {t.retido > 0 && <Pill tipo="critico">R$ {fmtM(t.retido)} retido</Pill>}
-                        <Pill tipo={t.aPagar > 0 ? "aviso" : "ok"}>{t.aPagar > 0 ? "A pagar R$ " + fmtM(t.aPagar) : "Quitado"}</Pill>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
-                      </span>
-                    </button>
-                    {aberto && (
-                      <div className="px-4 pb-4 border-t border-slate-100">
-                        <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Execução financeira</p>
-                        <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-                          Nota de empenho: {c.notaEmpenho || "—"} · Itens R$ {fmtM(valorItensContrato(c))}
-                          {aditivoValor(c.id, ocorrencias) ? ` · aditivos R$ ${fmtM(aditivoValor(c.id, ocorrencias))}` : ""}
-                          {" · valor empenhado R$ " + fmtM(t.empenhado)} · vigência até {fmtData(fimVigente(c, ocorrencias))}
-                        </p>
-                        <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Notas fiscais</p>
-                        {t.ps.length ? (
-                          <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                            <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
-                              <thead><tr className="bg-stone-50">
-                                <Th>Nota fiscal</Th><Th>Emissão</Th><Th className="text-right">Valor da NF</Th><Th className="text-right">Pago</Th><Th className="text-right">Retido</Th><Th>Motivo da retenção</Th><Th>Pagamento</Th><Th></Th>
-                              </tr></thead>
-                              <tbody>
-                                {t.ps.map(p => {
-                                  const ret = Math.max(0, nVal(p.valorNF) - nVal(p.valorPago));
-                                  return (
-                                    <tr key={p.id} className="border-b border-slate-100 hover:bg-stone-50">
-                                      <td className="px-3 py-2.5 font-mono text-xs">{p.nf}</td>
-                                      <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataNF)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valorNF)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valorPago)}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{ret ? <b className="text-red-800">{fmtM(ret)}</b> : "—"}</td>
-                                      <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{ret ? (p.motivo || "não informado") : "—"}</td>
-                                      <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataPagamento)}</td>
-                                      <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setEditNfId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirNF(p)}>Excluir</MiniBtn></td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                              <tfoot><tr className="border-t border-slate-300 bg-stone-50">
-                                <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={2}>Total das notas</td>
-                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.nf)}</td>
-                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.pago)}</td>
-                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(t.retido)}</td>
-                              </tr></tfoot>
-                            </table>
-                          </div>
-                        ) : (
-                          <Vazio titulo="Sem notas fiscais lançadas" texto="Use 'Lançar nota fiscal' para registrar a execução financeira." />
-                        )}
-
-                        {ocs.length > 0 && (
-                          <>
-                            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Aditivos e ocorrências</p>
-                            <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                              <table className="w-full border-collapse text-[13.5px] min-w-[480px]">
-                                <thead><tr className="bg-stone-50"><Th>Data</Th><Th>Tipo</Th><Th>Descrição</Th><Th className="text-right">Efeito</Th><Th></Th></tr></thead>
-                                <tbody>
-                                  {ocs.map(o => (
-                                    <tr key={o.id} className="border-b border-slate-100 hover:bg-stone-50">
-                                      <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.data)}</td>
-                                      <td className="px-3 py-2.5"><Pill tipo={FALTAS.includes(o.tipo) ? "critico" : "neutro"}>{o.tipo}</Pill></td>
-                                      <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{o.descricao || "—"}</td>
-                                      <td className="px-3 py-2.5 text-right font-mono text-sm">{o.tipo === "Aditivo de prazo" ? `+${o.dias} dias` : (nVal(o.valor) ? `R$ ${fmtM(nVal(o.valor))}` : "—")}</td>
-                                      <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => excluirOcorrencia(o)}>Excluir</MiniBtn></td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </>
-                        )}
-
-                        <div className="flex gap-2 flex-wrap mt-3.5">
-                          <Btn variant="forte" onClick={() => setNfContratoId(c.id)}>Lançar nota fiscal</Btn>
-                          <Btn onClick={() => setOcorrContratoId(c.id)}>Registrar aditivo ou ocorrência</Btn>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {lista.map(renderItem)}
             </div>
           )}
         </>
@@ -230,10 +236,11 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por contrato, fornecedor, nota fiscal ou motivo de retenção" /></Campo></div>
+      <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">
@@ -285,8 +292,8 @@ function FormPagamento({ p, contratoId, data, refresh, onClose }) {
         <Campo label="Emissão da nota"><input type="date" className={inputCls} value={form.dataNF} onChange={e => setF("dataNF", e.target.value)} /></Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
-        <Campo label="Valor da nota (R$)"><input inputMode="decimal" className={inputCls} value={form.valorNF ? fmtM(form.valorNF) : ""} onChange={e => setF("valorNF", nVal(e.target.value))} /></Campo>
-        <Campo label="Valor pago (R$)"><input inputMode="decimal" className={inputCls} value={form.valorPago ? fmtM(form.valorPago) : ""} onChange={e => setF("valorPago", nVal(e.target.value))} /></Campo>
+        <Campo label="Valor da nota (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorNF} onChange={e => setF("valorNF", nVal(e.target.value))} /></Campo>
+        <Campo label="Valor pago (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorPago} onChange={e => setF("valorPago", nVal(e.target.value))} /></Campo>
         <Campo label="Data do pagamento"><input type="date" className={inputCls} value={form.dataPagamento} onChange={e => setF("dataPagamento", e.target.value)} /></Campo>
         <Campo label="Valor retido (R$)" ajuda="Diferença entre a nota e o pago."><input readOnly className={inputCls + " bg-slate-50"} value={fmtM(retido)} /></Campo>
       </div>
