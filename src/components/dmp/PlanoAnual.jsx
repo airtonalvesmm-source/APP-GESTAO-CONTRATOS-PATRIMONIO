@@ -290,7 +290,7 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                   plQ += nQtd(p.qtd); plV += planV; exQ += e.qtd; exV += e.valor;
                   const pct = nQtd(p.qtd) ? e.qtd / nQtd(p.qtd) * 100 : 0;
                   const falta = nQtd(p.qtd) - e.qtd;
-                  const sit = e.qtd === 0 ? { c: "neutro", t: "Não iniciado" } : (falta > 0 ? { c: "aviso", t: "Parcial" } : (falta === 0 ? { c: "ok", t: "Concluído" } : { c: "critico", t: "Acima do plano" }));
+                  const sit = e.qtd === 0 ? { c: "neutro", t: "Não iniciado" } : (falta > 0 ? { c: "aviso", t: "Parcial" } : (falta === 0 ? { c: "neutro", t: "Concluído" } : { c: "critico", t: "Acima do plano" }));
                   return (
                     <tr key={p.id} className="border-b border-slate-100 hover:bg-stone-50">
                       <td className="px-3 py-2.5 font-mono text-xs">{p.codigo || "—"}</td>

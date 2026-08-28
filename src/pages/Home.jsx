@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { ORDEM, BENS_BASE } from "@/lib/dmp-data";
-import { diasAte, anoAtual } from "@/lib/dmp-utils";
+import { BENS_BASE } from "@/lib/dmp-data";
 import Catalogo from "@/components/dmp/Catalogo";
 import PlanoAnual from "@/components/dmp/PlanoAnual";
 import Licitacoes from "@/components/dmp/Licitacoes";
@@ -9,8 +8,10 @@ import Atas from "@/components/dmp/Atas";
 import Contratos from "@/components/dmp/Contratos";
 import Pagamentos from "@/components/dmp/Pagamentos";
 import Fornecedores from "@/components/dmp/Fornecedores";
+import Painel from "@/components/dmp/Painel";
 
 const TABS = [
+  { id: "painel", label: "Painel" },
   { id: "catalogo", label: "Catálogo" },
   { id: "pca", label: "Plano Anual" },
   { id: "licitacoes", label: "Licitações" },
@@ -21,7 +22,7 @@ const TABS = [
 ];
 
 export default function Home() {
-  const [tab, setTab] = useState("catalogo");
+  const [tab, setTab] = useState("painel");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     catalog: [], pca: [], licitacoes: [], atas: [], contratos: [],
@@ -77,9 +78,6 @@ export default function Home() {
     );
   }
 
-  const noPlano = data.pca.filter(p => +p.exercicio === anoAtual).length;
-  const vigentes = data.atas.filter(a => { const d = diasAte(a.fim); return d === null || d >= 0; }).length;
-
   return (
     <div className="min-h-screen bg-stone-100 text-slate-800 font-serif">
       {/* Cabeçalho */}
@@ -88,11 +86,6 @@ export default function Home() {
           <div className="font-sans flex-1 min-w-[320px]">
             <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">MP-PI · CAA · Divisão de Material Permanente</p>
             <h1 className="text-[clamp(21px,3vw,29px)] font-bold tracking-tight leading-tight">Catálogo de bens e controle de contratações</h1>
-          </div>
-          <div className="flex gap-2.5 flex-wrap">
-            <Selo n={data.catalog.length} label="Itens no catálogo" />
-            <Selo n={noPlano} label={`No PCA ${anoAtual}`} />
-            <Selo n={vigentes} label="Atas vigentes" />
           </div>
         </div>
         <nav className="max-w-[1200px] mx-auto px-5 pt-3.5 flex gap-0.5 flex-wrap">
@@ -107,6 +100,7 @@ export default function Home() {
       </header>
 
       <main className="max-w-[1200px] mx-auto px-5 pb-20">
+        {tab === "painel" && <Painel data={data} setTab={setTab} />}
         {tab === "catalogo" && <Catalogo data={data} refresh={refresh} />}
         {tab === "pca" && <PlanoAnual data={data} refresh={refresh} />}
         {tab === "licitacoes" && <Licitacoes data={data} refresh={refresh} />}
@@ -121,15 +115,6 @@ export default function Home() {
           DMP/CAA · MP-PI — Catálogo de bens permanentes, Plano Anual de Contratações, atas de registro de preços e contratos.
         </div>
       </footer>
-    </div>
-  );
-}
-
-function Selo({ n, label }) {
-  return (
-    <div className="bg-slate-900 border border-slate-600 rounded-sm px-3 py-1.5 min-w-[92px] text-left">
-      <b className="block font-mono text-[17px] font-semibold text-stone-100 leading-tight">{n}</b>
-      <span className="block font-mono text-[9px] tracking-widest uppercase text-slate-400 mt-0.5">{label}</span>
     </div>
   );
 }

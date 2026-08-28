@@ -106,7 +106,7 @@ export default function Pagamentos({ data, refresh }) {
             {temAditivo(c.id) && <Pill tipo="neutro">Aditivado</Pill>}
             {temFalta(c.id) && <Pill tipo="critico">Descumprimento</Pill>}
             {t.retido > 0 && <Pill tipo="critico">R$ {fmtM(t.retido)} retido</Pill>}
-            <Pill tipo={t.aPagar > 0 ? "aviso" : "ok"}>{t.aPagar > 0 ? "A pagar R$ " + fmtM(t.aPagar) : "Quitado"}</Pill>
+            <Pill tipo={t.aPagar > 0 ? "aviso" : "neutro"}>{t.aPagar > 0 ? "A pagar R$ " + fmtM(t.aPagar) : "Quitado"}</Pill>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
           </span>
         </button>
