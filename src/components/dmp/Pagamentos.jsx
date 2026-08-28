@@ -114,7 +114,7 @@ export default function Pagamentos({ data, refresh }) {
           <div className="px-4 pb-4 border-t border-slate-100">
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Execução financeira</p>
             <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-              Nota de empenho: {c.notaEmpenho || "—"} · Itens R$ {fmtM(valorItensContrato(c))}
+              Processo: {c.processo || "—"} · Nota de empenho: {c.notaEmpenho || "—"} · Itens R$ {fmtM(valorItensContrato(c))}
               {aditivoValor(c.id, ocorrencias) ? ` · aditivos R$ ${fmtM(aditivoValor(c.id, ocorrencias))}` : ""}
               {" · valor empenhado R$ " + fmtM(t.empenhado)} · vigência até {fmtData(fimVigente(c, ocorrencias))}
             </p>
