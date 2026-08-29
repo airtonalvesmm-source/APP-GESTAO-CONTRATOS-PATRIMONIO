@@ -197,10 +197,8 @@ export default function Contratos({ data, refresh }) {
               return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, inicio: rec.inicio, fim: rec.fim, itens: [] };
             }}
             ajuda="O número da ata deve já estar cadastrado. O fornecedor e CNPJ virão da ata vinculada. O contrato será criado sem itens — edite-o depois para lançar os itens (o saldo da ata será baixado). Datas no formato dd/mm/aaaa." />
-          <Btn variant="forte" onClick={() => setNovo(true)} disabled={atas.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
+          <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
         </>} />
-
-      {atas.length === 0 && <div className="border border-amber-300 bg-amber-50 rounded-sm px-4 py-3 text-sm text-amber-900 mb-4">Cadastre uma ata antes de lançar contratos.</div>}
 
       {contratos.length === 0 ? (
         <Vazio titulo="Nenhum contrato ou empenho lançado" texto="Cadastre um contrato vinculado a uma ata para dar baixa no saldo dos itens." />
@@ -248,12 +246,12 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
 }
 
 function FormContrato({ c, data, refresh, onClose }) {
-  const { atas, catalog, pca, contratos } = data;
+  const { atas, catalog, pca, contratos, fornecedores } = data;
   const ctEmEdicao = c?.id || null;
   const [form, setForm] = useState({
     tipo: c?.tipo || "Contrato", numero: c?.numero || "", processo: c?.processo || "",
-    notaEmpenho: c?.notaEmpenho || "", ataId: c?.ataId || atas[0]?.id || "",
-    inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
+    notaEmpenho: c?.notaEmpenho || "", ataId: c?.ataId || "",
+    fornecedorId: c?.fornecedorId || "", inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
 
@@ -266,40 +264,71 @@ function FormContrato({ c, data, refresh, onClose }) {
         const a = atas.find(x => x.id === form.ataId);
         const x = (a?.itens || []).find(y => y.id === v);
         if (x) {
+          novo[i].benId = x.benId;
           novo[i].valor = x.valor;
           const iguais = pca.filter(p => p.benId === x.benId);
           novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "";
         }
       }
+      if (k === "benId" && !form.ataId) {
+        const iguais = pca.filter(p => p.benId === v);
+        novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "";
+      }
       return novo;
     });
   }
 
+  function handleAtaChange(ataId) {
+    setF("ataId", ataId);
+    if (!ataId) { setItens([]); return; }
+    const a = atas.find(x => x.id === ataId);
+    if (!a || !(a.itens || []).length) { setItens([]); return; }
+    const ano = new Date().getFullYear();
+    setItens((a.itens || []).map(x => {
+      const iguais = pca.filter(p => p.benId === x.benId);
+      return { itemAtaId: x.id, benId: x.benId, qtd: "", valor: x.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === ano) || iguais[0]).id : "" };
+    }));
+  }
+
   function addItem() {
-    const a = atas.find(x => x.id === form.ataId);
-    if (!a || !(a.itens || []).length) return alert("A ata selecionada não tem itens.");
-    const primeiro = a.itens[0];
-    const iguais = pca.filter(p => p.benId === primeiro.benId);
-    setItens(arr => [...arr, { itemAtaId: primeiro.id, qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "" }]);
+    if (form.ataId) {
+      const a = atas.find(x => x.id === form.ataId);
+      if (!a || !(a.itens || []).length) return alert("A ata selecionada não tem itens.");
+      const primeiro = a.itens[0];
+      const iguais = pca.filter(p => p.benId === primeiro.benId);
+      setItens(arr => [...arr, { itemAtaId: primeiro.id, benId: primeiro.benId, qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "" }]);
+    } else {
+      if (!catalog.length) return alert("Catálogo vazio.");
+      const b = catalog[0];
+      const iguais = pca.filter(p => p.benId === b.id);
+      setItens(arr => [...arr, { itemAtaId: "", benId: b.id, qtd: "", valor: "", pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "" }]);
+    }
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
 
   async function salvar() {
     if (!form.numero.trim()) return alert("Informe o número do contrato ou empenho.");
-    const a = atas.find(x => x.id === form.ataId);
-    if (!a) return alert("Selecione a ata vinculada.");
+    const a = form.ataId ? atas.find(x => x.id === form.ataId) : null;
+    if (!a && !form.fornecedorId) return alert("Selecione a ata vinculada ou o fornecedor (para contratação direta).");
     const itensVal = [];
     for (const it of itens) {
       const q = nQtd(it.qtd); if (!q) continue;
-      const x = (a.itens || []).find(y => y.id === it.itemAtaId);
-      if (!x) continue;
-      const disp = saldoItem(a, x, contratos, ctEmEdicao);
-      if (q > disp) return alert(`Quantidade acima do saldo em ${catalog.find(b => b.id === x.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
-      itensVal.push({ itemAtaId: x.id, benId: x.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+      if (a) {
+        const x = (a.itens || []).find(y => y.id === it.itemAtaId);
+        if (!x) continue;
+        const disp = saldoItem(a, x, contratos, ctEmEdicao);
+        if (q > disp) return alert(`Quantidade acima do saldo em ${catalog.find(b => b.id === x.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
+        itensVal.push({ itemAtaId: x.id, benId: x.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+      } else {
+        itensVal.push({ itemAtaId: "", benId: it.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+      }
     }
     if (!itensVal.length) return alert("Informe ao menos um item com quantidade.");
+    let fornecedorId = "", fornecedor = "", cnpj = "";
+    if (a) { fornecedorId = a.fornecedorId || ""; fornecedor = a.fornecedor; cnpj = a.cnpj; }
+    else { const f = fornecedores.find(x => x.id === form.fornecedorId); fornecedorId = f?.id || ""; fornecedor = f?.razao || ""; cnpj = f?.cnpj || ""; }
     const dados = { ...form, numero: form.numero.trim(), processo: form.processo.trim(), notaEmpenho: form.notaEmpenho.trim(),
-      ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj,
+      ataId: form.ataId, fornecedorId, fornecedor, cnpj,
       objeto: form.objeto.trim(), inicio: form.inicio, fim: form.fim, itens: itensVal };
     if (c) await base44.entities.Contrato.update(c.id, dados);
     else await base44.entities.Contrato.create(dados);
@@ -321,14 +350,27 @@ function FormContrato({ c, data, refresh, onClose }) {
   const a = atas.find(x => x.id === form.ataId);
 
   return (
-    <Modal sobre="Execução do registro de preços" titulo={c ? "Editar lançamento" : "Cadastrar contrato ou empenho"} onClose={onClose}
+    <Modal sobre={form.ataId ? "Execução do registro de preços" : "Contratação direta"} titulo={c ? "Editar lançamento" : "Cadastrar contrato ou empenho"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar lançamento</Btn></>}>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Tipo"><select className={inputCls} value={form.tipo} onChange={e => setF("tipo", e.target.value)}><option>Contrato</option><option>Nota de empenho</option></select></Campo>
         <Campo label="Número"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 45/2026" /></Campo>
         <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
         <Campo label="Nota de empenho"><input className={inputCls} value={form.notaEmpenho} onChange={e => setF("notaEmpenho", e.target.value)} placeholder="ex.: 2026NE000418" /></Campo>
-        <Campo label="Ata vinculada"><select className={inputCls} value={form.ataId} onChange={e => { setF("ataId", e.target.value); setItens([]); }}>{atas.map(at => <option key={at.id} value={at.id}>Ata {at.numero} — {at.fornecedor || ""}</option>)}</select></Campo>
+        <Campo label="Ata vinculada" ajuda={form.ataId ? "Itens da ata carregados abaixo — ajuste as quantidades e remova os que não serão contratados." : "Sem ata: contratação direta. Informe o fornecedor abaixo."}>
+          <select className={inputCls} value={form.ataId} onChange={e => handleAtaChange(e.target.value)}>
+            <option value="">Sem ata vinculada</option>
+            {atas.map(at => <option key={at.id} value={at.id}>Ata {at.numero} — {at.fornecedor || ""}</option>)}
+          </select>
+        </Campo>
+        {!form.ataId && (
+          <Campo label="Fornecedor">
+            <select className={inputCls} value={form.fornecedorId} onChange={e => setF("fornecedorId", e.target.value)}>
+              <option value="">Selecione o fornecedor</option>
+              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>)}
+            </select>
+          </Campo>
+        )}
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => setF("inicio", e.target.value)} /></Campo>
@@ -339,7 +381,7 @@ function FormContrato({ c, data, refresh, onClose }) {
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens contratados</p>
       <div className="border border-slate-300 rounded-sm overflow-hidden">
         {itens.length === 0 ? (
-          <div className="px-3 py-2.5 text-sm text-slate-500">Nenhum item. Use "Adicionar item".</div>
+          <div className="px-3 py-2.5 text-sm text-slate-500">{form.ataId ? "A ata selecionada não tem itens registrados." : "Sem ata vinculada. Use \"Adicionar item\" para incluir itens do catálogo."}</div>
         ) : (
           itens.map((it, i) => {
             const atual = (a?.itens || []).find(x => x.id === it.itemAtaId);
@@ -348,14 +390,22 @@ function FormContrato({ c, data, refresh, onClose }) {
               <div key={i} className="px-3 py-2.5 border-b border-slate-100 last:border-0 space-y-2.5">
                 <div className="grid gap-2.5 [grid-template-columns:minmax(0,2fr)_minmax(0,1.7fr)_80px_105px_100px_36px] items-end">
                   <Campo label={`Item ${i + 1}`}>
-                    <select className={inputCls} value={it.itemAtaId} onChange={e => setItem(i, "itemAtaId", e.target.value)}>
-                      {(a?.itens || []).map(x => {
-                        const b = catalog.find(bc => bc.id === x.benId) || { objeto: "(removido)" };
-                        const s = saldoItem(a, x, contratos, ctEmEdicao);
-                        return <option key={x.id} value={x.id}>{x.numItem ? `Item ${x.numItem} — ` : ""}{b.objeto} (saldo {fmtQ(s)})</option>;
-                      })}
-                    </select>
-                    <span className="font-mono text-[11px] text-slate-500">Saldo disponível: {fmtQ(sal)}</span>
+                    {form.ataId ? (
+                      <>
+                        <select className={inputCls} value={it.itemAtaId} onChange={e => setItem(i, "itemAtaId", e.target.value)}>
+                          {(a?.itens || []).map(x => {
+                            const b = catalog.find(bc => bc.id === x.benId) || { objeto: "(removido)" };
+                            const s = saldoItem(a, x, contratos, ctEmEdicao);
+                            return <option key={x.id} value={x.id}>{x.numItem ? `Item ${x.numItem} — ` : ""}{b.objeto} (saldo {fmtQ(s)})</option>;
+                          })}
+                        </select>
+                        <span className="font-mono text-[11px] text-slate-500">Saldo disponível: {fmtQ(sal)}</span>
+                      </>
+                    ) : (
+                      <select className={inputCls} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>
+                        {catalog.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>)}
+                      </select>
+                    )}
                   </Campo>
                   <Campo label="Qtd."><input type="number" min="0" className={inputCls} value={it.qtd} onChange={e => setItem(i, "qtd", e.target.value)} /></Campo>
                   <Campo label="Vlr. unit."><input inputMode="decimal" className={inputCls} value={it.valor} onChange={e => setItem(i, "valor", e.target.value)} /></Campo>
@@ -363,7 +413,7 @@ function FormContrato({ c, data, refresh, onClose }) {
                   <Campo label=" "><MiniBtn variant="risco" onClick={() => rmItem(i)}>×</MiniBtn></Campo>
                 </div>
                 <Campo label="Item do Plano Anual que está sendo executado">
-                  <select className={inputCls} value={it.pcaId || ""} onChange={e => setItem(i, "pcaId", e.target.value)}>{opcoesPCA(atual?.benId || "", it.pcaId)}</select>
+                  <select className={inputCls} value={it.pcaId || ""} onChange={e => setItem(i, "pcaId", e.target.value)}>{opcoesPCA(atual?.benId || it.benId || "", it.pcaId)}</select>
                 </Campo>
               </div>
             );
