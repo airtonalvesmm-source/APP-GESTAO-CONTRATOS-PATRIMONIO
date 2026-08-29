@@ -1,5 +1,6 @@
 // Cálculos do Painel Executivo — funções puras sobre os dados das entidades
-import { nQtd, nVal, fmtM, diasAte, resumoAta, saldoItem, valorEmpenhado, fimVigente, totaisPagamento } from "./dmp-utils";
+import { nQtd, nVal, fmtM, fmtQ, fmtData, diasAte, resumoAta, saldoItem, valorEmpenhado, fimVigente, totaisPagamento, situacaoAta, ocorrenciasDe } from "./dmp-utils";
+import { FALTAS } from "./dmp-data";
 
 export function fmtCurto(n) {
   const v = Number(n) || 0;
@@ -73,6 +74,32 @@ export function calcPendencias(contratos, pagamentos, ocorrencias) {
     const d = diasAte(f);
     return { c, retido: t.retido, aPagar: t.aPagar, dias: d, fim: f };
   }).filter(x => x.retido > 0 || (x.dias !== null && x.dias < 0 && x.aPagar > 0));
+}
+
+export function calcTodosAlertas(data) {
+  const { atas, contratos, pagamentos, ocorrencias } = data;
+  const out = [];
+  atas.forEach(a => {
+    const s = situacaoAta(a);
+    const r = resumoAta(a, contratos);
+    const qtdSaldo = (a.itens || []).reduce((t, it) => t + Math.max(0, saldoItem(a, it, contratos)), 0);
+    if (s.dias !== null && s.dias < 0 && qtdSaldo > 0)
+      out.push({ severidade: "critico", txt: `Ata ${a.numero} venceu em ${fmtData(a.fim)} com saldo de ${fmtQ(qtdSaldo)} un. (R$ ${fmtM(r.sal)}).` });
+    else if (s.dias !== null && s.dias >= 0 && s.dias <= 90 && qtdSaldo > 0)
+      out.push({ severidade: s.dias <= 30 ? "critico" : "aviso", txt: `Ata ${a.numero} vence em ${s.dias} dia${s.dias === 1 ? "" : "s"} com ${fmtQ(qtdSaldo)} un. em saldo (R$ ${fmtM(r.sal)}).` });
+  });
+  contratos.forEach(c => {
+    const t = totaisPagamento(c, pagamentos, ocorrencias);
+    if (t.retido > 0)
+      out.push({ severidade: "aviso", txt: `${c.tipo} ${c.numero}: R$ ${fmtM(t.retido)} retidos em notas fiscais.` });
+    const faltas = ocorrenciasDe(c.id, ocorrencias).filter(o => FALTAS.includes(o.tipo));
+    if (faltas.length > 0)
+      out.push({ severidade: "critico", txt: `${c.tipo} ${c.numero}: descumprimento — ${faltas.map(o => o.tipo).join("; ")}.` });
+    const d = diasAte(fimVigente(c, ocorrencias));
+    if (d !== null && d < 0 && t.aPagar > 0)
+      out.push({ severidade: "critico", txt: `${c.tipo} ${c.numero}: vigência encerrada em ${fmtData(fimVigente(c, ocorrencias))} com R$ ${fmtM(t.aPagar)} ainda não pagos.` });
+  });
+  return out;
 }
 
 export function calcTopFornecedores(contratos, ocorrencias) {

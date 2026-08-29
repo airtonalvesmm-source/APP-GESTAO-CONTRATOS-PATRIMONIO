@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { anoAtual } from "@/lib/dmp-utils";
-import { Campo, inputCls } from "./ui";
+import { Btn, Campo, inputCls } from "./ui";
 import Indicadores from "./painel/Indicadores";
 import Funil from "./painel/Funil";
 import Risco from "./painel/Risco";
 import Vigencia from "./painel/Vigencia";
 import Fornecedores from "./painel/Fornecedores";
+import { gerarRelatorioPDF } from "./painel/Relatorio";
 
 export default function Painel({ data, setTab }) {
   const { pca } = data;
@@ -23,12 +24,15 @@ export default function Painel({ data, setTab }) {
           <h2 className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mb-1">Painel executivo</h2>
           <p className="font-sans text-[14px] text-slate-600">Visão consolidada para a alta administração — exercício {ano}.</p>
         </div>
-        <div className="min-w-[120px]">
-          <Campo label="Exercício">
-            <select className={inputCls} value={ano} onChange={e => setAno(+e.target.value)}>
-              {anos.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </Campo>
+        <div className="flex gap-2 items-end">
+          <div className="min-w-[120px]">
+            <Campo label="Exercício">
+              <select className={inputCls} value={ano} onChange={e => setAno(+e.target.value)}>
+                {anos.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </Campo>
+          </div>
+          <Btn variant="forte" onClick={() => gerarRelatorioPDF(data, ano)}>Gerar relatório PDF</Btn>
         </div>
       </div>
       <Indicadores data={data} ano={ano} />

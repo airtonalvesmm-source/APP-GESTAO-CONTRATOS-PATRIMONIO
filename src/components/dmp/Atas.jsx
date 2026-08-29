@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV } from "@/lib/dmp-utils";
-import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, textareaCls } from "./ui";
+import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
@@ -175,8 +175,6 @@ export default function Atas({ data, refresh }) {
         </>} />
 
       {fornecedores.length === 0 && <div className="border border-amber-300 bg-amber-50 rounded-sm px-4 py-3 text-sm text-amber-900 mb-4">Cadastre um fornecedor antes de registrar atas.</div>}
-
-      <Alertas itens={alertasAtas()} />
 
       {atas.length === 0 ? (
         <Vazio titulo="Nenhuma ata cadastrada" texto="Cadastre a ata com fornecedor, vigência e itens registrados para o sistema controlar o saldo." />

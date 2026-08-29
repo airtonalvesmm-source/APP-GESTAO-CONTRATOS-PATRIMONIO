@@ -5,6 +5,7 @@ import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } 
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import Cadeia from "./Cadeia";
 import { Plus, Pencil, Trash2, FileText, Printer, Sparkles } from "lucide-react";
 
 export default function PlanoAnual({ data, refresh }) {
@@ -16,6 +17,7 @@ export default function PlanoAnual({ data, refresh }) {
   const [dfdEditId, setDfdEditId] = useState(null);
   const [dfdNovo, setDfdNovo] = useState(false);
   const [dfdVisualizar, setDfdVisualizar] = useState(null);
+  const [cadeiaBenId, setCadeiaBenId] = useState(null);
   const [termo, setTermo] = useState("");
   const [ord, setOrd] = useState("alfa");
 
@@ -63,6 +65,8 @@ export default function PlanoAnual({ data, refresh }) {
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
   }, [itensExercicio, termo, ord, catalog]);
+
+  const temJust = filtrados.some(p => p.justificativa && p.justificativa.trim());
 
   async function excluirItem(p) {
     if (!confirm("Excluir este item do Plano Anual?")) return;
@@ -145,7 +149,7 @@ export default function PlanoAnual({ data, refresh }) {
               <div className="overflow-x-auto border border-slate-300 rounded-sm bg-white">
                 <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
                   <thead><tr className="bg-stone-50">
-                    <Th>Código PCA</Th><Th>Item</Th><Th>Unid.</Th><Th className="text-right">Qtd.</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Total</Th><Th>Justificativa</Th><Th></Th>
+                    <Th>Código PCA</Th><Th>Item</Th><Th>Unid.</Th><Th className="text-right">Qtd.</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Total</Th>{temJust && <Th>Justificativa</Th>}<Th></Th>
                   </tr></thead>
                   <tbody>
                     {ORDEM.concat(["Sem categoria"]).map(cat => {
@@ -166,15 +170,15 @@ export default function PlanoAnual({ data, refresh }) {
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(p.qtd)}</td>
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valor)}</td>
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(t)}</td>
-                                <td className="px-3 py-2.5 text-sm text-slate-500 max-w-[34ch]">{p.justificativa || "—"}</td>
-                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></td>
+                                {temJust && <td className="px-3 py-2.5 text-sm text-slate-500 max-w-[34ch]">{p.justificativa || "—"}</td>}
+                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setCadeiaBenId(p.benId)}>Cadeia</MiniBtn> <MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></td>
                               </tr>
                             );
                           })}
                           <tr className="border-t border-slate-300 bg-stone-50">
                             <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={5}>Subtotal {cat}</td>
                             <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(total)}</td>
-                            <td colSpan={2}></td>
+                            <td colSpan={temJust ? 2 : 1}></td>
                           </tr>
                         </React.Fragment>
                       );
@@ -190,6 +194,7 @@ export default function PlanoAnual({ data, refresh }) {
       {(novo || editId) && <FormPCA r={editId ? pca.find(x => x.id === editId) : null} data={data} exercicio={exercicio} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />}
       {(dfdNovo || dfdEditId) && <FormDFD f={dfdEditId ? dfds.find(x => x.id === dfdEditId) : null} data={data} refresh={refresh} onClose={() => { setDfdNovo(false); setDfdEditId(null); }} />}
       {dfdVisualizar && <VisualizarDFD f={dfds.find(x => x.id === dfdVisualizar)} data={data} onClose={() => setDfdVisualizar(null)} />}
+      {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Desenho } from "@/components/dmp/Desenho";
 import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV } from "@/lib/dmp-utils";
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } from "./ui";
 import ImportarCSV from "./ImportarCSV";
+import Cadeia from "./Cadeia";
 import { Plus, Upload } from "lucide-react";
 
 const ORD_CATALOGO = {
@@ -22,6 +23,7 @@ export default function Catalogo({ data, refresh }) {
   const [fichaId, setFichaId] = useState(null);
   const [editId, setEditId] = useState(null);
   const [showOcultos, setShowOcultos] = useState(false);
+  const [cadeiaBenId, setCadeiaBenId] = useState(null);
 
   const filtrados = useMemo(() => {
     const t = norm(termo.trim());
@@ -144,8 +146,9 @@ export default function Catalogo({ data, refresh }) {
 
       {fichaId && <Ficha b={data.catalog.find(x => x.id === fichaId)} data={data} refresh={refresh}
         onClose={() => setFichaId(null)} onEdit={() => { setFichaId(null); setEditId(fichaId); }}
-        onExcluir={excluirItem} />}
+        onExcluir={excluirItem} onCadeia={() => { setFichaId(null); setCadeiaBenId(fichaId); }} />}
       {editId && <FormItem idEdicao={editId === "novo" ? null : editId} data={data} refresh={refresh} onClose={() => setEditId(null)} />}
+      {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
     </div>
   );
 }
@@ -166,7 +169,7 @@ function Cartao({ b, onClick }) {
   );
 }
 
-function Ficha({ b, data, refresh, onClose, onEdit, onExcluir }) {
+function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia }) {
   const [desc, setDesc] = useState(b.descricao || "");
   const [imgUrl, setImgUrl] = useState(b.imagem || "");
   const [arteSel, setArteSel] = useState(b.arte || "generico");
@@ -215,6 +218,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir }) {
     <Modal sobre={b.categoria} titulo={b.objeto} onClose={onClose}
       footer={<>
         <Btn variant="risco" onClick={() => onExcluir(b)}>Excluir do catálogo</Btn>
+        <Btn onClick={onCadeia}>Ver cadeia</Btn>
         <Btn onClick={onEdit}>Editar dados</Btn>
         <Btn variant="forte" onClick={onClose}>Fechar</Btn>
       </>}>

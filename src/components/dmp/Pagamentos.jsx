@@ -4,7 +4,7 @@ import { CAT_ARP } from "@/lib/dmp-data";
 import { fmtM, fmtData, nVal, norm, diasAte, totaisPagamento, valorEmpenhado, fimVigente, valorItensContrato, aditivoValor,
   ocorrenciasDe, baixarCSV } from "@/lib/dmp-utils";
 import { ADITIVOS, FALTAS } from "@/lib/dmp-data";
-import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, Alertas, inputCls, textareaCls } from "./ui";
+import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { FormOcorrencia } from "./Contratos";
@@ -212,7 +212,6 @@ export default function Pagamentos({ data, refresh }) {
         <Vazio titulo="Nenhum contrato lançado" texto="Cadastre um contrato ou empenho para registrar as notas fiscais e os pagamentos." />
       ) : (
         <>
-          <Alertas itens={alertasContratos()} />
           <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhum contrato corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
