@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
+import { CAT_ARP, ORDEM, SITUACOES_CONTRATO } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, uid, baixarCSV,
   ocorrenciasDe, aditivoValor, diasAditivados, valorItensContrato, valorEmpenhado, fimVigente, nValS } from "@/lib/dmp-utils";
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
@@ -77,11 +77,11 @@ export default function Contratos({ data, refresh }) {
 
   function exportCSV() {
     if (!contratos.length) return alert("Não há contratos lançados.");
-    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
+    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Situação", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
     contratos.forEach(c => {
       const a = atas.find(x => x.id === c.ataId);
       const val = (c.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
-      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
+      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", c.situacao || "", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
     });
     baixarCSV("contratos.csv", l);
   }
@@ -103,6 +103,7 @@ export default function Contratos({ data, refresh }) {
           <span className="ml-auto flex gap-2 items-center flex-wrap">
             {temAditivo(c.id) && <Pill tipo="neutro">Aditivado</Pill>}
             {temFalta(c.id) && <Pill tipo="critico">Descumprimento</Pill>}
+            {c.situacao && <Pill tipo={c.situacao === "Vigente" ? "ok" : (c.situacao === "Rescindido" || c.situacao === "Cancelado") ? "critico" : (c.situacao === "Suspenso" ? "aviso" : "neutro")}>{c.situacao}</Pill>}
             <Pill tipo={s.classe}>{s.txt}</Pill>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
           </span>
@@ -188,13 +189,14 @@ export default function Contratos({ data, refresh }) {
               { header: "Nota de empenho", campo: "notaEmpenho" },
               { header: "Número da ata", campo: "_ataNumero", obrigatorio: true },
               { header: "Objeto", campo: "objeto" },
+              { header: "Situação", campo: "situacao" },
               { header: "Início da vigência", campo: "inicio", tipo: "date" },
               { header: "Fim da vigência", campo: "fim", tipo: "date" }
             ]}
             preProcess={(rec, data) => {
               const a = (data.atas || []).find(x => norm(x.numero) === norm(rec._ataNumero));
               if (!a) return null;
-              return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, inicio: rec.inicio, fim: rec.fim, itens: [] };
+              return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, situacao: rec.situacao || "Vigente", inicio: rec.inicio, fim: rec.fim, itens: [] };
             }}
             ajuda="O número da ata deve já estar cadastrado. O fornecedor e CNPJ virão da ata vinculada. O contrato será criado sem itens — edite-o depois para lançar os itens (o saldo da ata será baixado). Datas no formato dd/mm/aaaa." />
           <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
@@ -251,7 +253,8 @@ function FormContrato({ c, data, refresh, onClose }) {
   const [form, setForm] = useState({
     tipo: c?.tipo || "Contrato", numero: c?.numero || "", processo: c?.processo || "",
     notaEmpenho: c?.notaEmpenho || "", ataId: c?.ataId || "",
-    fornecedorId: c?.fornecedorId || "", inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
+    fornecedorId: c?.fornecedorId || "", situacao: c?.situacao || "Vigente",
+    inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
 
@@ -375,6 +378,7 @@ function FormContrato({ c, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => setF("inicio", e.target.value)} /></Campo>
         <Campo label="Fim da vigência"><input type="date" className={inputCls} value={form.fim} onChange={e => setF("fim", e.target.value)} /></Campo>
+        <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo>
       </div>
       <Campo label="Objeto"><textarea className={textareaCls} value={form.objeto} onChange={e => setF("objeto", e.target.value)} placeholder="ex.: aquisição de equipamentos de videomonitoramento para as promotorias de justiça do interior." /></Campo>
 

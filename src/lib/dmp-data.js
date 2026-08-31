@@ -14,6 +14,9 @@ export const STATUS_LIC = [
   "Fracassado", "Deserto", "Revogado", "Anulado"
 ];
 
+export const SITUACOES_CONTRATO = ["Vigente", "Encerrado", "Rescindido", "Suspenso", "Cancelado"];
+export const SITUACOES_PAGAMENTO = ["Pago", "Pendente", "Retido", "Cancelado"];
+
 export const TIPOS_OCORRENCIA = [
   "Aditivo de prazo", "Aditivo de valor", "Aditivo de quantitativo", "Apostilamento",
   "Descumprimento — atraso na entrega", "Descumprimento — especificação divergente",

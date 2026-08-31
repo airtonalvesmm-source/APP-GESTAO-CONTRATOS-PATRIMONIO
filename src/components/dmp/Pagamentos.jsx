@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { CAT_ARP } from "@/lib/dmp-data";
 import { fmtM, fmtData, nVal, norm, diasAte, totaisPagamento, valorEmpenhado, fimVigente, valorItensContrato, aditivoValor,
   ocorrenciasDe, baixarCSV } from "@/lib/dmp-utils";
-import { ADITIVOS, FALTAS } from "@/lib/dmp-data";
+import { ADITIVOS, FALTAS, SITUACOES_PAGAMENTO } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -79,10 +79,10 @@ export default function Pagamentos({ data, refresh }) {
 
   function exportCSV() {
     if (!pagamentos.length) return alert("Não há notas fiscais lançadas.");
-    const l = [["Contrato", "Nota de empenho", "Fornecedor", "CNPJ", "Valor empenhado", "Nota fiscal", "Emissão", "Valor da nota", "Valor pago", "Valor retido", "Motivo da retenção", "Data do pagamento", "Aditivos", "Descumprimento"]];
+    const l = [["Contrato", "Nota de empenho", "Fornecedor", "CNPJ", "Valor empenhado", "Nota fiscal", "Emissão", "Valor da nota", "Valor pago", "Valor retido", "Motivo da retenção", "Data do pagamento", "Situação", "Aditivos", "Descumprimento"]];
     pagamentos.forEach(p => {
       const c = contratos.find(x => x.id === p.contratoId); if (!c) return;
-      l.push([`${c.tipo} ${c.numero}`, c.notaEmpenho || "", c.fornecedor || "", c.cnpj || "", fmtM(valorEmpenhado(c, ocorrencias)), p.nf, fmtData(p.dataNF), fmtM(p.valorNF), fmtM(p.valorPago), fmtM(Math.max(0, nVal(p.valorNF) - nVal(p.valorPago))), p.motivo || "", fmtData(p.dataPagamento), temAditivo(c.id) ? "Sim" : "Não", temFalta(c.id) ? "Sim" : "Não"]);
+      l.push([`${c.tipo} ${c.numero}`, c.notaEmpenho || "", c.fornecedor || "", c.cnpj || "", fmtM(valorEmpenhado(c, ocorrencias)), p.nf, fmtData(p.dataNF), fmtM(p.valorNF), fmtM(p.valorPago), fmtM(Math.max(0, nVal(p.valorNF) - nVal(p.valorPago))), p.motivo || "", fmtData(p.dataPagamento), p.situacao || "", temAditivo(c.id) ? "Sim" : "Não", temFalta(c.id) ? "Sim" : "Não"]);
     });
     baixarCSV("pagamentos.csv", l);
   }
@@ -123,7 +123,7 @@ export default function Pagamentos({ data, refresh }) {
               <div className="overflow-x-auto border border-slate-300 rounded-sm">
                 <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
                   <thead><tr className="bg-stone-50">
-                    <Th>Nota fiscal</Th><Th>Emissão</Th><Th className="text-right">Valor da NF</Th><Th className="text-right">Pago</Th><Th className="text-right">Retido</Th><Th>Motivo da retenção</Th><Th>Pagamento</Th><Th></Th>
+                    <Th>Nota fiscal</Th><Th>Emissão</Th><Th className="text-right">Valor da NF</Th><Th className="text-right">Pago</Th><Th className="text-right">Retido</Th><Th>Motivo da retenção</Th><Th>Pagamento</Th><Th>Situação</Th><Th></Th>
                   </tr></thead>
                   <tbody>
                     {t.ps.map(p => {
@@ -137,6 +137,7 @@ export default function Pagamentos({ data, refresh }) {
                           <td className="px-3 py-2.5 text-right font-mono text-sm">{ret ? <b className="text-red-800">{fmtM(ret)}</b> : "—"}</td>
                           <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{ret ? (p.motivo || "não informado") : "—"}</td>
                           <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataPagamento)}</td>
+                          <td className="px-3 py-2.5"><Pill tipo={p.situacao === "Pago" ? "ok" : (p.situacao === "Cancelado" ? "critico" : p.situacao === "Retido" ? "aviso" : "neutro")}>{p.situacao || "Pendente"}</Pill></td>
                           <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setEditNfId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirNF(p)}>Excluir</MiniBtn></td>
                         </tr>
                       );
@@ -197,12 +198,13 @@ export default function Pagamentos({ data, refresh }) {
               { header: "Valor da nota", campo: "valorNF", tipo: "number", obrigatorio: true },
               { header: "Valor pago", campo: "valorPago", tipo: "number" },
               { header: "Data do pagamento", campo: "dataPagamento", tipo: "date" },
-              { header: "Motivo da retenção", campo: "motivo" }
+              { header: "Motivo da retenção", campo: "motivo" },
+              { header: "Situação", campo: "situacao" }
             ]}
             preProcess={(rec, data) => {
               const c = (data.contratos || []).find(x => norm(x.tipo + " " + x.numero) === norm(rec._contratoNum) || norm(x.numero) === norm(rec._contratoNum));
               if (!c) return null;
-              return { contratoId: c.id, nf: rec.nf, dataNF: rec.dataNF, valorNF: rec.valorNF, valorPago: rec.valorPago || 0, dataPagamento: rec.dataPagamento, motivo: rec.motivo };
+              return { contratoId: c.id, nf: rec.nf, dataNF: rec.dataNF, valorNF: rec.valorNF, valorPago: rec.valorPago || 0, dataPagamento: rec.dataPagamento, motivo: rec.motivo, situacao: rec.situacao || "Pendente" };
             }}
             ajuda="O campo 'Contrato' deve conter o número do contrato/empenho já cadastrado (ex.: '45/2026'). Linhas sem contrato correspondente serão ignoradas. Datas no formato dd/mm/aaaa." />
           <Btn variant="forte" onClick={() => setNfContratoId(contratos[0]?.id || null)} disabled={contratos.length === 0}><Plus className="w-4 h-4 inline mr-1" />Lançar nota fiscal</Btn>
@@ -258,7 +260,8 @@ function FormPagamento({ p, contratoId, data, refresh, onClose }) {
   const cid = p?.contratoId || contratoId || contratos[0]?.id;
   const [form, setForm] = useState({
     contratoId: cid, nf: p?.nf || "", dataNF: p?.dataNF || "", valorNF: p?.valorNF || 0,
-    valorPago: p?.valorPago || 0, dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || ""
+    valorPago: p?.valorPago || 0, dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || "",
+    situacao: p?.situacao || "Pendente"
   });
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   const retido = Math.max(0, nVal(form.valorNF) - nVal(form.valorPago));
@@ -295,6 +298,7 @@ function FormPagamento({ p, contratoId, data, refresh, onClose }) {
         <Campo label="Valor pago (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorPago} onChange={e => setF("valorPago", nVal(e.target.value))} /></Campo>
         <Campo label="Data do pagamento"><input type="date" className={inputCls} value={form.dataPagamento} onChange={e => setF("dataPagamento", e.target.value)} /></Campo>
         <Campo label="Valor retido (R$)" ajuda="Diferença entre a nota e o pago."><input readOnly className={inputCls + " bg-slate-50"} value={fmtM(retido)} /></Campo>
+        <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_PAGAMENTO.map(s => <option key={s}>{s}</option>)}</select></Campo>
       </div>
       <Campo label="Motivo da retenção"><textarea className={textareaCls} value={form.motivo} onChange={e => setF("motivo", e.target.value)} placeholder="ex.: retenção de 2% a título de multa por atraso na entrega, conforme processo de penalidade." /></Campo>
     </Modal>

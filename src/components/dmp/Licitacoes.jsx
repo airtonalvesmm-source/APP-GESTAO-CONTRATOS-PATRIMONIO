@@ -59,7 +59,7 @@ export default function Licitacoes({ data, refresh }) {
 
   function exportCSV() {
     if (!licitacoes.length) return alert("Não há licitações cadastradas.");
-    const l = [["Número", "Ano", "Modalidade", "Processo", "Categoria", "Registro de preços", "Status", "Qtd. de itens", "Valor global", "Atas geradas", "Valor registrado nas atas"]];
+    const l = [["Número", "Ano", "Modalidade", "Processo", "Categoria", "Registro de preços", "Situação", "Qtd. de itens", "Valor global", "Atas geradas", "Valor registrado nas atas"]];
     licitacoes.forEach(x => {
       const atasL = atas.filter(a => a.licitacaoId === x.id);
       l.push([x.numero, x.ano, x.modalidade, x.processo || "", x.categoria || "", x.srp, x.status, fmtQ(x.qtdItens), fmtM(x.valorGlobal), atasL.length, fmtM(atasL.reduce((t, a) => t + (a.itens || []).reduce((s, it) => s + nQtd(it.qtd) * nVal(it.valor), 0), 0))]);
@@ -230,7 +230,7 @@ function FormLicitacao({ l, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Categoria"><select className={inputCls} value={form.categoria} onChange={e => set("categoria", e.target.value)}>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo>
         <Campo label="Registro de preços"><select className={inputCls} value={form.srp} onChange={e => set("srp", e.target.value)}><option>Sim</option><option>Não</option></select></Campo>
-        <Campo label="Status"><select className={inputCls} value={form.status} onChange={e => set("status", e.target.value)}>{STATUS_LIC.map(s => <option key={s}>{s}</option>)}</select></Campo>
+        <Campo label="Situação"><select className={inputCls} value={form.status} onChange={e => set("status", e.target.value)}>{STATUS_LIC.map(s => <option key={s}>{s}</option>)}</select></Campo>
         <Campo label="Quantidade de itens"><input className={inputCls} type="number" value={form.qtdItens} onChange={e => set("qtdItens", +e.target.value || 0)} /></Campo>
         <Campo label="Valor global (R$)"><input className={inputCls} inputMode="decimal" value={form.valorGlobal ? fmtM(form.valorGlobal) : ""} onChange={e => set("valorGlobal", nVal(e.target.value))} /></Campo>
       </div>

@@ -33,6 +33,17 @@
     "motivo": {
       "type": "string",
       "title": "Motivo da reten\u00e7\u00e3o"
+    },
+    "situacao": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o",
+      "enum": [
+        "Pago",
+        "Pendente",
+        "Retido",
+        "Cancelado"
+      ],
+      "default": "Pendente"
     }
   },
   "required": [
