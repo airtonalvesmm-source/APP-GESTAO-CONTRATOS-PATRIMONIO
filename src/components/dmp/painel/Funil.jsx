@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { fmtM } from "@/lib/dmp-utils";
 import { fmtCurto, fmtPct, calcPlanejamentoFunil, calcExecucaoAtas, calcEconomiaCobertura } from "@/lib/painel-calc";
-import { inputCls } from "./ui";
+import { inputCls } from "../ui";
 
 function Barra({ label, valor, base, max, destaque }) {
   const pct = base ? valor / base * 100 : 0;
