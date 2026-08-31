@@ -18,6 +18,7 @@ export default function Licitacoes({ data, refresh }) {
   const [ord, setOrd] = useState("recentes");
   const [abertos, setAbertos] = useState(new Set());
   const [agrupar, setAgrupar] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
 
   const anos = Array.from(new Set(licitacoes.filter(l => l.ano).map(l => l.ano))).sort().reverse();
 
@@ -27,6 +28,7 @@ export default function Licitacoes({ data, refresh }) {
       if (cat && l.categoria !== cat) return false;
       if (ano && String(l.ano) !== String(ano)) return false;
       if (t && norm([l.numero, l.ano, l.modalidade, l.processo, l.categoria, l.status].join(" ")).indexOf(t) < 0) return false;
+      if (statusFilter && l.status !== statusFilter) return false;
       return true;
     });
     const ordFn = {
@@ -37,7 +39,7 @@ export default function Licitacoes({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [licitacoes, termo, cat, ano, ord]);
+  }, [licitacoes, termo, cat, ano, ord, statusFilter]);
 
   function situacao(l) {
     if (["Homologado"].includes(l.status)) return "ok";
@@ -152,7 +154,7 @@ export default function Licitacoes({ data, refresh }) {
         <Vazio titulo="Nenhuma licitação cadastrada" texto="Cadastre o certame para vincular as atas de registro de preços a ele." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} categorias={categorias} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} categorias={categorias} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhuma licitação corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
           ) : agrupar ? (
@@ -174,7 +176,7 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, categorias, total, agrupar, setAgrupar }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, categorias, total, agrupar, setAgrupar, statusFilter, setStatusFilter }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]">
@@ -183,6 +185,7 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
         </Campo>
       </div>
       <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
+      <div className="min-w-[132px]"><Campo label="Situação"><select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={inputCls}><option value="">Todas</option>{STATUS_LIC.map(s => <option key={s}>{s}</option>)}</select></Campo></div>
       {categorias.length > 0 && (
         <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{categorias.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       )}

@@ -22,6 +22,7 @@ export default function Pagamentos({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("retencao");
   const [agrupar, setAgrupar] = useState(false);
+  const [situacao, setSituacao] = useState("");
 
   function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
@@ -34,6 +35,12 @@ export default function Pagamentos({ data, refresh }) {
       if (ano && String(anoDoContrato(c)) !== String(ano)) return false;
       const txtPag = pagamentos.filter(p => p.contratoId === c.id).map(p => p.nf + " " + (p.motivo || "")).join(" ");
       if (t && norm([c.tipo, c.numero, c.processo, c.notaEmpenho, c.fornecedor, c.objeto, txtPag].join(" ")).indexOf(t) < 0) return false;
+      if (situacao) {
+        const tp = totaisPagamento(c, pagamentos, ocorrencias);
+        if (situacao === "quitado" && tp.aPagar > 0) return false;
+        if (situacao === "apagar" && tp.aPagar === 0) return false;
+        if (situacao === "retido" && tp.retido === 0) return false;
+      }
       return true;
     });
     const ordFn = {
@@ -44,7 +51,7 @@ export default function Pagamentos({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [contratos, termo, cat, ano, ord, pagamentos, ocorrencias, atas]);
+  }, [contratos, termo, cat, ano, ord, situacao, pagamentos, ocorrencias, atas]);
 
   function alertasContratos() {
     const out = [];
@@ -214,7 +221,7 @@ export default function Pagamentos({ data, refresh }) {
         <Vazio titulo="Nenhum contrato lançado" texto="Cadastre um contrato ou empenho para registrar as notas fiscais e os pagamentos." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} situacao={situacao} setSituacao={setSituacao} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhum contrato corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
           ) : agrupar ? (
@@ -237,11 +244,12 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar, situacao, setSituacao }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por contrato, fornecedor, nota fiscal ou motivo de retenção" /></Campo></div>
       <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
+      <div className="min-w-[132px]"><Campo label="Situação"><select value={situacao} onChange={e => setSituacao(e.target.value)} className={inputCls}><option value="">Todas</option><option value="quitado">Quitados</option><option value="apagar">A pagar</option><option value="retido">Com retenção</option></select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">

@@ -21,6 +21,7 @@ export default function Contratos({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
   const [agrupar, setAgrupar] = useState(false);
+  const [filtroSituacao, setFiltroSituacao] = useState("");
 
   function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
@@ -32,6 +33,7 @@ export default function Contratos({ data, refresh }) {
       if (cat && catDoContrato(c) !== cat) return false;
       if (ano && String(anoDoContrato(c)) !== String(ano)) return false;
       if (t && norm([c.tipo, c.numero, c.processo, c.notaEmpenho, c.fornecedor, c.objeto, ...(c.itens || []).map(i => catalog.find(b => b.id === i.benId)?.objeto || "")].join(" ")).indexOf(t) < 0) return false;
+      if (filtroSituacao && (c.situacao || "Vigente") !== filtroSituacao) return false;
       return true;
     });
     const ordFn = {
@@ -42,7 +44,7 @@ export default function Contratos({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [contratos, termo, cat, ano, ord, atas, catalog]);
+  }, [contratos, termo, cat, ano, ord, filtroSituacao, atas, catalog]);
 
   function situacao(c) {
     const fim = fimVigente(c, ocorrencias);
@@ -206,7 +208,7 @@ export default function Contratos({ data, refresh }) {
         <Vazio titulo="Nenhum contrato ou empenho lançado" texto="Cadastre um contrato vinculado a uma ata para dar baixa no saldo dos itens." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} situacao={filtroSituacao} setSituacao={setFiltroSituacao} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhum contrato corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
           ) : agrupar ? (
@@ -229,11 +231,12 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar, situacao, setSituacao }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por número, fornecedor, nota de empenho, objeto ou item" /></Campo></div>
       <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
+      <div className="min-w-[132px]"><Campo label="Situação"><select value={situacao} onChange={e => setSituacao(e.target.value)} className={inputCls}><option value="">Todas</option>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">
