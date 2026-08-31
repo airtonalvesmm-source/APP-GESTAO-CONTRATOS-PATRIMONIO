@@ -33,7 +33,13 @@ export default function Contratos({ data, refresh }) {
       if (cat && catDoContrato(c) !== cat) return false;
       if (ano && String(anoDoContrato(c)) !== String(ano)) return false;
       if (t && norm([c.tipo, c.numero, c.processo, c.notaEmpenho, c.fornecedor, c.objeto, ...(c.itens || []).map(i => catalog.find(b => b.id === i.benId)?.objeto || "")].join(" ")).indexOf(t) < 0) return false;
-      if (filtroSituacao && (c.situacao || "Vigente") !== filtroSituacao) return false;
+      if (filtroSituacao) {
+        const s = situacao(c);
+        const stored = c.situacao || "";
+        const eff = (stored === "Rescindido" || stored === "Suspenso" || stored === "Cancelado") ? stored
+          : (stored === "Encerrado" || s.classe === "critico") ? "Encerrado" : "Vigente";
+        if (filtroSituacao !== eff) return false;
+      }
       return true;
     });
     const ordFn = {
@@ -44,7 +50,7 @@ export default function Contratos({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [contratos, termo, cat, ano, ord, filtroSituacao, atas, catalog]);
+  }, [contratos, termo, cat, ano, ord, filtroSituacao, atas, catalog, ocorrencias]);
 
   function situacao(c) {
     const fim = fimVigente(c, ocorrencias);
