@@ -223,19 +223,20 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
 
 function FormAta({ a, data, refresh, onClose }) {
   const { catalog, licitacoes, fornecedores, contratos } = data;
+  function catCatalog(cat) { return cat === "Climatização" ? "Ar-condicionado" : cat; }
   const [form, setForm] = useState({
     numero: a?.numero || "", processo: a?.processo || "", gerenciador: a?.gerenciador || "Ministério Público do Estado do Piauí",
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
     inicio: a?.inicio || "", fim: a?.fim || ""
   });
-  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => b.categoria === (a?.categoria || CAT_ARP[0]))[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaStatus, setIaStatus] = useState("");
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setItem(i, k, v) { setItens(arr => arr.map((it, idx) => idx === i ? { ...it, [k]: v } : it)); }
   function addItem() {
-    const daCat = catalog.filter(b => b.categoria === form.categoria);
+    const daCat = catalog.filter(b => b.categoria === catCatalog(form.categoria));
     setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || catalog[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]);
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
@@ -372,7 +373,7 @@ function FormAta({ a, data, refresh, onClose }) {
   }
 
   function opcoesBens(sel) {
-    const daCategoria = catalog.filter(b => b.categoria === form.categoria);
+    const daCategoria = catalog.filter(b => b.categoria === catCatalog(form.categoria));
     return daCategoria.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>);
   }
 
@@ -427,16 +428,18 @@ function FormAta({ a, data, refresh, onClose }) {
           </div>
         ))}
       </div>
-      <div className="flex gap-2 flex-wrap items-center mt-3.5">
-        <Btn onClick={addItem}>Adicionar item</Btn>
-        <Btn>
-          <label className="cursor-pointer flex items-center">
-            <Upload className="w-4 h-4 inline mr-1" />Importar itens (CSV)
-            <input type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files[0]; if (f) importarItensCSV(f); e.target.value = ""; }} />
-          </label>
-        </Btn>
-        {csvStatus && <span className="font-sans text-[12px] text-slate-500">{csvStatus}</span>}
-      </div>
+      <Campo label="Adicionar itens" ajuda="Use 'Adicionar item' para incluir manualmente, ou 'Importar itens (CSV)' para carregar vários de uma vez. O CSV deve ter as colunas: Nº na ata, CATMAT, Qtd. e Vlr. unit. — os itens são vinculados ao catálogo pelo CATMAT.">
+        <div className="flex gap-2 flex-wrap items-center">
+          <Btn onClick={addItem}>Adicionar item</Btn>
+          <Btn>
+            <label className="cursor-pointer flex items-center">
+              <Upload className="w-4 h-4 inline mr-1" />Importar itens (CSV)
+              <input type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files[0]; if (f) importarItensCSV(f); e.target.value = ""; }} />
+            </label>
+          </Btn>
+          {csvStatus && <span className="font-sans text-[12px] text-slate-500">{csvStatus}</span>}
+        </div>
+      </Campo>
     </Modal>
   );
 }
