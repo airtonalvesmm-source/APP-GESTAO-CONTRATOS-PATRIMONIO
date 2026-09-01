@@ -28,12 +28,13 @@ export default function Catalogo({ data, refresh }) {
   const filtrados = useMemo(() => {
     const t = norm(termo.trim());
     return catalog.filter(b => {
+      if (!showOcultos && b.oculto) return false;
       if (categoriaAtiva !== "Todas" && b.categoria !== categoriaAtiva) return false;
       if (!t) return true;
       return norm(b.objeto).includes(t) || String(b.catmat).includes(t) || String(b.pdm).includes(t) ||
         norm(b.aplicacao).includes(t) || norm(b.descricao).includes(t);
     }).slice().sort(ORD_CATALOGO[ord] || ORD_CATALOGO.alfa);
-  }, [catalog, categoriaAtiva, termo, ord]);
+  }, [catalog, categoriaAtiva, termo, ord, showOcultos]);
 
   const ocultos = data.catalog.filter(b => b.oculto);
 

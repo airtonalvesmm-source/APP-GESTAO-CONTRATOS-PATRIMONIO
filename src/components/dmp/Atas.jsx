@@ -229,15 +229,17 @@ function FormAta({ a, data, refresh, onClose }) {
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
     inicio: a?.inicio || "", fim: a?.fim || ""
   });
-  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => !b.oculto && b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog.filter(b => !b.oculto)[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaStatus, setIaStatus] = useState("");
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setItem(i, k, v) { setItens(arr => arr.map((it, idx) => idx === i ? { ...it, [k]: v } : it)); }
   function addItem() {
-    const daCat = catalog.filter(b => b.categoria === catCatalog(form.categoria));
-    setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || catalog[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]);
+    let daCat = catalog.filter(b => !b.oculto && b.categoria === catCatalog(form.categoria));
+    if (!daCat.length) daCat = catalog.filter(b => !b.oculto);
+    if (!daCat.length) daCat = catalog;
+    setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]);
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
   const [csvStatus, setCsvStatus] = useState("");
@@ -373,7 +375,12 @@ function FormAta({ a, data, refresh, onClose }) {
   }
 
   function opcoesBens(sel) {
-    const daCategoria = catalog.filter(b => b.categoria === catCatalog(form.categoria));
+    let daCategoria = catalog.filter(b => !b.oculto && b.categoria === catCatalog(form.categoria));
+    if (!daCategoria.length) daCategoria = catalog.filter(b => !b.oculto);
+    if (sel && !daCategoria.find(b => b.id === sel)) {
+      const atual = catalog.find(b => b.id === sel);
+      if (atual) daCategoria = [atual, ...daCategoria];
+    }
     return daCategoria.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>);
   }
 

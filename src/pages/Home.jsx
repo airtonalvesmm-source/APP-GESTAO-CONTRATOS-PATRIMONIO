@@ -32,7 +32,7 @@ export default function Home() {
 
   const refresh = useCallback(async () => {
     const [catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds] = await Promise.all([
-      base44.entities.CatalogItem.filter({ oculto: false }, "-created_date", 500),
+      base44.entities.CatalogItem.list("-created_date", 500),
       base44.entities.PCAItem.list("-created_date", 500),
       base44.entities.Licitacao.list("-created_date", 500),
       base44.entities.Ata.list("-created_date", 500),
