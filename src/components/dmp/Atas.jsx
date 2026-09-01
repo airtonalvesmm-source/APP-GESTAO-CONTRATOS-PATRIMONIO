@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
-import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV, parsearCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -18,7 +18,7 @@ export default function Atas({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("vigencia");
   const [agrupar, setAgrupar] = useState(false);
-  const [vigencia, setVigencia] = useState("");
+  const [vigencia, setVigencia] = useState("vigente");
 
   const anos = Array.from(new Set(atas.map(a => a.inicio?.slice(0, 4) || a.fim?.slice(0, 4) || "").filter(Boolean))).sort().reverse();
   const categorias = CAT_ARP;
@@ -228,14 +228,39 @@ function FormAta({ a, data, refresh, onClose }) {
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
     inicio: a?.inicio || "", fim: a?.fim || ""
   });
-  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => b.categoria === (a?.categoria || CAT_ARP[0]))[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaStatus, setIaStatus] = useState("");
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setItem(i, k, v) { setItens(arr => arr.map((it, idx) => idx === i ? { ...it, [k]: v } : it)); }
-  function addItem() { setItens(arr => [...arr, { id: uid(), benId: catalog[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]); }
+  function addItem() {
+    const daCat = catalog.filter(b => b.categoria === form.categoria);
+    setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || catalog[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]);
+  }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
+  const [csvStatus, setCsvStatus] = useState("");
+  async function importarItensCSV(file) {
+    if (!file) return;
+    try {
+      const texto = await file.text();
+      const linhas = parsearCSV(texto);
+      if (!linhas.length) { setCsvStatus("Arquivo vazio."); return; }
+      const novos = [];
+      let matched = 0, unmatched = 0;
+      linhas.forEach((row, idx) => {
+        const catmat = String(row["CATMAT"] || "").trim();
+        const bem = catmat ? catalog.find(b => String(b.catmat || "").trim() === catmat) : null;
+        if (!bem) { unmatched++; return; }
+        matched++;
+        novos.push({ id: uid(), benId: bem.id, numItem: String(row["Nº na ata"] || row["Item"] || idx + 1).trim(), qtd: row["Qtd."] || row["Quantidade"] || "", valor: row["Vlr. unit."] || row["Valor unitário"] || "" });
+      });
+      if (novos.length) setItens(arr => [...arr, ...novos]);
+      setCsvStatus(`${matched} itens importados${unmatched > 0 ? `, ${unmatched} sem CATMAT correspondente ignorados` : ""}.`);
+    } catch (e) {
+      setCsvStatus("Erro: " + (e.message || e));
+    }
+  }
 
   async function importarComIA(file) {
     if (!file || iaLoading) return;
@@ -348,7 +373,7 @@ function FormAta({ a, data, refresh, onClose }) {
 
   function opcoesBens(sel) {
     const daCategoria = catalog.filter(b => b.categoria === form.categoria);
-    return daCategoria.map(b => <option key={b.id} value={b.id} selected={b.id === sel}>{b.objeto}</option>);
+    return daCategoria.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>);
   }
 
   return (
@@ -372,7 +397,7 @@ function FormAta({ a, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Número da ata"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 12/2026" /></Campo>
         <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
-        <Campo label="Categoria"><select className={inputCls} value={form.categoria} onChange={e => setF("categoria", e.target.value)}>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo>
+        <Campo label="Categoria"><select className={inputCls} value={form.categoria} onChange={e => { setF("categoria", e.target.value); setF("fornecedorId", ""); }}>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo>
         <Campo label="Órgão gerenciador"><input className={inputCls} value={form.gerenciador} onChange={e => setF("gerenciador", e.target.value)} /></Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
@@ -382,9 +407,9 @@ function FormAta({ a, data, refresh, onClose }) {
             {licitacoes.map(l => <option key={l.id} value={l.id}>{l.modalidade} nº {l.numero}/{l.ano}{l.categoria ? ` — ${l.categoria}` : ""}</option>)}
           </select>
         </Campo>
-        <Campo label="Fornecedor">
+        <Campo label="Fornecedor" ajuda="Apenas fornecedores da categoria selecionada (ou sem categoria).">
           <select className={inputCls} value={form.fornecedorId} onChange={e => setF("fornecedorId", e.target.value)} disabled={fornecedores.length === 0}>
-            {fornecedores.length ? fornecedores.map(f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>) : <option value="">Nenhum fornecedor cadastrado</option>}
+            {(() => { const fs = fornecedores.filter(f => !f.categoria || f.categoria === form.categoria); return fs.length ? fs.map(f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>) : <option value="">Nenhum fornecedor da categoria</option>; })()}
           </select>
         </Campo>
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => setF("inicio", e.target.value)} /></Campo>
@@ -402,7 +427,16 @@ function FormAta({ a, data, refresh, onClose }) {
           </div>
         ))}
       </div>
-      <div className="flex gap-2 flex-wrap mt-3.5"><Btn onClick={addItem}>Adicionar item</Btn></div>
+      <div className="flex gap-2 flex-wrap items-center mt-3.5">
+        <Btn onClick={addItem}>Adicionar item</Btn>
+        <Btn>
+          <label className="cursor-pointer flex items-center">
+            <Upload className="w-4 h-4 inline mr-1" />Importar itens (CSV)
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files[0]; if (f) importarItensCSV(f); e.target.value = ""; }} />
+          </label>
+        </Btn>
+        {csvStatus && <span className="font-sans text-[12px] text-slate-500">{csvStatus}</span>}
+      </div>
     </Modal>
   );
 }

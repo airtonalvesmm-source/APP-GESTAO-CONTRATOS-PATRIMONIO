@@ -21,7 +21,7 @@ export default function Contratos({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
   const [agrupar, setAgrupar] = useState(false);
-  const [filtroSituacao, setFiltroSituacao] = useState("");
+  const [filtroSituacao, setFiltroSituacao] = useState("Vigente");
 
   function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }

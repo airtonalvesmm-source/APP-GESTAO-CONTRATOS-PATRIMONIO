@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { fmtM, baixarCSV } from "@/lib/dmp-utils";
+import { CAT_ARP } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, inputCls, Modal } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -24,12 +25,12 @@ export default function Fornecedores({ data, refresh }) {
 
   function exportCSV() {
     if (!fornecedores.length) return alert("Não há fornecedores cadastrados.");
-    const l = [["Razão social", "CNPJ", "Atas", "Contratos", "Valor contratado (R$)"]];
+    const l = [["Razão social", "CNPJ", "Categoria", "Atas", "Contratos", "Valor contratado (R$)"]];
     fornecedores.forEach(f => {
       const atasN = atas.filter(a => a.fornecedorId === f.id).length;
       const cts = contratos.filter(c => c.fornecedorId === f.id);
       const valor = cts.reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
-      l.push([f.razao, f.cnpj || "", atasN, cts.length, fmtM(valor)]);
+      l.push([f.razao, f.cnpj || "", f.categoria || "", atasN, cts.length, fmtM(valor)]);
     });
     baixarCSV("fornecedores.csv", l);
   }
@@ -42,9 +43,10 @@ export default function Fornecedores({ data, refresh }) {
           <ImportarCSV entityName="Fornecedor" refresh={refresh}
             colunas={[
               { header: "Razão social", campo: "razao", obrigatorio: true },
-              { header: "CNPJ", campo: "cnpj" }
+              { header: "CNPJ", campo: "cnpj" },
+              { header: "Categoria", campo: "categoria" }
             ]}
-            ajuda="Cadastre fornecedores em lote. A razão social é obrigatória; o CNPJ é opcional." />
+            ajuda="Cadastre fornecedores em lote. A razão social é obrigatória; o CNPJ e a categoria são opcionais. Categoria deve ser: Mobiliário, Segurança, Climatização ou Eletroeletrônicos." />
           <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar fornecedor</Btn>
         </>} />
 
@@ -55,7 +57,7 @@ export default function Fornecedores({ data, refresh }) {
           <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
             <thead>
               <tr className="bg-stone-50">
-                <Th>Razão social</Th><Th>CNPJ</Th>
+                <Th>Razão social</Th><Th>CNPJ</Th><Th>Categoria</Th>
                 <Th className="text-right">Atas</Th><Th className="text-right">Contratos</Th>
                 <Th className="text-right">Valor contratado (R$)</Th><Th></Th>
               </tr>
@@ -69,6 +71,7 @@ export default function Fornecedores({ data, refresh }) {
                   <tr key={f.id} className="border-b border-slate-100 hover:bg-stone-50">
                     <td className="px-3 py-2.5 font-sans font-semibold text-slate-800">{f.razao}</td>
                     <td className="px-3 py-2.5 font-mono text-xs text-slate-600">{f.cnpj || "—"}</td>
+                    <td className="px-3 py-2.5 text-sm text-slate-600">{f.categoria || "—"}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{atasN}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{cts.length}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(valor)}</td>
@@ -98,11 +101,12 @@ function Th({ children, className = "" }) {
 function FormFornecedor({ f, refresh, onClose }) {
   const [razao, setRazao] = useState(f?.razao || "");
   const [cnpj, setCnpj] = useState(f?.cnpj || "");
+  const [categoria, setCategoria] = useState(f?.categoria || "");
 
   async function salvar() {
     if (!razao.trim()) return alert("Informe a razão social.");
-    if (f) await base44.entities.Fornecedor.update(f.id, { razao: razao.trim(), cnpj: cnpj.trim() });
-    else await base44.entities.Fornecedor.create({ razao: razao.trim(), cnpj: cnpj.trim() });
+    if (f) await base44.entities.Fornecedor.update(f.id, { razao: razao.trim(), cnpj: cnpj.trim(), categoria });
+    else await base44.entities.Fornecedor.create({ razao: razao.trim(), cnpj: cnpj.trim(), categoria });
     await refresh();
     onClose();
     alert(f ? "Fornecedor atualizado." : "Fornecedor cadastrado.");
@@ -111,9 +115,10 @@ function FormFornecedor({ f, refresh, onClose }) {
   return (
     <Modal sobre="Fornecedores" titulo={f ? "Editar fornecedor" : "Cadastrar fornecedor"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar</Btn></>}>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <Campo label="Razão social"><input className={inputCls} value={razao} onChange={e => setRazao(e.target.value)} /></Campo>
         <Campo label="CNPJ"><input className={inputCls} value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0001-00" /></Campo>
+        <Campo label="Categoria"><select className={inputCls} value={categoria} onChange={e => setCategoria(e.target.value)}><option value="">Sem categoria</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo>
       </div>
     </Modal>
   );
