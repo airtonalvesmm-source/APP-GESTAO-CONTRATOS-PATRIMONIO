@@ -102,3 +102,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Relatório estatístico — impressão */
+.print-only { display: none; }
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .rel-bloco-item { page-break-inside: avoid; }
+  body { background: white !important; }
+}

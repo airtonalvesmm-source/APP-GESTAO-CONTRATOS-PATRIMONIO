@@ -6,7 +6,8 @@ import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV } from "@/lib/dmp-ut
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } from "./ui";
 import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, Check, BarChart3 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ORD_CATALOGO = {
   alfa: (a, b) => cmpTexto(a.objeto, b.objeto),
@@ -24,6 +25,9 @@ export default function Catalogo({ data, refresh }) {
   const [editId, setEditId] = useState(null);
   const [showOcultos, setShowOcultos] = useState(false);
   const [cadeiaBenId, setCadeiaBenId] = useState(null);
+  const [modoSelecao, setModoSelecao] = useState(false);
+  const [selecionados, setSelecionados] = useState(new Set());
+  const navigate = useNavigate();
 
   const filtrados = useMemo(() => {
     const t = norm(termo.trim());
@@ -55,6 +59,26 @@ export default function Catalogo({ data, refresh }) {
     await base44.asServiceRole.entities.CatalogItem.updateMany({ oculto: true }, { $set: { oculto: false } });
     await refresh();
   }
+
+  function toggleSelecao(id) {
+    setSelecionados(s => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else { if (n.size >= 25) { alert("Limite de 25 itens por relatório. Considere agrupar por PDM."); return s; } n.add(id); }
+      return n;
+    });
+  }
+  function limparSelecao() { setSelecionados(new Set()); }
+  function selecionarTodosFiltro() {
+    setSelecionados(s => {
+      const n = new Set(s);
+      for (const b of filtrados) { if (n.size >= 25) break; n.add(b.id); }
+      if (n.size >= 25) alert("Limite de 25 itens atingido.");
+      return n;
+    });
+  }
+  function gerarRelatorio() { const ids = Array.from(selecionados); if (ids.length) navigate(`/relatorio-estatistico?items=${ids.join(",")}`); }
+  function relatorioItemUnico(benId) { navigate(`/relatorio-estatistico?items=${benId}`); }
 
   function exportCSV() {
     if (!catalog.length) return alert("Catálogo vazio.");
@@ -117,6 +141,11 @@ export default function Catalogo({ data, refresh }) {
           {ocultos.length > 0 && (
             <MiniBtn onClick={restaurarOcultos}>{ocultos.length} item(ns) excluído(s) — restaurar</MiniBtn>
           )}
+          <button onClick={() => { setModoSelecao(m => !m); if (modoSelecao) limparSelecao(); }}
+            className={`border rounded-sm px-3 py-1.5 cursor-pointer font-sans font-semibold text-[13px] flex items-center gap-1.5 transition-colors
+              ${modoSelecao ? "bg-amber-700 border-amber-700 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+            <Check className="w-3.5 h-3.5" />{modoSelecao ? "Seleção ativa" : "Selecionar itens"}
+          </button>
           <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto">
             {filtrados.length} {filtrados.length === 1 ? "item" : "itens"}
           </span>
@@ -138,7 +167,7 @@ export default function Catalogo({ data, refresh }) {
                 <span className="font-mono text-[11px] text-slate-500 ml-auto">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
               </div>
               <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
-                {itens.map(b => <Cartao key={b.id} b={b} onClick={() => setFichaId(b.id)} />)}
+                {itens.map(b => <Cartao key={b.id} b={b} onClick={() => setFichaId(b.id)} modoSelecao={modoSelecao} selecionado={selecionados.has(b.id)} onToggleSelect={() => toggleSelecao(b.id)} />)}
               </div>
             </section>
           );
@@ -147,18 +176,40 @@ export default function Catalogo({ data, refresh }) {
 
       {fichaId && <Ficha b={data.catalog.find(x => x.id === fichaId)} data={data} refresh={refresh}
         onClose={() => setFichaId(null)} onEdit={() => { setFichaId(null); setEditId(fichaId); }}
-        onExcluir={excluirItem} onCadeia={() => { setFichaId(null); setCadeiaBenId(fichaId); }} />}
+        onExcluir={excluirItem} onCadeia={() => { setFichaId(null); setCadeiaBenId(fichaId); }}
+        onRelatorio={() => relatorioItemUnico(fichaId)} />}
+
+      {modoSelecao && selecionados.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-800 text-white px-5 py-3 flex gap-3 items-center flex-wrap shadow-lg">
+          <span className="font-mono text-sm">{selecionados.size} {selecionados.size === 1 ? "item selecionado" : "itens selecionados"}</span>
+          <div className="ml-auto flex gap-2 flex-wrap">
+            <button onClick={limparSelecao} className="border border-slate-500 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-700 cursor-pointer">Limpar</button>
+            <button onClick={selecionarTodosFiltro} className="border border-slate-500 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-700 cursor-pointer">Selecionar todos da categoria</button>
+            <button onClick={gerarRelatorio} className="bg-amber-700 border-amber-700 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-amber-600 cursor-pointer flex items-center gap-1.5">
+              <BarChart3 className="w-4 h-4" />Gerar relatório estatístico
+            </button>
+          </div>
+        </div>
+      )}
       {editId && <FormItem idEdicao={editId === "novo" ? null : editId} data={data} refresh={refresh} onClose={() => setEditId(null)} />}
       {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
     </div>
   );
 }
 
-function Cartao({ b, onClick }) {
+function Cartao({ b, onClick, modoSelecao, selecionado, onToggleSelect }) {
+  const cls = modoSelecao
+    ? `bg-white border rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all ${selecionado ? "border-amber-700 bg-amber-50/40 shadow-md" : "border-slate-300 hover:border-slate-500 hover:shadow-lg"}`
+    : "bg-white border border-slate-300 rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5";
   return (
-    <button onClick={onClick}
-      className="bg-white border border-slate-300 rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5">
-      <span className="aspect-[4/3] bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] border-b border-slate-200 flex items-center justify-center text-stone-500">
+    <div onClick={modoSelecao ? onToggleSelect : onClick} className={cls}>
+      <span className="aspect-[4/3] bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] border-b border-slate-200 flex items-center justify-center text-stone-500 relative">
+        {modoSelecao && (
+          <span className={`absolute top-2 left-2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+            ${selecionado ? "bg-amber-700 border-amber-700 text-white" : "bg-white/90 border-slate-400"}`}>
+            {selecionado && <Check className="w-3 h-3" />}
+          </span>
+        )}
         {b.imagem ? <img src={b.imagem} alt={b.objeto} className="w-full h-full object-cover" /> : <Desenho arte={b.arte} />}
       </span>
       <span className="p-3 flex flex-col gap-2 flex-1">
@@ -166,11 +217,11 @@ function Cartao({ b, onClick }) {
         <span className="block text-[12.5px] leading-snug text-slate-500 line-clamp-3">{b.aplicacao}</span>
         <Plaqueta pdm={b.pdm} catmat={b.catmat} />
       </span>
-    </button>
+    </div>
   );
 }
 
-function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia }) {
+function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelatorio }) {
   const [desc, setDesc] = useState(b.descricao || "");
   const [imgUrl, setImgUrl] = useState(b.imagem || "");
   const [arteSel, setArteSel] = useState(b.arte || "generico");
@@ -220,6 +271,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia }) {
       footer={<>
         <Btn variant="risco" onClick={() => onExcluir(b)}>Excluir do catálogo</Btn>
         <Btn onClick={onCadeia}>Ver cadeia</Btn>
+        <Btn onClick={onRelatorio}>Relatório estatístico</Btn>
         <Btn onClick={onEdit}>Editar dados</Btn>
         <Btn variant="forte" onClick={onClose}>Fechar</Btn>
       </>}>

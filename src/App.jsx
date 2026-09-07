@@ -8,6 +8,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import RelatorioEstatistico from './pages/RelatorioEstatistico';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -38,6 +39,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/" element={<Home />} />
+        <Route path="/relatorio-estatistico" element={<RelatorioEstatistico />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
