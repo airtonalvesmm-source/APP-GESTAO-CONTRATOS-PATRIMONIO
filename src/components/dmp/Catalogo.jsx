@@ -180,7 +180,7 @@ export default function Catalogo({ data, refresh }) {
         onRelatorio={() => relatorioItemUnico(fichaId)} />}
 
       {modoSelecao && selecionados.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-800 text-white px-5 py-3 flex gap-3 items-center flex-wrap shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 z-[60] bg-slate-800 text-white px-5 py-3 pr-52 flex gap-3 items-center flex-wrap shadow-lg">
           <span className="font-mono text-sm">{selecionados.size} {selecionados.size === 1 ? "item selecionado" : "itens selecionados"}</span>
           <div className="ml-auto flex gap-2 flex-wrap">
             <button onClick={limparSelecao} className="border border-slate-500 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-700 cursor-pointer">Limpar</button>
