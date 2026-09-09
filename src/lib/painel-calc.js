@@ -16,8 +16,10 @@ export function fmtPct(n) {
 
 export const fmtRs = (n) => `R$ ${fmtM(n)}`;
 
+function qtdEfetiva(p) { return Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada)); }
+
 export function calcPlanejado(pca, ano) {
-  return pca.filter(p => +p.exercicio === +ano).reduce((t, p) => t + nQtd(p.qtd) * nVal(p.valor), 0);
+  return pca.filter(p => +p.exercicio === +ano).reduce((t, p) => t + qtdEfetiva(p) * nVal(p.valor), 0);
 }
 
 export function calcContratado(contratos, ocorrencias, ano) {
@@ -56,12 +58,12 @@ export function calcAPagar(contratos, pagamentos, ocorrencias) {
 export function calcPlanejamentoFunil(pca, atas, ano) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
   const itensPlanejados = pcaAno.length;
-  const planejado = pcaAno.reduce((t, p) => t + nQtd(p.qtd) * nVal(p.valor), 0);
+  const planejado = pcaAno.reduce((t, p) => t + qtdEfetiva(p) * nVal(p.valor), 0);
   const benIdsAta = new Set();
   atas.forEach(a => (a.itens || []).forEach(it => benIdsAta.add(it.benId)));
   const licitados = pcaAno.filter(p => benIdsAta.has(p.benId));
   const itensLicitados = licitados.length;
-  const licitado = licitados.reduce((t, p) => t + nQtd(p.qtd) * nVal(p.valor), 0);
+  const licitado = licitados.reduce((t, p) => t + qtdEfetiva(p) * nVal(p.valor), 0);
   const aLicitrar = planejado - licitado;
   return { planejado, licitado, aLicitrar, itensPlanejados, itensLicitados };
 }

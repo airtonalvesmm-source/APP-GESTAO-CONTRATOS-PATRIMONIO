@@ -18,6 +18,7 @@ export default function PlanoAnual({ data, refresh }) {
   const [dfdNovo, setDfdNovo] = useState(false);
   const [dfdVisualizar, setDfdVisualizar] = useState(null);
   const [cadeiaBenId, setCadeiaBenId] = useState(null);
+  const [sobrestarId, setSobrestarId] = useState(null);
   const [termo, setTermo] = useState("");
   const [ord, setOrd] = useState("alfa");
 
@@ -29,6 +30,14 @@ export default function PlanoAnual({ data, refresh }) {
   }, [pca, exercicio]);
 
   function bem(id) { return catalog.find(b => b.id === id) || { objeto: "(item removido)", catmat: "—", unidade: "—", pdm: "—" }; }
+
+  function sobrestamentoDoItem(p) {
+    const sob = nQtd(p.qtdSobrestada);
+    if (!sob || sob <= 0) return { tipo: "nenhum", qtd: 0, classe: "neutro", txt: "" };
+    if (sob >= nQtd(p.qtd)) return { tipo: "total", qtd: sob, classe: "critico", txt: "Sobrestado (total)" };
+    return { tipo: "parcial", qtd: sob, classe: "aviso", txt: `Sobrestado (${sob}/${nQtd(p.qtd)})` };
+  }
+  function qtdEfetiva(p) { return Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada)); }
 
   function execucaoDoItem(p) {
     let qtd = 0, valor = 0; const lanc = [];
@@ -77,20 +86,26 @@ export default function PlanoAnual({ data, refresh }) {
 
   function csvPlano() {
     if (!itensExercicio.length) return alert("Não há itens no exercício selecionado.");
-    const l = [["Código PCA", "Objeto", "PDM", "CATMAT", "Categoria", "Unidade", "Quantidade", "Valor unitário", "Valor total", "Aplicação", "Justificativa"]];
+    const l = [["Código PCA", "Objeto", "PDM", "CATMAT", "Categoria", "Unidade", "Qtd. autorizada", "Qtd. sobrestada", "Qtd. efetiva", "Status", "Valor unitário", "Valor total", "Aplicação", "Justificativa", "Motivo do sobrestamento", "Data do sobrestamento"]];
     itensExercicio.forEach(p => {
       const b = bem(p.benId);
-      l.push([p.codigo || "", b.objeto, b.pdm, b.catmat, b.categoria, b.unidade, fmtQ(p.qtd), fmtM(p.valor), fmtM(nQtd(p.qtd) * nVal(p.valor)), b.aplicacao, p.justificativa || ""]);
+      const sob = sobrestamentoDoItem(p);
+      const qE = qtdEfetiva(p);
+      const status = sob.tipo === "nenhum" ? "Ativo" : sob.tipo === "total" ? "Sobrestado (total)" : "Sobrestado (parcial)";
+      l.push([p.codigo || "", b.objeto, b.pdm, b.catmat, b.categoria, b.unidade, fmtQ(p.qtd), fmtQ(nQtd(p.qtdSobrestada)), fmtQ(qE), status, fmtM(p.valor), fmtM(qE * nVal(p.valor)), b.aplicacao, p.justificativa || "", p.motivoSobrestamento || "", fmtData(p.dataSobrestamento)]);
     });
     baixarCSV(`pca-${exercicio}.csv`, l);
   }
 
   function csvExecucao() {
     if (!itensExercicio.length) return alert("Não há itens no exercício selecionado.");
-    const l = [["Código PCA", "Objeto", "CATMAT", "Unidade", "Qtd. planejada", "Valor planejado", "Preço estimado informado", "Qtd. contratada", "Valor contratado", "% executado", "Qtd. a contratar", "Lançamentos"]];
+    const l = [["Código PCA", "Objeto", "CATMAT", "Unidade", "Qtd. autorizada", "Qtd. sobrestada", "Qtd. efetiva", "Valor planejado", "Qtd. contratada", "Valor contratado", "% executado", "Qtd. a contratar", "Status", "Lançamentos"]];
     itensExercicio.forEach(p => {
       const b = bem(p.benId), e = execucaoDoItem(p);
-      l.push([p.codigo || "", b.objeto, b.catmat, b.unidade, fmtQ(p.qtd), fmtM(nQtd(p.qtd) * nVal(p.valor)), nVal(p.valor) ? "Sim" : "Não", fmtQ(e.qtd), fmtM(e.valor), nQtd(p.qtd) ? fmtQ(Math.round(e.qtd / nQtd(p.qtd) * 100)) : "0", fmtQ(Math.max(0, nQtd(p.qtd) - e.qtd)), e.lanc.join(" | ")]);
+      const sob = sobrestamentoDoItem(p);
+      const qE = qtdEfetiva(p);
+      const status = sob.tipo === "nenhum" ? (e.qtd === 0 ? "Não iniciado" : (qE - e.qtd > 0 ? "Parcial" : "Concluído")) : (sob.tipo === "total" ? "Sobrestado (total)" : "Sobrestado (parcial)");
+      l.push([p.codigo || "", b.objeto, b.catmat, b.unidade, fmtQ(p.qtd), fmtQ(nQtd(p.qtdSobrestada)), fmtQ(qE), fmtM(qE * nVal(p.valor)), fmtQ(e.qtd), fmtM(e.valor), qE ? fmtQ(Math.round(e.qtd / qE * 100)) : "0", fmtQ(Math.max(0, qE - e.qtd)), status, e.lanc.join(" | ")]);
     });
     baixarCSV(`execucao-pca-${exercicio}.csv`, l);
   }
@@ -149,7 +164,7 @@ export default function PlanoAnual({ data, refresh }) {
               <div className="overflow-x-auto border border-slate-300 rounded-sm bg-white">
                 <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
                   <thead><tr className="bg-stone-50">
-                    <Th>Código PCA</Th><Th>Item</Th><Th>Unid.</Th><Th className="text-right">Qtd.</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Total</Th>{temJust && <Th>Justificativa</Th>}<Th></Th>
+                    <Th>Código PCA</Th><Th>Item</Th><Th>Unid.</Th><Th className="text-right">Qtd.</Th><Th className="text-right">Vlr. unit.</Th><Th className="text-right">Total</Th><Th>Status</Th>{temJust && <Th>Justificativa</Th>}<Th></Th>
                   </tr></thead>
                   <tbody>
                     {ORDEM.concat(["Sem categoria"]).map(cat => {
@@ -158,27 +173,30 @@ export default function PlanoAnual({ data, refresh }) {
                       let total = 0;
                       return (
                         <React.Fragment key={cat}>
-                          <tr><td colSpan={8} className="bg-stone-50 px-3 py-2 font-sans text-[10px] tracking-widest uppercase text-slate-500 font-semibold">{cat}</td></tr>
+                          <tr><td colSpan={9} className="bg-stone-50 px-3 py-2 font-sans text-[10px] tracking-widest uppercase text-slate-500 font-semibold">{cat}</td></tr>
                           {doGrupo.map(p => {
                             const b = bem(p.benId);
                             const t = nQtd(p.qtd) * nVal(p.valor); total += t;
+                            const sob = sobrestamentoDoItem(p);
+                            const qtdEft = qtdEfetiva(p);
                             return (
-                              <tr key={p.id} className="border-b border-slate-100 hover:bg-stone-50">
+                              <tr key={p.id} className={`border-b border-slate-100 hover:bg-stone-50 ${sob.tipo !== "nenhum" ? "bg-amber-50/40" : ""}`}>
                                 <td className="px-3 py-2.5 font-mono text-xs">{p.codigo || "—"}</td>
                                 <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat}</span></td>
                                 <td className="px-3 py-2.5 font-mono text-xs">{b.unidade}</td>
-                                <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(p.qtd)}</td>
+                                <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(p.qtd)}{sob.tipo !== "nenhum" && <><br /><span className="font-mono text-[11px] text-amber-700">efetiva: {fmtQ(qtdEft)}</span></>}</td>
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(p.valor)}</td>
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(t)}</td>
+                                <td className="px-3 py-2.5">{sob.tipo === "nenhum" ? <Pill tipo="ok">Ativo</Pill> : <Pill tipo={sob.classe}>{sob.txt}</Pill>}</td>
                                 {temJust && <td className="px-3 py-2.5 text-sm text-slate-500 max-w-[34ch]">{p.justificativa || "—"}</td>}
-                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setCadeiaBenId(p.benId)}>Cadeia</MiniBtn> <MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></td>
+                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setCadeiaBenId(p.benId)}>Cadeia</MiniBtn> <MiniBtn onClick={() => setSobrestarId(p.id)}>Sobrestar</MiniBtn> <MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></td>
                               </tr>
                             );
                           })}
                           <tr className="border-t border-slate-300 bg-stone-50">
                             <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={5}>Subtotal {cat}</td>
                             <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(total)}</td>
-                            <td colSpan={temJust ? 2 : 1}></td>
+                            <td colSpan={temJust ? 3 : 2}></td>
                           </tr>
                         </React.Fragment>
                       );
@@ -192,6 +210,7 @@ export default function PlanoAnual({ data, refresh }) {
       )}
 
       {(novo || editId) && <FormPCA r={editId ? pca.find(x => x.id === editId) : null} data={data} exercicio={exercicio} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />}
+      {sobrestarId && <FormSobrestamento p={pca.find(x => x.id === sobrestarId)} refresh={refresh} onClose={() => setSobrestarId(null)} />}
       {(dfdNovo || dfdEditId) && <FormDFD f={dfdEditId ? dfds.find(x => x.id === dfdEditId) : null} data={data} refresh={refresh} onClose={() => { setDfdNovo(false); setDfdEditId(null); }} />}
       {dfdVisualizar && <VisualizarDFD f={dfds.find(x => x.id === dfdVisualizar)} data={data} onClose={() => setDfdVisualizar(null)} />}
       {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
@@ -218,9 +237,13 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
 
   async function salvar() {
     if (!nQtd(form.qtd)) return alert("Informe uma quantidade maior que zero.");
+    if (r && nQtd(r.qtdSobrestada) > nQtd(form.qtd)) return alert(`A quantidade autorizada (${fmtQ(nQtd(form.qtd))}) não pode ser menor que a quantidade sobrestada (${fmtQ(nQtd(r.qtdSobrestada))}). Remova ou ajuste o sobrestamento primeiro.`);
     const dados = { benId: form.benId, exercicio: +form.exercicio || anoAtual, codigo: form.codigo.trim(), qtd: nQtd(form.qtd), valor: nVal(form.valor), justificativa: form.justificativa.trim() };
-    if (r) await base44.entities.PCAItem.update(r.id, dados);
-    else await base44.entities.PCAItem.create(dados);
+    if (r) {
+      await base44.entities.PCAItem.update(r.id, { ...dados, qtdSobrestada: nQtd(r.qtdSobrestada), motivoSobrestamento: r.motivoSobrestamento || "", dataSobrestamento: r.dataSobrestamento || "" });
+    } else {
+      await base44.entities.PCAItem.create(dados);
+    }
     await refresh();
     onClose();
     alert(r ? "Item atualizado." : "Item incluído no plano de " + dados.exercicio + ".");
@@ -248,13 +271,77 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
   );
 }
 
+function FormSobrestamento({ p, refresh, onClose }) {
+  const [qtdSobrestada, setQtdSobrestada] = useState(nQtd(p.qtdSobrestada) || 0);
+  const [motivo, setMotivo] = useState(p.motivoSobrestamento || "");
+  const [dataSobrestamento, setDataSobrestamento] = useState(p.dataSobrestamento || new Date().toISOString().slice(0, 10));
+  const qtdTotal = nQtd(p.qtd);
+  const qtdEft = Math.max(0, qtdTotal - nQtd(qtdSobrestada));
+  const tipoSob = nQtd(qtdSobrestada) <= 0 ? "nenhum" : (nQtd(qtdSobrestada) >= qtdTotal ? "total" : "parcial");
+
+  async function salvar() {
+    const sob = nQtd(qtdSobrestada);
+    if (sob < 0) return alert("Quantidade sobrestada inválida.");
+    if (sob > qtdTotal) return alert(`Quantidade sobrestada não pode ser maior que a autorizada (${fmtQ(qtdTotal)}).`);
+    if (sob > 0 && !motivo.trim()) return alert("Informe o motivo do sobrestamento.");
+    await base44.entities.PCAItem.update(p.id, {
+      qtdSobrestada: sob,
+      motivoSobrestamento: motivo.trim(),
+      dataSobrestamento: sob > 0 ? dataSobrestamento : ""
+    });
+    await refresh();
+    onClose();
+    alert(sob > 0 ? "Sobrestamento registrado." : "Sobrestamento removido — item reativado.");
+  }
+
+  async function remover() {
+    if (!confirm("Remover o sobrestamento e reativar o item?")) return;
+    await base44.entities.PCAItem.update(p.id, { qtdSobrestada: 0, motivoSobrestamento: "", dataSobrestamento: "" });
+    await refresh();
+    onClose();
+    alert("Item reativado.");
+  }
+
+  return (
+    <Modal sobre="Sobrestamento de item" titulo="Sobrestar item do Plano Anual" onClose={onClose}
+      footer={<>
+        {nQtd(p.qtdSobrestada) > 0 && <Btn variant="risco" onClick={remover}>Remover sobrestamento</Btn>}
+        <Btn onClick={onClose}>Cancelar</Btn>
+        <Btn variant="forte" onClick={salvar}>Salvar</Btn>
+      </>}>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
+        <Campo label="Quantidade autorizada"><input readOnly className={inputCls + " bg-slate-50"} value={fmtQ(qtdTotal)} /></Campo>
+        <Campo label="Quantidade a sobrestar" ajuda="Quantidade que não será contratada neste exercício.">
+          <input type="number" min="0" max={qtdTotal} className={inputCls} value={qtdSobrestada}
+            onChange={e => setQtdSobrestada(nQtd(e.target.value))} />
+        </Campo>
+        <Campo label="Quantidade efetiva" ajuda="Quantidade que segue para contratação.">
+          <input readOnly className={inputCls + " bg-slate-50"} value={fmtQ(qtdEft)} />
+        </Campo>
+        <Campo label="Data da decisão"><input type="date" className={inputCls} value={dataSobrestamento} onChange={e => setDataSobrestamento(e.target.value)} /></Campo>
+      </div>
+      <div className="mb-3">
+        {tipoSob === "nenhum" ? <Pill tipo="ok">Item ativo — nenhuma quantidade sobrestada</Pill>
+          : tipoSob === "total" ? <Pill tipo="critico">Sobrestamento total — item não será contratado</Pill>
+          : <Pill tipo="aviso">Sobrestamento parcial — {fmtQ(qtdEft)} un. seguem para contratação</Pill>}
+      </div>
+      <Campo label="Motivo do sobrestamento" ajuda="Registre a decisão (ex.: deliberação de reunião, readequação orçamentária).">
+        <textarea className={textareaCls} value={motivo} onChange={e => setMotivo(e.target.value)}
+          placeholder="ex.: Em reunião de 15/09/2026 foi decidido reduzir a aquisição para 5 unidades, mantendo as demais para o exercício seguinte." />
+      </Campo>
+    </Modal>
+  );
+}
+
 function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }) {
   const [termo, setTermo] = useState("");
   const [status, setStatus] = useState("");
-  const statusNomes = { nao: "Não iniciado", parcial: "Parcial", concluido: "Concluído", acima: "Acima do plano" };
+  const statusNomes = { nao: "Não iniciado", parcial: "Parcial", concluido: "Concluído", acima: "Acima do plano", sobrestado: "Sobrestado" };
+  function qtdEft(p) { return Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada)); }
   function statusDoItem(p) {
+    if (nQtd(p.qtdSobrestada) >= nQtd(p.qtd) && nQtd(p.qtd) > 0) return "sobrestado";
     const e = execucaoDoItem(p);
-    const falta = nQtd(p.qtd) - e.qtd;
+    const falta = qtdEft(p) - e.qtd;
     if (e.qtd === 0) return "nao";
     if (falta > 0) return "parcial";
     if (falta === 0) return "concluido";
@@ -291,16 +378,22 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                 {filtrados.map(p => {
                   const b = bem(p.benId);
                   const e = execucaoDoItem(p);
-                  const planV = nQtd(p.qtd) * nVal(p.valor);
-                  plQ += nQtd(p.qtd); plV += planV; exQ += e.qtd; exV += e.valor;
-                  const pct = nQtd(p.qtd) ? e.qtd / nQtd(p.qtd) * 100 : 0;
-                  const falta = nQtd(p.qtd) - e.qtd;
-                  const sit = e.qtd === 0 ? { c: "neutro", t: "Não iniciado" } : (falta > 0 ? { c: "aviso", t: "Parcial" } : (falta === 0 ? { c: "neutro", t: "Concluído" } : { c: "critico", t: "Acima do plano" }));
+                  const qE = qtdEft(p);
+                  const sob = nQtd(p.qtdSobrestada);
+                  const planV = qE * nVal(p.valor);
+                  plQ += qE; plV += planV; exQ += e.qtd; exV += e.valor;
+                  const pct = qE ? e.qtd / qE * 100 : 0;
+                  const falta = qE - e.qtd;
+                  const sit = sob >= nQtd(p.qtd) && nQtd(p.qtd) > 0 ? { c: "critico", t: "Sobrestado (total)" }
+                    : sob > 0 ? { c: "aviso", t: `Sobrestado (${sob}/${nQtd(p.qtd)})` }
+                    : e.qtd === 0 ? { c: "neutro", t: "Não iniciado" }
+                    : (falta > 0 ? { c: "aviso", t: "Parcial" }
+                    : (falta === 0 ? { c: "neutro", t: "Concluído" } : { c: "critico", t: "Acima do plano" }));
                   return (
-                    <tr key={p.id} className="border-b border-slate-100 hover:bg-stone-50">
+                    <tr key={p.id} className={`border-b border-slate-100 hover:bg-stone-50 ${sob > 0 ? "bg-amber-50/40" : ""}`}>
                       <td className="px-3 py-2.5 font-mono text-xs">{p.codigo || "—"}</td>
                       <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat}</span></td>
-                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(p.qtd)}<br /><span className="font-mono text-xs text-slate-600">R$ {fmtM(planV)}</span></td>
+                      <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(qE)}{sob > 0 && <><br /><span className="font-mono text-[11px] text-amber-700">de {fmtQ(p.qtd)}</span></>}<br /><span className="font-mono text-xs text-slate-600">R$ {fmtM(planV)}</span></td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(e.qtd)}<br /><span className="font-mono text-xs text-slate-600">R$ {fmtM(e.valor)}</span></td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(Math.round(pct))}%<Barra pct={pct} classe={sit.c === "ok" ? "" : (sit.c === "critico" ? "critico" : "aviso")} /></td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(Math.max(0, falta))}</td>

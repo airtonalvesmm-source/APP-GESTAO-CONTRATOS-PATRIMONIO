@@ -16,7 +16,21 @@
     },
     "qtd": {
       "type": "number",
-      "title": "Quantidade"
+      "title": "Quantidade autorizada"
+    },
+    "qtdSobrestada": {
+      "type": "number",
+      "title": "Quantidade sobrestada",
+      "default": 0
+    },
+    "motivoSobrestamento": {
+      "type": "string",
+      "title": "Motivo do sobrestamento"
+    },
+    "dataSobrestamento": {
+      "type": "string",
+      "title": "Data do sobrestamento",
+      "format": "date"
     },
     "valor": {
       "type": "number",
