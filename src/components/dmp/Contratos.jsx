@@ -23,7 +23,20 @@ export default function Contratos({ data, refresh }) {
   const [agrupar, setAgrupar] = useState(false);
   const [filtroSituacao, setFiltroSituacao] = useState("Vigente");
 
-  function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
+  function catDoContrato(c) {
+    const a = atas.find(x => x.id === c.ataId);
+    if (a?.categoria) return a.categoria;
+    const cats = (c.itens || []).map(i => {
+      const cat = catalog.find(b => b.id === i.benId)?.categoria;
+      return cat === "Ar-condicionado" ? "Climatização" : cat;
+    }).filter(Boolean);
+    if (cats.length) {
+      const counts = {};
+      cats.forEach(cat => counts[cat] = (counts[cat] || 0) + 1);
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+    return "Sem categoria";
+  }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
   const anos = Array.from(new Set(contratos.map(anoDoContrato).filter(Boolean))).sort().reverse();
 
@@ -267,6 +280,12 @@ function FormContrato({ c, data, refresh, onClose }) {
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
 
+  const anoContrato = (() => {
+    if (form.inicio) return Number(form.inicio.slice(0, 4));
+    const m = String(form.numero || "").match(/\/(\d{4})$/);
+    return m ? Number(m[1]) : new Date().getFullYear();
+  })();
+
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
   function setItem(i, k, v) {
@@ -279,12 +298,12 @@ function FormContrato({ c, data, refresh, onClose }) {
           novo[i].benId = x.benId;
           novo[i].valor = x.valor;
           const iguais = pca.filter(p => p.benId === x.benId);
-          novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "";
+          novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "";
         }
       }
       if (k === "benId" && !form.ataId) {
         const iguais = pca.filter(p => p.benId === v);
-        novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "";
+        novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "";
       }
       return novo;
     });
@@ -295,10 +314,9 @@ function FormContrato({ c, data, refresh, onClose }) {
     if (!ataId) { setItens([]); return; }
     const a = atas.find(x => x.id === ataId);
     if (!a || !(a.itens || []).length) { setItens([]); return; }
-    const ano = new Date().getFullYear();
     setItens((a.itens || []).map(x => {
       const iguais = pca.filter(p => p.benId === x.benId);
-      return { itemAtaId: x.id, benId: x.benId, qtd: "", valor: x.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === ano) || iguais[0]).id : "" };
+      return { itemAtaId: x.id, benId: x.benId, qtd: "", valor: x.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" };
     }));
   }
 
@@ -308,12 +326,12 @@ function FormContrato({ c, data, refresh, onClose }) {
       if (!a || !(a.itens || []).length) return alert("A ata selecionada não tem itens.");
       const primeiro = a.itens[0];
       const iguais = pca.filter(p => p.benId === primeiro.benId);
-      setItens(arr => [...arr, { itemAtaId: primeiro.id, benId: primeiro.benId, qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "" }]);
+      setItens(arr => [...arr, { itemAtaId: primeiro.id, benId: primeiro.benId, qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
     } else {
       if (!catalog.length) return alert("Catálogo vazio.");
       const b = catalog[0];
       const iguais = pca.filter(p => p.benId === b.id);
-      setItens(arr => [...arr, { itemAtaId: "", benId: b.id, qtd: "", valor: "", pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +new Date().getFullYear()) || iguais[0]).id : "" }]);
+      setItens(arr => [...arr, { itemAtaId: "", benId: b.id, qtd: "", valor: "", pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
     }
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
@@ -350,12 +368,17 @@ function FormContrato({ c, data, refresh, onClose }) {
   }
 
   function opcoesPCA(benId, sel) {
-    const iguais = pca.filter(p => p.benId === benId);
-    const outros = pca.filter(p => p.benId !== benId);
+    const pcaAno = pca.filter(p => +p.exercicio === +anoContrato);
+    const pcaOutros = pca.filter(p => +p.exercicio !== +anoContrato);
+    const iguais = pcaAno.filter(p => p.benId === benId);
+    const outrosAno = pcaAno.filter(p => p.benId !== benId);
+    const iguaisOutros = pcaOutros.filter(p => p.benId === benId);
+    const outrosOutros = pcaOutros.filter(p => p.benId !== benId);
     return (<>
       <option value="">Sem vínculo com o plano</option>
-      {iguais.length > 0 && <optgroup label="Mesmo bem">{iguais.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
-      {outros.length > 0 && <optgroup label="Outros itens do plano">{outros.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
+      {iguais.length > 0 && <optgroup label={`Mesmo bem — exercício ${anoContrato}`}>{iguais.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
+      {outrosAno.length > 0 && <optgroup label={`Outros itens — exercício ${anoContrato}`}>{outrosAno.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
+      {(iguaisOutros.length > 0 || outrosOutros.length > 0) && <optgroup label="Outros exercícios">{[...iguaisOutros, ...outrosOutros].map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
     </>);
   }
 
@@ -367,7 +390,7 @@ function FormContrato({ c, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Tipo"><select className={inputCls} value={form.tipo} onChange={e => setF("tipo", e.target.value)}><option>Contrato</option><option>Nota de empenho</option></select></Campo>
         <Campo label="Número"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 45/2026" /></Campo>
-        <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
+        <Campo label="Número SEI Contrato"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} placeholder="ex.: 19.21.0000.0000000/2026-00" /></Campo>
         <Campo label="Nota de empenho"><input className={inputCls} value={form.notaEmpenho} onChange={e => setF("notaEmpenho", e.target.value)} placeholder="ex.: 2026NE000418" /></Campo>
         <Campo label="Ata vinculada" ajuda={form.ataId ? "Itens da ata carregados abaixo — ajuste as quantidades e remova os que não serão contratados." : "Sem ata: contratação direta. Informe o fornecedor abaixo."}>
           <select className={inputCls} value={form.ataId} onChange={e => handleAtaChange(e.target.value)}>
