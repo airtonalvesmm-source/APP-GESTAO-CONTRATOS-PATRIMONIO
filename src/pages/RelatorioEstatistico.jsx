@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { calcularRelatorio, agruparPorPDM } from "@/lib/relatorio-calc";
+import { calcularRelatorio, agruparPorPDM, agruparPorSubcategoria } from "@/lib/relatorio-calc";
 import { fmtData } from "@/lib/dmp-utils";
 import { Btn, inputCls } from "@/components/dmp/ui";
 import BlocoItem from "@/components/dmp/relatorio/BlocoItem";
@@ -19,6 +19,7 @@ export default function RelatorioEstatistico() {
   const [anoFim, setAnoFim] = useState(ANO_ATUAL);
   const [baseSerie, setBaseSerie] = useState("comparativo");
   const [agruparPDM, setAgruparPDM] = useState(false);
+  const [agruparSub, setAgruparSub] = useState(false);
   const [estimativas, setEstimativas] = useState({});
   const [justificativas, setJustificativas] = useState({});
 
@@ -44,8 +45,8 @@ export default function RelatorioEstatistico() {
 
   const ai = Math.min(anoInicio, anoFim), af = Math.max(anoInicio, anoFim);
   const resultados = useMemo(() => calcularRelatorio(itemIds, data, ai, af), [itemIds, data, ai, af]);
-  const blocos = useMemo(() => agruparPDM ? agruparPorPDM(resultados) : resultados, [resultados, agruparPDM]);
-  const chaveBloco = (b) => agruparPDM ? (b._pdm || b.ben.pdm) : b.ben.id;
+  const blocos = useMemo(() => agruparPDM ? agruparPorPDM(resultados) : agruparSub ? agruparPorSubcategoria(resultados) : resultados, [resultados, agruparPDM, agruparSub]);
+  const chaveBloco = (b) => agruparPDM ? (b._pdm || b.ben.pdm) : agruparSub ? (b._sub || b.ben.subcategoria) : b.ben.id;
 
   function exportCSV() {
     const anos = []; for (let a = ai; a <= af; a++) anos.push(a);
@@ -89,8 +90,12 @@ export default function RelatorioEstatistico() {
             </select>
           </div>
           <label className="flex items-center gap-1.5 cursor-pointer text-[12.5px] font-sans font-semibold text-slate-200 px-2 py-1.5">
-            <input type="checkbox" checked={agruparPDM} onChange={e => setAgruparPDM(e.target.checked)} className="accent-amber-600" />
+            <input type="checkbox" checked={agruparPDM} onChange={e => { setAgruparPDM(e.target.checked); if (e.target.checked) setAgruparSub(false); }} className="accent-amber-600" />
             <Layers className="w-3.5 h-3.5" />Agrupar por PDM
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer text-[12.5px] font-sans font-semibold text-slate-200 px-2 py-1.5">
+            <input type="checkbox" checked={agruparSub} onChange={e => { setAgruparSub(e.target.checked); if (e.target.checked) setAgruparPDM(false); }} className="accent-amber-600" />
+            <Layers className="w-3.5 h-3.5" />Agrupar por subcategoria
           </label>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 bg-amber-700 border-amber-700 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-amber-600 cursor-pointer">
             <Printer className="w-4 h-4" />Imprimir / PDF
@@ -119,8 +124,8 @@ export default function RelatorioEstatistico() {
             onEstimativaChange={v => setEstimativas(s => ({ ...s, [key]: v }))}
             onJustificativaChange={v => setJustificativas(s => ({ ...s, [key]: v }))} />;
         })}
-        {resultados.length >= 2 && !agruparPDM && <BlocoConsolidado resultados={resultados} />}
-        {blocos.length >= 2 && agruparPDM && <BlocoConsolidado resultados={blocos} />}
+        {resultados.length >= 2 && !agruparPDM && !agruparSub && <BlocoConsolidado resultados={resultados} />}
+        {blocos.length >= 2 && (agruparPDM || agruparSub) && <BlocoConsolidado resultados={blocos} />}
       </div>
     </div>
   );

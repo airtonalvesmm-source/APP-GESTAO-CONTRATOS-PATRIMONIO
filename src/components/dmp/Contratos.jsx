@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM, SITUACOES_CONTRATO } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, uid, baixarCSV,
   ocorrenciasDe, aditivoValor, diasAditivados, valorItensContrato, valorEmpenhado, fimVigente, nValS } from "@/lib/dmp-utils";
+import { opcoesBensAgrupadas } from "@/lib/subcat-utils";
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -439,7 +440,7 @@ function FormContrato({ c, data, refresh, onClose }) {
                       </>
                     ) : (
                       <select className={inputCls} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>
-                        {catalog.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>)}
+                        {opcoesBensAgrupadas(catalog, null, it.benId)}
                       </select>
                     )}
                   </Campo>

@@ -3,10 +3,12 @@ import { base44 } from "@/api/base44Client";
 import { ORDEM, NOMES_ARTE, TRACOS } from "@/lib/dmp-data";
 import { Desenho } from "@/components/dmp/Desenho";
 import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV } from "@/lib/dmp-utils";
+import { agruparBensPorSubcategoria, sugestoesSubcategoria } from "@/lib/subcat-utils";
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } from "./ui";
 import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
-import { Plus, Upload, Check, BarChart3 } from "lucide-react";
+import GerenciarSubcategorias from "./GerenciarSubcategorias";
+import { Plus, Upload, Check, BarChart3, Tags } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ORD_CATALOGO = {
@@ -19,6 +21,7 @@ const ORD_CATALOGO = {
 export default function Catalogo({ data, refresh }) {
   const { catalog } = data;
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todas");
+  const [subcatAtiva, setSubcatAtiva] = useState("");
   const [termo, setTermo] = useState("");
   const [ord, setOrd] = useState("alfa");
   const [fichaId, setFichaId] = useState(null);
@@ -27,18 +30,32 @@ export default function Catalogo({ data, refresh }) {
   const [cadeiaBenId, setCadeiaBenId] = useState(null);
   const [modoSelecao, setModoSelecao] = useState(false);
   const [selecionados, setSelecionados] = useState(new Set());
+  const [gerenciarSubs, setGerenciarSubs] = useState(false);
   const navigate = useNavigate();
+  const { subcategorias } = data;
+
+  const subcatsDaCatAtiva = useMemo(() => {
+    if (categoriaAtiva === "Todas") return [];
+    return sugestoesSubcategoria(subcategorias, catalog, categoriaAtiva);
+  }, [subcategorias, catalog, categoriaAtiva]);
 
   const filtrados = useMemo(() => {
     const t = norm(termo.trim());
     return catalog.filter(b => {
       if (!showOcultos && b.oculto) return false;
       if (categoriaAtiva !== "Todas" && b.categoria !== categoriaAtiva) return false;
+      if (subcatAtiva && (b.subcategoria || "").trim() !== subcatAtiva) return false;
       if (!t) return true;
       return norm(b.objeto).includes(t) || String(b.catmat).includes(t) || String(b.pdm).includes(t) ||
-        norm(b.aplicacao).includes(t) || norm(b.descricao).includes(t);
-    }).slice().sort(ORD_CATALOGO[ord] || ORD_CATALOGO.alfa);
-  }, [catalog, categoriaAtiva, termo, ord, showOcultos]);
+        norm(b.aplicacao).includes(t) || norm(b.descricao).includes(t) || norm(b.subcategoria || "").includes(t);
+    }).slice().sort((a, b) => {
+      // Ordena por subcategoria primeiro, depois pela ordem escolhida
+      const sa = (a.subcategoria || "").trim(), sb = (b.subcategoria || "").trim();
+      const cmpSub = (sa || "zzz").localeCompare(sb || "zzz", "pt-BR");
+      if (cmpSub !== 0) return cmpSub;
+      return (ORD_CATALOGO[ord] || ORD_CATALOGO.alfa)(a, b);
+    });
+  }, [catalog, categoriaAtiva, subcatAtiva, termo, ord, showOcultos]);
 
   const ocultos = data.catalog.filter(b => b.oculto);
 
@@ -82,9 +99,9 @@ export default function Catalogo({ data, refresh }) {
 
   function exportCSV() {
     if (!catalog.length) return alert("Catálogo vazio.");
-    const l = [["Denominação", "PDM", "CATMAT", "Categoria", "Unidade", "Aplicação", "Especificação técnica", "Ilustração", "Foto (URL)"]];
+    const l = [["Denominação", "PDM", "CATMAT", "Categoria", "Subcategoria", "Unidade", "Aplicação", "Especificação técnica", "Ilustração", "Foto (URL)"]];
     catalog.filter(b => !b.oculto).forEach(b => {
-      l.push([b.objeto, b.pdm || "", b.catmat, b.categoria, b.unidade || "UNIDADE", b.aplicacao || "", b.descricao || "", b.arte || "generico", b.imagem || ""]);
+      l.push([b.objeto, b.pdm || "", b.catmat, b.categoria, b.subcategoria || "", b.unidade || "UNIDADE", b.aplicacao || "", b.descricao || "", b.arte || "generico", b.imagem || ""]);
     });
     baixarCSV("catalogo.csv", l);
   }
@@ -95,6 +112,7 @@ export default function Catalogo({ data, refresh }) {
         titulo="Catálogo de bens permanentes"
         desc="Cada item traz PDM, CATMAT, aplicação e especificação técnica. A ilustração pode ser trocada por foto real a qualquer momento."
         direita={<>
+          <Btn onClick={() => setGerenciarSubs(true)}><Tags className="w-4 h-4 inline mr-1" />Subcategorias</Btn>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="CatalogItem" refresh={refresh}
             colunas={[
@@ -102,13 +120,14 @@ export default function Catalogo({ data, refresh }) {
               { header: "PDM", campo: "pdm" },
               { header: "CATMAT", campo: "catmat", obrigatorio: true },
               { header: "Categoria", campo: "categoria", obrigatorio: true },
+              { header: "Subcategoria", campo: "subcategoria" },
               { header: "Unidade", campo: "unidade" },
               { header: "Aplicação", campo: "aplicacao" },
               { header: "Especificação técnica", campo: "descricao" },
               { header: "Ilustração", campo: "arte" },
               { header: "Foto (URL)", campo: "imagem" }
             ]}
-            ajuda="A categoria deve ser uma das: Ar-condicionado, Eletroeletrônicos, Mobiliário, Segurança. A ilustração é opcional (padrão: generico)." />
+            ajuda="A categoria deve ser uma das: Ar-condicionado, Eletroeletrônicos, Mobiliário, Segurança. A subcategoria é livre e serve para agrupar itens dentro da categoria. A ilustração é opcional (padrão: generico)." />
           <Btn variant="forte" onClick={() => setEditId("novo")}><Plus className="w-4 h-4 inline mr-1" />Adicionar item</Btn>
         </>}
       />
@@ -121,13 +140,19 @@ export default function Catalogo({ data, refresh }) {
           {["Todas", ...ORDEM].map(c => {
             const n = c === "Todas" ? catalog.length : catalog.filter(b => b.categoria === c).length;
             return (
-              <button key={c} onClick={() => setCategoriaAtiva(c)} aria-pressed={categoriaAtiva === c}
+              <button key={c} onClick={() => { setCategoriaAtiva(c); setSubcatAtiva(""); }} aria-pressed={categoriaAtiva === c}
                 className={`border rounded-sm px-3 py-1.5 cursor-pointer font-sans font-semibold text-[13px] flex items-center gap-1.5 transition-colors
                   ${categoriaAtiva === c ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
                 {c}<span className={`font-mono text-[11px] ${categoriaAtiva === c ? "text-slate-400" : "text-slate-400"}`}>{n}</span>
               </button>
             );
           })}
+          {subcatsDaCatAtiva.length > 0 && (
+            <select value={subcatAtiva} onChange={e => setSubcatAtiva(e.target.value)} className="border border-slate-300 rounded-sm px-2.5 py-1.5 font-sans text-[13px] bg-white cursor-pointer text-slate-700">
+              <option value="">Todas as subcategorias</option>
+              {subcatsDaCatAtiva.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
           <div className="min-w-[132px]">
             <Campo label="Ordenar por">
               <select value={ord} onChange={e => setOrd(e.target.value)} className={inputCls}>
@@ -158,6 +183,7 @@ export default function Catalogo({ data, refresh }) {
         (categoriaAtiva === "Todas" ? ORDEM : [categoriaAtiva]).map(cat => {
           const itens = filtrados.filter(b => b.categoria === cat);
           if (!itens.length) return null;
+          const grupos = agruparBensPorSubcategoria(itens);
           return (
             <section key={cat} className="mb-9">
               <div className="flex items-baseline gap-3 border-b border-slate-300 pb-2 mb-4">
@@ -166,9 +192,18 @@ export default function Catalogo({ data, refresh }) {
                 </h3>
                 <span className="font-mono text-[11px] text-slate-500 ml-auto">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
               </div>
-              <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
-                {itens.map(b => <Cartao key={b.id} b={b} onClick={() => setFichaId(b.id)} modoSelecao={modoSelecao} selecionado={selecionados.has(b.id)} onToggleSelect={() => toggleSelecao(b.id)} />)}
-              </div>
+              {grupos.map(g => (
+                <div key={g.subcategoria} className="mb-6">
+                  <div className="flex items-baseline gap-2 mb-3 pl-1">
+                    <span className="w-1 h-3.5 bg-slate-400 inline-block" />
+                    <h4 className="font-sans font-semibold text-[12.5px] tracking-wide uppercase text-slate-600">{g.subcategoria}</h4>
+                    <span className="font-mono text-[10px] text-slate-400 ml-1">{g.items.length}</span>
+                  </div>
+                  <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
+                    {g.items.map(b => <Cartao key={b.id} b={b} onClick={() => setFichaId(b.id)} modoSelecao={modoSelecao} selecionado={selecionados.has(b.id)} onToggleSelect={() => toggleSelecao(b.id)} />)}
+                  </div>
+                </div>
+              ))}
             </section>
           );
         })
@@ -193,6 +228,7 @@ export default function Catalogo({ data, refresh }) {
       )}
       {editId && <FormItem idEdicao={editId === "novo" ? null : editId} data={data} refresh={refresh} onClose={() => setEditId(null)} />}
       {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
+      {gerenciarSubs && <GerenciarSubcategorias subcategorias={subcategorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarSubs(false)} />}
     </div>
   );
 }
@@ -214,6 +250,7 @@ function Cartao({ b, onClick, modoSelecao, selecionado, onToggleSelect }) {
       </span>
       <span className="p-3 flex flex-col gap-2 flex-1">
         <span className="block font-sans font-semibold text-[13.5px] leading-snug text-slate-800">{b.objeto}</span>
+        {b.subcategoria && <span className="inline-block self-start font-mono text-[9.5px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-slate-200 bg-slate-50 text-slate-500">{b.subcategoria}</span>}
         <span className="block text-[12.5px] leading-snug text-slate-500 line-clamp-3">{b.aplicacao}</span>
         <Plaqueta pdm={b.pdm} catmat={b.catmat} />
       </span>
@@ -303,6 +340,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
             <div className="flex gap-2 flex-wrap mt-2">
               <MiniBtn onClick={() => { navigator.clipboard.writeText(b.catmat); alert("CATMAT " + b.catmat + " copiado."); }}>Copiar CATMAT</MiniBtn>
               <span className="inline-flex items-center font-mono text-[9.5px] tracking-wider uppercase px-2 py-0.5 rounded-sm border border-slate-300 bg-slate-50 text-slate-600 self-center">Unidade: {b.unidade}</span>
+              {b.subcategoria && <span className="inline-flex items-center font-mono text-[9.5px] tracking-wider uppercase px-2 py-0.5 rounded-sm border border-amber-300 bg-amber-50 text-amber-800 self-center">{b.subcategoria}</span>}
             </div>
           </div>
         </div>
@@ -369,19 +407,21 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
 function FormItem({ idEdicao, data, refresh, onClose }) {
   const b = idEdicao ? data.catalog.find(x => x.id === idEdicao) : null;
   const [form, setForm] = useState({
-    objeto: b?.objeto || "", categoria: b?.categoria || ORDEM[0], pdm: b?.pdm || "",
-    catmat: b?.catmat || "", unidade: b?.unidade || "UNIDADE", arte: b?.arte || "generico",
+    objeto: b?.objeto || "", categoria: b?.categoria || ORDEM[0], subcategoria: b?.subcategoria || "",
+    pdm: b?.pdm || "", catmat: b?.catmat || "", unidade: b?.unidade || "UNIDADE", arte: b?.arte || "generico",
     aplicacao: b?.aplicacao || "", descricao: b?.descricao || ""
   });
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  const sugestoes = sugestoesSubcategoria(data.subcategorias, data.catalog, form.categoria);
+  const listId = "subs-" + form.categoria.replace(/[^a-z0-9]/gi, "");
 
   async function salvar() {
     if (!form.objeto.trim()) return alert("Informe a denominação do bem.");
     if (!form.catmat.trim()) return alert("Informe o CATMAT.");
     const dados = {
-      objeto: form.objeto.trim(), categoria: form.categoria, pdm: form.pdm.trim(),
-      catmat: form.catmat.trim(), unidade: form.unidade.trim() || "UNIDADE",
+      objeto: form.objeto.trim(), categoria: form.categoria, subcategoria: form.subcategoria.trim(),
+      pdm: form.pdm.trim(), catmat: form.catmat.trim(), unidade: form.unidade.trim() || "UNIDADE",
       arte: form.arte, aplicacao: form.aplicacao.trim(), descricao: form.descricao.trim(),
       ehProprio: b?.ehProprio || (b ? b.ehProprio : true), oculto: false
     };
@@ -405,6 +445,10 @@ function FormItem({ idEdicao, data, refresh, onClose }) {
           <select className={inputCls} value={form.categoria} onChange={e => set("categoria", e.target.value)}>
             {ORDEM.map(c => <option key={c}>{c}</option>)}
           </select>
+        </Campo>
+        <Campo label="Subcategoria" ajuda="Escolha uma sugestão ou digite uma nova. Serve para agrupar e ordenar os itens dentro da categoria.">
+          <input className={inputCls} list={listId} value={form.subcategoria} onChange={e => set("subcategoria", e.target.value)} placeholder="ex.: Armários, Cadeiras" />
+          <datalist id={listId}>{sugestoes.map(s => <option key={s} value={s} />)}</datalist>
         </Campo>
         <Campo label="PDM"><input className={inputCls} value={form.pdm} onChange={e => set("pdm", e.target.value)} /></Campo>
         <Campo label="CATMAT"><input className={inputCls} value={form.catmat} onChange={e => set("catmat", e.target.value)} /></Campo>

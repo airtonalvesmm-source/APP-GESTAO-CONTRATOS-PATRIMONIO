@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV, parsearCSV } from "@/lib/dmp-utils";
+import { opcoesBensAgrupadas } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -375,13 +376,11 @@ function FormAta({ a, data, refresh, onClose }) {
   }
 
   function opcoesBens(sel) {
-    let daCategoria = catalog.filter(b => !b.oculto && b.categoria === catCatalog(form.categoria));
-    if (!daCategoria.length) daCategoria = catalog.filter(b => !b.oculto);
-    if (sel && !daCategoria.find(b => b.id === sel)) {
-      const atual = catalog.find(b => b.id === sel);
-      if (atual) daCategoria = [atual, ...daCategoria];
-    }
-    return daCategoria.map(b => <option key={b.id} value={b.id}>{b.objeto}</option>);
+    const catBase = catCatalog(form.categoria);
+    const daCategoria = catalog.filter(b => !b.oculto && b.categoria === catBase);
+    // Se a categoria tem itens, agrupa por subcategoria dela; senão, mostra todos os bens agrupados
+    if (daCategoria.length) return opcoesBensAgrupadas(catalog, catBase, sel);
+    return opcoesBensAgrupadas(catalog, null, sel);
   }
 
   return (

@@ -175,6 +175,41 @@ export function agruparPorPDM(resultados) {
   });
 }
 
+export function agruparPorSubcategoria(resultados) {
+  const grupos = {};
+  resultados.forEach(r => {
+    const sub = (r.ben.subcategoria || "").trim() || "Sem subcategoria";
+    if (!grupos[sub]) grupos[sub] = { sub, itens: [], catmats: [] };
+    grupos[sub].itens.push(r);
+    grupos[sub].catmats.push(r.ben.catmat);
+  });
+  return Object.values(grupos).map(g => {
+    const anos = g.itens[0].serie.map(s => s.ano);
+    const serie = anos.map((ano, i) => {
+      const planejado = g.itens.reduce((t, r) => t + r.serie[i].planejado, 0);
+      const contratado = g.itens.reduce((t, r) => t + r.serie[i].contratado, 0);
+      const precos = g.itens.flatMap(r => r.serie[i].fontes.filter(f => f.tipo === "Contrato" && f.valor > 0).map(f => f.valor));
+      const precoMedio = precos.length ? precos.reduce((t, p) => t + p, 0) / precos.length : 0;
+      return { ano, planejado, contratado, recebido: contratado, execucao: planejado > 0 ? (contratado / planejado) * 100 : 0, precoMedio, valorContratado: contratado * precoMedio };
+    });
+    const serieContr = serie.map(s => s.contratado);
+    const seriePlan = serie.map(s => s.planejado);
+    const statsContr = calcularEstatisticas(serieContr);
+    const statsPlan = calcularEstatisticas(seriePlan);
+    const totalContr = serieContr.reduce((t, v) => t + v, 0);
+    const totalPlan = seriePlan.reduce((t, v) => t + v, 0);
+    const execMedia = totalPlan > 0 ? (totalContr / totalPlan) * 100 : 0;
+    return {
+      ben: { objeto: `Subcategoria: ${g.sub}`, catmat: g.catmats.join(", "), pdm: "—", unidade: "—", categoria: g.itens[0].ben.categoria, aplicacao: g.itens.map(r => r.ben.objeto).join("; ") },
+      serie, statsContr, statsPlan, execMedia,
+      leitura: gerarLeituraAutomatica(statsContr, execMedia),
+      cenarios: calcularCenarios(serieContr),
+      saldo: { saldoTotal: g.itens.reduce((t, r) => t + r.saldo.saldoTotal, 0), ataInfo: null },
+      isSub: true, _sub: g.sub
+    };
+  });
+}
+
 export function gerarTextoETP(item, estimativa, justificativa) {
   const s = item.serie, sc = item.statsContr;
   const linhas = [

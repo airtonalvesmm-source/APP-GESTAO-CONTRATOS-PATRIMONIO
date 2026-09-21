@@ -24,6 +24,10 @@
         "Seguran\u00e7a"
       ]
     },
+    "subcategoria": {
+      "type": "string",
+      "title": "Subcategoria"
+    },
     "unidade": {
       "type": "string",
       "title": "Unidade",

@@ -40,6 +40,35 @@ export const SITUACOES_OBJETO = [
 
 export const URGENCIAS = ["Baixo", "Médio", "Alto"];
 
+// Subcategorias padrão por categoria — usadas no seed do catálogo e como sugestão inicial
+export const SUBCATEGORIAS_PADRAO = {
+  "Ar-condicionado": ["Splits hi-wall", "Splits piso-teto"],
+  "Eletroeletrônicos": ["Climatização e água", "Cozinha e copa", "Refrigeração", "Audiovisual", "Escritório"],
+  "Mobiliário": ["Cadeiras giratórias", "Assentos fixos", "Longarinas", "Armários", "Gaveteiros", "Mesas"],
+  "Segurança": ["Câmeras", "Gravação", "Infraestrutura CFTV", "Alarme", "Controle de acesso"]
+};
+
+// Mapa de arte → subcategoria, para atribuir subcategoria ao seed do catálogo
+export const SUBCAT_POR_ARTE = {
+  "split-hw": "Splits hi-wall", "split-pt": "Splits piso-teto",
+  "bebedouro": "Climatização e água", "purificador": "Climatização e água",
+  "cafeteira": "Cozinha e copa", "fogao": "Cozinha e copa", "microondas": "Cozinha e copa",
+  "frigobar": "Refrigeração", "geladeira": "Refrigeração",
+  "fragmentadora": "Escritório",
+  "projetor": "Audiovisual", "tela": "Audiovisual", "suporte-teto": "Audiovisual",
+  "suporte-parede": "Audiovisual", "suporte-movel": "Audiovisual", "tv": "Audiovisual",
+  "cadeira-tela-cabeca": "Cadeiras giratórias", "cadeira-tela": "Cadeiras giratórias", "cadeira-giratoria": "Cadeiras giratórias",
+  "cadeira-empilhavel": "Assentos fixos", "cadeira-fixa": "Assentos fixos",
+  "longarina2": "Longarinas", "longarina3": "Longarinas",
+  "armario": "Armários", "gaveteiro-volante": "Gaveteiros", "gaveteiro-fixo": "Gaveteiros",
+  "mesa-l": "Mesas", "mesa-reta": "Mesas", "mesa-oval": "Mesas", "mesa-reuniao": "Mesas", "mesa-redonda": "Mesas",
+  "cam-dome": "Câmeras", "cam-bullet": "Câmeras", "cam-speed": "Câmeras",
+  "dvr": "Gravação", "hd": "Gravação",
+  "balun": "Infraestrutura CFTV", "plug": "Infraestrutura CFTV", "caixa": "Infraestrutura CFTV", "fonte": "Infraestrutura CFTV",
+  "central": "Alarme", "sensor": "Alarme", "sirene": "Alarme", "bateria": "Alarme",
+  "motor": "Controle de acesso", "controle": "Controle de acesso", "fechadura": "Controle de acesso", "botoeira": "Controle de acesso"
+};
+
 // Ilustrações vetoriais por tipo de bem
 export const TRACOS = {
   "split-hw": '<rect class="p" x="7" y="11" width="50" height="15" rx="3"/><path d="M11 21h42"/><path d="M18 31c0 3-2 4-2 7M32 31c0 3-2 4-2 7M46 31c0 3-2 4-2 7"/>',

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ORDEM, UNIDADES_ORCAMENTARIAS, SITUACOES_OBJETO, URGENCIAS } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/lib/dmp-utils";
+import { agruparBensPorSubcategoria } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -250,7 +251,15 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
   }
 
   function opcoesBens() {
-    return ORDEM.map(c => <optgroup key={c} label={c}>{catalog.filter(b => b.categoria === c).map(b => <option key={b.id} value={b.id} selected={b.id === form.benId}>{b.objeto}</option>)}</optgroup>);
+    return ORDEM.map(c => {
+      const daCat = catalog.filter(b => b.categoria === c);
+      const grupos = agruparBensPorSubcategoria(daCat);
+      return <optgroup key={c} label={c}>{grupos.map(g => (
+        <optgroup key={c + "/" + g.subcategoria} label={g.subcategoria}>
+          {g.items.map(b => <option key={b.id} value={b.id} selected={b.id === form.benId}>{b.objeto}</option>)}
+        </optgroup>
+      ))}</optgroup>;
+    });
   }
 
   return (
