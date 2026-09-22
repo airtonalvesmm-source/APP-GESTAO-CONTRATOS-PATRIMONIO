@@ -199,7 +199,7 @@ export default function Catalogo({ data, refresh }) {
                     <h4 className="font-sans font-semibold text-[12.5px] tracking-wide uppercase text-slate-600">{g.subcategoria}</h4>
                     <span className="font-mono text-[10px] text-slate-400 ml-1">{g.items.length}</span>
                   </div>
-                  <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
                     {g.items.map(b => <Cartao key={b.id} b={b} onClick={() => setFichaId(b.id)} modoSelecao={modoSelecao} selecionado={selecionados.has(b.id)} onToggleSelect={() => toggleSelecao(b.id)} />)}
                   </div>
                 </div>
@@ -248,10 +248,10 @@ function Cartao({ b, onClick, modoSelecao, selecionado, onToggleSelect }) {
         )}
         {b.imagem ? <img src={b.imagem} alt={b.objeto} className="w-full h-full object-cover" /> : <Desenho arte={b.arte} />}
       </span>
-      <span className="p-3 flex flex-col gap-2 flex-1">
-        <span className="block font-sans font-semibold text-[13.5px] leading-snug text-slate-800">{b.objeto}</span>
-        {b.subcategoria && <span className="inline-block self-start font-mono text-[9.5px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-slate-200 bg-slate-50 text-slate-500">{b.subcategoria}</span>}
-        <span className="block text-[12.5px] leading-snug text-slate-500 line-clamp-3">{b.aplicacao}</span>
+      <span className="p-2.5 flex flex-col gap-1.5 flex-1">
+        <span className="block font-sans font-semibold text-[12.5px] leading-snug text-slate-800">{b.objeto}</span>
+        {b.subcategoria && <span className="inline-block self-start font-mono text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-slate-200 bg-slate-50 text-slate-500">{b.subcategoria}</span>}
+        <span className="block text-[11.5px] leading-snug text-slate-500 line-clamp-3">{b.aplicacao}</span>
         <Plaqueta pdm={b.pdm} catmat={b.catmat} />
       </span>
     </div>
