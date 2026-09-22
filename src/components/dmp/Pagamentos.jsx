@@ -22,7 +22,7 @@ export default function Pagamentos({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("retencao");
   const [agrupar, setAgrupar] = useState(false);
-  const [situacao, setSituacao] = useState("ativos");
+  const [situacao, setSituacao] = useState("");
 
   function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
@@ -37,7 +37,6 @@ export default function Pagamentos({ data, refresh }) {
       if (t && norm([c.tipo, c.numero, c.processo, c.notaEmpenho, c.fornecedor, c.objeto, txtPag].join(" ")).indexOf(t) < 0) return false;
       if (situacao) {
         const tp = totaisPagamento(c, pagamentos, ocorrencias);
-        if (situacao === "ativos" && tp.ps.length > 0 && tp.aPagar === 0 && tp.retido === 0) return false;
         if (situacao === "quitado" && (tp.aPagar > 0 || tp.ps.length === 0)) return false;
         if (situacao === "apagar" && (tp.aPagar === 0 || tp.retido > 0 || tp.ps.length === 0)) return false;
         if (situacao === "retido" && tp.retido === 0) return false;
@@ -257,7 +256,7 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por contrato, fornecedor, nota fiscal ou motivo de retenção" /></Campo></div>
       <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
-      <div className="min-w-[152px]"><Campo label="Situação"><select value={situacao} onChange={e => setSituacao(e.target.value)} className={inputCls}><option value="ativos">Em andamento</option><option value="retido">Com retenção</option><option value="apagar">A pagar</option><option value="semnotas">Sem notas lançadas</option><option value="quitado">Quitados</option><option value="">Todas</option></select></Campo></div>
+      <div className="min-w-[152px]"><Campo label="Situação"><select value={situacao} onChange={e => setSituacao(e.target.value)} className={inputCls}><option value="">Todas</option><option value="retido">Com retenção</option><option value="apagar">A pagar (com notas)</option><option value="semnotas">Sem notas lançadas</option><option value="quitado">Quitados</option></select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">
