@@ -10,6 +10,8 @@ import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
+import RelatorioUnificado from "./RelatorioUnificado";
+import { BarChart3 } from "lucide-react";
 
 export default function Contratos({ data, refresh }) {
   const { contratos, atas, catalog, pca, ocorrencias, pagamentos } = data;
@@ -23,6 +25,8 @@ export default function Contratos({ data, refresh }) {
   const [ord, setOrd] = useState("recentes");
   const [agrupar, setAgrupar] = useState(false);
   const [filtroSituacao, setFiltroSituacao] = useState("Vigente");
+  const [filtroEntrega, setFiltroEntrega] = useState("Aguardando entrega");
+  const [showRelatorio, setShowRelatorio] = useState(false);
 
   function catDoContrato(c) {
     const a = atas.find(x => x.id === c.ataId);
@@ -54,6 +58,7 @@ export default function Contratos({ data, refresh }) {
           : (stored === "Encerrado" || s.classe === "critico") ? "Encerrado" : "Vigente";
         if (filtroSituacao !== eff) return false;
       }
+      if (filtroEntrega && (c.statusEntrega || "Aguardando entrega") !== filtroEntrega) return false;
       return true;
     });
     const ordFn = {
@@ -64,7 +69,7 @@ export default function Contratos({ data, refresh }) {
     }[ord];
     if (ordFn) res = res.slice().sort(ordFn);
     return res;
-  }, [contratos, termo, cat, ano, ord, filtroSituacao, atas, catalog, ocorrencias]);
+  }, [contratos, termo, cat, ano, ord, filtroSituacao, filtroEntrega, atas, catalog, ocorrencias]);
 
   function situacao(c) {
     const fim = fimVigente(c, ocorrencias);
@@ -99,11 +104,11 @@ export default function Contratos({ data, refresh }) {
 
   function exportCSV() {
     if (!contratos.length) return alert("Não há contratos lançados.");
-    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Situação", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
+    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Situação", "Status de entrega", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
     contratos.forEach(c => {
       const a = atas.find(x => x.id === c.ataId);
       const val = (c.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
-      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", c.situacao || "", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
+      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", c.situacao || "", c.statusEntrega || "Aguardando entrega", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
     });
     baixarCSV("contratos.csv", l);
   }
@@ -126,6 +131,7 @@ export default function Contratos({ data, refresh }) {
             {temAditivo(c.id) && <Pill tipo="neutro">Aditivado</Pill>}
             {temFalta(c.id) && <Pill tipo="critico">Descumprimento</Pill>}
             {c.situacao && <Pill tipo={c.situacao === "Vigente" ? "ok" : (c.situacao === "Rescindido" || c.situacao === "Cancelado") ? "critico" : (c.situacao === "Suspenso" ? "aviso" : "neutro")}>{c.situacao}</Pill>}
+            <Pill tipo={(c.statusEntrega || "Aguardando entrega") === "Entregue" ? "ok" : "neutro"}>{c.statusEntrega || "Aguardando entrega"}</Pill>
             <Pill tipo={s.classe}>{s.txt}</Pill>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
           </span>
@@ -202,6 +208,7 @@ export default function Contratos({ data, refresh }) {
     <div>
       <TelaCab titulo="Contratos e notas de empenho" desc="Cada item lançado aqui baixa o saldo da ata correspondente."
         direita={<>
+          <Btn onClick={() => setShowRelatorio(true)}><BarChart3 className="w-4 h-4 inline mr-1" />Relatório unificado</Btn>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Contrato" refresh={refresh} data={data}
             colunas={[
@@ -212,13 +219,14 @@ export default function Contratos({ data, refresh }) {
               { header: "Número da ata", campo: "_ataNumero", obrigatorio: true },
               { header: "Objeto", campo: "objeto" },
               { header: "Situação", campo: "situacao" },
+              { header: "Status de entrega", campo: "statusEntrega" },
               { header: "Início da vigência", campo: "inicio", tipo: "date" },
               { header: "Fim da vigência", campo: "fim", tipo: "date" }
             ]}
             preProcess={(rec, data) => {
               const a = (data.atas || []).find(x => norm(x.numero) === norm(rec._ataNumero));
               if (!a) return null;
-              return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, situacao: rec.situacao || "Vigente", inicio: rec.inicio, fim: rec.fim, itens: [] };
+              return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, situacao: rec.situacao || "Vigente", statusEntrega: rec.statusEntrega || "Aguardando entrega", inicio: rec.inicio, fim: rec.fim, itens: [] };
             }}
             ajuda="O número da ata deve já estar cadastrado. O fornecedor e CNPJ virão da ata vinculada. O contrato será criado sem itens — edite-o depois para lançar os itens (o saldo da ata será baixado). Datas no formato dd/mm/aaaa." />
           <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
@@ -228,7 +236,7 @@ export default function Contratos({ data, refresh }) {
         <Vazio titulo="Nenhum contrato ou empenho lançado" texto="Cadastre um contrato vinculado a uma ata para dar baixa no saldo dos itens." />
       ) : (
         <>
-          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} situacao={filtroSituacao} setSituacao={setFiltroSituacao} />
+          <BarraFiltros termo={termo} setTermo={setTermo} cat={cat} setCat={setCat} ano={ano} setAno={setAno} ord={ord} setOrd={setOrd} anos={anos} total={lista.length} agrupar={agrupar} setAgrupar={setAgrupar} situacao={filtroSituacao} setSituacao={setFiltroSituacao} entrega={filtroEntrega} setEntrega={setFiltroEntrega} />
           {lista.length === 0 ? (
             <Vazio titulo="Nenhum contrato corresponde aos filtros" texto="Ajuste os termos ou limpe os filtros." />
           ) : agrupar ? (
@@ -243,6 +251,7 @@ export default function Contratos({ data, refresh }) {
 
       {(novo || editId) && <FormContrato c={editId ? contratos.find(x => x.id === editId) : null} data={data} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />}
       {ocorrContratoId && <FormOcorrencia contratoId={ocorrContratoId} data={data} refresh={refresh} onClose={() => setOcorrContratoId(null)} />}
+      {showRelatorio && <RelatorioUnificado data={data} onClose={() => setShowRelatorio(false)} />}
     </div>
   );
 }
@@ -251,12 +260,13 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar, situacao, setSituacao }) {
+function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, anos, total, agrupar, setAgrupar, situacao, setSituacao, entrega, setEntrega }) {
   return (
     <div className="flex gap-2.5 items-end flex-wrap mb-5 p-3.5 bg-white border border-slate-300 rounded-sm">
       <div className="flex-1 min-w-[200px]"><Campo label="Busca"><input type="search" value={termo} onChange={e => setTermo(e.target.value)} className={inputCls} placeholder="Buscar por número, fornecedor, nota de empenho, objeto ou item" /></Campo></div>
       <BotaoAgrupar agrupar={agrupar} setAgrupar={setAgrupar} />
       <div className="min-w-[132px]"><Campo label="Situação"><select value={situacao} onChange={e => setSituacao(e.target.value)} className={inputCls}><option value="">Todas</option>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo></div>
+      <div className="min-w-[152px]"><Campo label="Entrega"><select value={entrega} onChange={e => setEntrega(e.target.value)} className={inputCls}><option value="">Todas</option><option value="Aguardando entrega">Aguardando entrega</option><option value="Entregue">Entregue</option></select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Categoria"><select value={cat} onChange={e => setCat(e.target.value)} className={inputCls}><option value="">Todas</option>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ano"><select value={ano} onChange={e => setAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a}>{a}</option>)}</select></Campo></div>
       <div className="min-w-[132px]"><Campo label="Ordenar por">
@@ -277,6 +287,7 @@ function FormContrato({ c, data, refresh, onClose }) {
     tipo: c?.tipo || "Contrato", numero: c?.numero || "", processo: c?.processo || "",
     notaEmpenho: c?.notaEmpenho || "", ataId: c?.ataId || "",
     fornecedorId: c?.fornecedorId || "", situacao: c?.situacao || "Vigente",
+    statusEntrega: c?.statusEntrega || "Aguardando entrega",
     inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
@@ -412,6 +423,7 @@ function FormContrato({ c, data, refresh, onClose }) {
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => setF("inicio", e.target.value)} /></Campo>
         <Campo label="Fim da vigência"><input type="date" className={inputCls} value={form.fim} onChange={e => setF("fim", e.target.value)} /></Campo>
         <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo>
+        <Campo label="Status de entrega" ajuda="Contratos marcados como Entregue não aparecem na tela inicial."><select className={inputCls} value={form.statusEntrega} onChange={e => setF("statusEntrega", e.target.value)}><option>Aguardando entrega</option><option>Entregue</option></select></Campo>
       </div>
       <Campo label="Objeto"><textarea className={textareaCls} value={form.objeto} onChange={e => setF("objeto", e.target.value)} placeholder="ex.: aquisição de equipamentos de videomonitoramento para as promotorias de justiça do interior." /></Campo>
 
