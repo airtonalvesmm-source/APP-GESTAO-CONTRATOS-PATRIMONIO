@@ -55,6 +55,15 @@
       ],
       "default": "Vigente"
     },
+    "statusEntrega": {
+      "type": "string",
+      "title": "Status de entrega",
+      "enum": [
+        "Aguardando entrega",
+        "Entregue"
+      ],
+      "default": "Aguardando entrega"
+    },
     "inicio": {
       "type": "string",
       "title": "In\u00edcio da vig\u00eancia",
