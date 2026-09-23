@@ -8,6 +8,7 @@ import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } fr
 import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
 import GerenciarSubcategorias from "./GerenciarSubcategorias";
+import GerenciarCategorias from "./GerenciarCategorias";
 import { Plus, Upload, Check, BarChart3, Tags } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,8 +32,13 @@ export default function Catalogo({ data, refresh }) {
   const [modoSelecao, setModoSelecao] = useState(false);
   const [selecionados, setSelecionados] = useState(new Set());
   const [gerenciarSubs, setGerenciarSubs] = useState(false);
+  const [gerenciarCats, setGerenciarCats] = useState(false);
   const navigate = useNavigate();
   const { subcategorias } = data;
+  const cats = useMemo(() => {
+    const c = (data.categorias || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(c => c.nome);
+    return c.length ? c : ORDEM;
+  }, [data.categorias]);
 
   const subcatsDaCatAtiva = useMemo(() => {
     if (categoriaAtiva === "Todas") return [];
@@ -112,6 +118,7 @@ export default function Catalogo({ data, refresh }) {
         titulo="Catálogo de bens permanentes"
         desc="Cada item traz PDM, CATMAT, aplicação e especificação técnica. A ilustração pode ser trocada por foto real a qualquer momento."
         direita={<>
+          <Btn onClick={() => setGerenciarCats(true)}><Tags className="w-4 h-4 inline mr-1" />Categorias</Btn>
           <Btn onClick={() => setGerenciarSubs(true)}><Tags className="w-4 h-4 inline mr-1" />Subcategorias</Btn>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="CatalogItem" refresh={refresh}
@@ -137,7 +144,7 @@ export default function Catalogo({ data, refresh }) {
           <input type="search" value={termo} onChange={e => setTermo(e.target.value)}
             placeholder="Buscar por nome, aplicação, PDM ou CATMAT"
             className="flex-1 min-w-[220px] border border-slate-300 rounded-sm px-3 py-2 font-sans text-sm bg-white" />
-          {["Todas", ...ORDEM].map(c => {
+          {["Todas", ...cats].map(c => {
             const n = c === "Todas" ? catalog.length : catalog.filter(b => b.categoria === c).length;
             return (
               <button key={c} onClick={() => { setCategoriaAtiva(c); setSubcatAtiva(""); }} aria-pressed={categoriaAtiva === c}
@@ -180,7 +187,7 @@ export default function Catalogo({ data, refresh }) {
       {filtrados.length === 0 ? (
         <Vazio titulo="Nenhum item corresponde à busca" texto="Confira o código digitado ou volte o filtro para 'Todas'." />
       ) : (
-        (categoriaAtiva === "Todas" ? ORDEM : [categoriaAtiva]).map(cat => {
+        (categoriaAtiva === "Todas" ? cats : [categoriaAtiva]).map(cat => {
           const itens = filtrados.filter(b => b.categoria === cat);
           if (!itens.length) return null;
           const grupos = agruparBensPorSubcategoria(itens);
@@ -228,7 +235,8 @@ export default function Catalogo({ data, refresh }) {
       )}
       {editId && <FormItem idEdicao={editId === "novo" ? null : editId} data={data} refresh={refresh} onClose={() => setEditId(null)} />}
       {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
-      {gerenciarSubs && <GerenciarSubcategorias subcategorias={subcategorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarSubs(false)} />}
+      {gerenciarCats && <GerenciarCategorias categorias={data.categorias} subcategorias={subcategorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarCats(false)} />}
+      {gerenciarSubs && <GerenciarSubcategorias subcategorias={subcategorias} categorias={data.categorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarSubs(false)} />}
     </div>
   );
 }
@@ -406,8 +414,12 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
 
 function FormItem({ idEdicao, data, refresh, onClose }) {
   const b = idEdicao ? data.catalog.find(x => x.id === idEdicao) : null;
+  const catsOpts = (() => {
+    const c = (data.categorias || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(c => c.nome);
+    return c.length ? c : ORDEM;
+  })();
   const [form, setForm] = useState({
-    objeto: b?.objeto || "", categoria: b?.categoria || ORDEM[0], subcategoria: b?.subcategoria || "",
+    objeto: b?.objeto || "", categoria: b?.categoria || catsOpts[0] || "", subcategoria: b?.subcategoria || "",
     pdm: b?.pdm || "", catmat: b?.catmat || "", unidade: b?.unidade || "UNIDADE", arte: b?.arte || "generico",
     aplicacao: b?.aplicacao || "", descricao: b?.descricao || ""
   });
@@ -443,7 +455,7 @@ function FormItem({ idEdicao, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Categoria">
           <select className={inputCls} value={form.categoria} onChange={e => set("categoria", e.target.value)}>
-            {ORDEM.map(c => <option key={c}>{c}</option>)}
+            {catsOpts.map(c => <option key={c}>{c}</option>)}
           </select>
         </Campo>
         <Campo label="Subcategoria" ajuda="Escolha uma sugestão ou digite uma nova. Serve para agrupar e ordenar os itens dentro da categoria.">

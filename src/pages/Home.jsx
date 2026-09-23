@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { BENS_BASE, SUBCATEGORIAS_PADRAO, SUBCAT_POR_ARTE } from "@/lib/dmp-data";
+import { BENS_BASE, ORDEM, SUBCATEGORIAS_PADRAO, SUBCAT_POR_ARTE } from "@/lib/dmp-data";
 import Catalogo from "@/components/dmp/Catalogo";
 import PlanoAnual from "@/components/dmp/PlanoAnual";
 import Licitacoes from "@/components/dmp/Licitacoes";
@@ -27,11 +27,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     catalog: [], pca: [], licitacoes: [], atas: [], contratos: [],
-    fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: []
+    fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: [], categorias: []
   });
 
   const refresh = useCallback(async () => {
-    const [catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias] = await Promise.all([
+    const [catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias, categorias] = await Promise.all([
       base44.entities.CatalogItem.list("-created_date", 500),
       base44.entities.PCAItem.list("-created_date", 500),
       base44.entities.Licitacao.list("-created_date", 500),
@@ -41,9 +41,10 @@ export default function Home() {
       base44.entities.Pagamento.list("-created_date", 500),
       base44.entities.Ocorrencia.list("-created_date", 500),
       base44.entities.DFD.list("-created_date", 500),
-      base44.entities.Subcategoria.list("-created_date", 500)
+      base44.entities.Subcategoria.list("-created_date", 500),
+      base44.entities.Categoria.list("-created_date", 500)
     ]);
-    setData({ catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias });
+    setData({ catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias, categorias });
   }, []);
 
   useEffect(() => {
@@ -93,6 +94,16 @@ export default function Home() {
       }
     }
   }, [loading, data.catalog, refresh]);
+
+  // Seed de categorias padrão no primeiro carregamento
+  useEffect(() => {
+    if (!loading && data.categorias && data.categorias.length === 0) {
+      (async () => {
+        await base44.entities.Categoria.bulkCreate(ORDEM.map((nome, i) => ({ nome, ordem: i })));
+        await refresh();
+      })();
+    }
+  }, [loading, data.categorias, refresh]);
 
   if (loading) {
     return (

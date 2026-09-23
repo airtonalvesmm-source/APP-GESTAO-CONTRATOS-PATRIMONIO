@@ -5,8 +5,12 @@ import { Btn, MiniBtn, Campo, Modal, inputCls } from "./ui";
 import { subcatsDeCategoria } from "@/lib/subcat-utils";
 import { Plus, Trash2, Pencil } from "lucide-react";
 
-export default function GerenciarSubcategorias({ subcategorias, catalog, refresh, onClose }) {
-  const [catAtiva, setCatAtiva] = useState(ORDEM[0]);
+export default function GerenciarSubcategorias({ subcategorias, categorias, catalog, refresh, onClose }) {
+  const catsOpts = (() => {
+    const c = (categorias || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(c => c.nome);
+    return c.length ? c : ORDEM;
+  })();
+  const [catAtiva, setCatAtiva] = useState(catsOpts[0] || "");
   const [novoNome, setNovoNome] = useState("");
   const [editId, setEditId] = useState(null);
   const [editNome, setEditNome] = useState("");
@@ -48,7 +52,7 @@ export default function GerenciarSubcategorias({ subcategorias, catalog, refresh
     <Modal sobre="Catálogo" titulo="Gerenciar subcategorias" onClose={onClose}
       footer={<><Btn onClick={onClose}>Fechar</Btn></>}>
       <div className="flex gap-1.5 flex-wrap mb-4 border-b border-slate-200 pb-3">
-        {ORDEM.map(c => (
+        {catsOpts.map(c => (
           <button key={c} onClick={() => { setCatAtiva(c); setEditId(null); }}
             className={`border rounded-sm px-3 py-1.5 cursor-pointer font-sans font-semibold text-[12.5px] transition-colors
               ${catAtiva === c ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>

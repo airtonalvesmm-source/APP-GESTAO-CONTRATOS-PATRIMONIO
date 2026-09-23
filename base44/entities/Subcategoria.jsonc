@@ -4,13 +4,7 @@
   "properties": {
     "categoria": {
       "type": "string",
-      "title": "Categoria",
-      "enum": [
-        "Ar-condicionado",
-        "Eletroeletr\u00f4nicos",
-        "Mobili\u00e1rio",
-        "Seguran\u00e7a"
-      ]
+      "title": "Categoria"
     },
     "nome": {
       "type": "string",
