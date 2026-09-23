@@ -9,7 +9,7 @@ import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
 import GerenciarSubcategorias from "./GerenciarSubcategorias";
 import GerenciarCategorias from "./GerenciarCategorias";
-import { Plus, Upload, Check, BarChart3, Tags } from "lucide-react";
+import { Plus, Upload, Check, BarChart3, Tags, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ORD_CATALOGO = {
@@ -33,6 +33,7 @@ export default function Catalogo({ data, refresh }) {
   const [selecionados, setSelecionados] = useState(new Set());
   const [gerenciarSubs, setGerenciarSubs] = useState(false);
   const [gerenciarCats, setGerenciarCats] = useState(false);
+  const [mudarCatLote, setMudarCatLote] = useState(false);
   const navigate = useNavigate();
   const { subcategorias } = data;
   const cats = useMemo(() => {
@@ -102,6 +103,26 @@ export default function Catalogo({ data, refresh }) {
   }
   function gerarRelatorio() { const ids = Array.from(selecionados); if (ids.length) navigate(`/relatorio-estatistico?items=${ids.join(",")}`); }
   function relatorioItemUnico(benId) { navigate(`/relatorio-estatistico?items=${benId}`); }
+
+  async function excluirSelecionadosLote() {
+    const ids = Array.from(selecionados);
+    if (!confirm(`Excluir ${ids.length} item(ns) do catálogo? Eles serão movidos para os excluídos e poderão ser restaurados depois.`)) return;
+    await base44.entities.CatalogItem.bulkUpdate(ids.map(id => ({ id, oculto: true })));
+    setSelecionados(new Set());
+    setModoSelecao(false);
+    await refresh();
+    alert(`${ids.length} item(ns) excluído(s).`);
+  }
+
+  async function aplicarMudarCategoriaLote(novaCat) {
+    const ids = Array.from(selecionados);
+    await base44.entities.CatalogItem.bulkUpdate(ids.map(id => ({ id, categoria: novaCat, subcategoria: "" })));
+    setSelecionados(new Set());
+    setMudarCatLote(false);
+    setModoSelecao(false);
+    await refresh();
+    alert(`${ids.length} item(ns) movidos para "${novaCat}". Subcategoria limpa.`);
+  }
 
   function exportCSV() {
     if (!catalog.length) return alert("Catálogo vazio.");
@@ -227,6 +248,12 @@ export default function Catalogo({ data, refresh }) {
           <div className="ml-auto flex gap-2 flex-wrap">
             <button onClick={limparSelecao} className="border border-slate-500 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-700 cursor-pointer">Limpar</button>
             <button onClick={selecionarTodosFiltro} className="border border-slate-500 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-700 cursor-pointer">Selecionar todos da categoria</button>
+            <button onClick={() => setMudarCatLote(true)} className="bg-slate-700 border-slate-700 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-slate-600 cursor-pointer flex items-center gap-1.5">
+              <Tags className="w-4 h-4" />Mudar categoria
+            </button>
+            <button onClick={excluirSelecionadosLote} className="bg-red-800 border-red-800 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-red-700 cursor-pointer flex items-center gap-1.5">
+              <Trash2 className="w-4 h-4" />Excluir selecionados
+            </button>
             <button onClick={gerarRelatorio} className="bg-amber-700 border-amber-700 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] text-white hover:bg-amber-600 cursor-pointer flex items-center gap-1.5">
               <BarChart3 className="w-4 h-4" />Gerar relatório estatístico
             </button>
@@ -237,7 +264,22 @@ export default function Catalogo({ data, refresh }) {
       {cadeiaBenId && <Cadeia benId={cadeiaBenId} data={data} onClose={() => setCadeiaBenId(null)} />}
       {gerenciarCats && <GerenciarCategorias categorias={data.categorias} subcategorias={subcategorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarCats(false)} />}
       {gerenciarSubs && <GerenciarSubcategorias subcategorias={subcategorias} categorias={data.categorias} catalog={catalog} refresh={refresh} onClose={() => setGerenciarSubs(false)} />}
+      {mudarCatLote && <MudarCategoriaLote selecionados={selecionados} cats={cats} onAplicar={aplicarMudarCategoriaLote} onClose={() => setMudarCatLote(false)} />}
     </div>
+  );
+}
+
+function MudarCategoriaLote({ selecionados, cats, onAplicar, onClose }) {
+  const [novaCat, setNovaCat] = useState(cats[0] || "");
+  return (
+    <Modal sobre="Seleção em lote" titulo={`Mudar categoria de ${selecionados.size} item(ns)`} onClose={onClose}
+      footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={() => onAplicar(novaCat)}>Aplicar e limpar subcategoria</Btn></>}>
+      <Campo label="Nova categoria" ajuda="A subcategoria atual de cada item será limpa, pois pode não existir na nova categoria.">
+        <select className={inputCls} value={novaCat} onChange={e => setNovaCat(e.target.value)}>
+          {cats.map(c => <option key={c}>{c}</option>)}
+        </select>
+      </Campo>
+    </Modal>
   );
 }
 
@@ -391,7 +433,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
       </div>
 
       {showArte && (
-        <div className="fixed inset-0 bg-slate-900/55 z-[70] flex items-center justify-center p-6" onClick={(e) => { if (e.target === e.currentTarget) setShowArte(false); }}>
+        <div className="fixed inset-0 bg-slate-900/55 z-[70] flex items-center justify-center p-6">
           <div className="bg-white rounded-md border border-slate-300 max-w-2xl w-full max-h-[80vh] overflow-auto p-5">
             <h3 className="font-bold text-lg mb-3">Escolher ilustração</h3>
             <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))]">

@@ -12,6 +12,9 @@ export default function Fornecedores({ data, refresh }) {
   const { fornecedores, atas, contratos, ocorrencias } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
+  const [catFiltro, setCatFiltro] = useState("");
+
+  const lista = catFiltro ? fornecedores.filter(f => (f.categoria || "") === catFiltro) : fornecedores;
 
   async function excluir(f) {
     const usos = [];
@@ -53,6 +56,18 @@ export default function Fornecedores({ data, refresh }) {
       {fornecedores.length === 0 ? (
         <Vazio titulo="Nenhum fornecedor cadastrado" texto="O cadastro também é criado ao registrar uma ata com fornecedor novo." />
       ) : (
+        <>
+        <div className="flex gap-2.5 items-end flex-wrap mb-4">
+          <div className="min-w-[180px]">
+            <Campo label="Categoria">
+              <select value={catFiltro} onChange={e => setCatFiltro(e.target.value)} className={inputCls}>
+                <option value="">Todas</option>
+                {CAT_ARP.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </Campo>
+          </div>
+          <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto self-center">{lista.length} {lista.length === 1 ? "fornecedor" : "fornecedores"}</span>
+        </div>
         <div className="overflow-x-auto border border-slate-300 rounded-sm bg-white">
           <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
             <thead>
@@ -63,7 +78,7 @@ export default function Fornecedores({ data, refresh }) {
               </tr>
             </thead>
             <tbody>
-              {fornecedores.map(f => {
+              {lista.map(f => {
                 const atasN = atas.filter(a => a.fornecedorId === f.id).length;
                 const cts = contratos.filter(c => c.fornecedorId === f.id);
                 const valor = cts.reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
@@ -85,6 +100,7 @@ export default function Fornecedores({ data, refresh }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {(novo || editId) && (

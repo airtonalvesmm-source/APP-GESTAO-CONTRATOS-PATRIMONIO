@@ -12,7 +12,7 @@ import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 
 export default function Pagamentos({ data, refresh }) {
-  const { contratos, ocorrencias, pagamentos, atas } = data;
+  const { contratos, ocorrencias, pagamentos, atas, catalog } = data;
   const [nfContratoId, setNfContratoId] = useState(null);
   const [editNfId, setEditNfId] = useState(null);
   const [ocorrContratoId, setOcorrContratoId] = useState(null);
@@ -24,7 +24,20 @@ export default function Pagamentos({ data, refresh }) {
   const [agrupar, setAgrupar] = useState(false);
   const [situacao, setSituacao] = useState("");
 
-  function catDoContrato(c) { const a = atas.find(x => x.id === c.ataId); return a?.categoria || "Sem categoria"; }
+  function catDoContrato(c) {
+    const a = atas.find(x => x.id === c.ataId);
+    if (a?.categoria) return a.categoria;
+    const cats = (c.itens || []).map(i => {
+      const cat = catalog.find(b => b.id === i.benId)?.categoria;
+      return cat === "Ar-condicionado" ? "Climatização" : cat;
+    }).filter(Boolean);
+    if (cats.length) {
+      const counts = {};
+      cats.forEach(cat => counts[cat] = (counts[cat] || 0) + 1);
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+    return "Sem categoria";
+  }
   function anoDoContrato(c) { return c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || ""; }
   const anos = Array.from(new Set(contratos.map(anoDoContrato).filter(Boolean))).sort().reverse();
 
@@ -273,22 +286,37 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
 function FormPagamento({ p, contratoId, data, refresh, onClose }) {
   const { contratos, pagamentos, ocorrencias } = data;
   const cid = p?.contratoId || contratoId || contratos[0]?.id;
+  const c0 = contratos.find(x => x.id === cid);
+  const t0 = c0 ? totaisPagamento(c0, pagamentos, ocorrencias) : null;
+  const empenhadoInicial = t0 ? t0.empenhado : 0;
   const [form, setForm] = useState({
-    contratoId: cid, nf: p?.nf || "", dataNF: p?.dataNF || "", valorNF: p?.valorNF || 0,
-    valorPago: p?.valorPago || 0, dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || "",
-    situacao: p?.situacao || "Pendente"
+    contratoId: cid, nf: p?.nf || "", dataNF: p?.dataNF || "",
+    valorNF: p ? p.valorNF : empenhadoInicial,
+    valorRetido: p ? Math.max(0, nVal(p.valorNF) - nVal(p.valorPago)) : 0,
+    valorPago: p ? p.valorPago : empenhadoInicial,
+    dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || (p ? "" : "Atraso na entrega"),
+    situacao: p?.situacao || "Pago"
   });
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
-  const retido = Math.max(0, nVal(form.valorNF) - nVal(form.valorPago));
+  function setRetido(v) {
+    const r = Math.max(0, nVal(v));
+    const pago = Math.max(0, nVal(form.valorNF) - r);
+    setForm(f => ({ ...f, valorRetido: r, valorPago: pago }));
+  }
+  function setNota(v) {
+    const nf = nVal(v);
+    const pago = Math.max(0, nf - nVal(form.valorRetido));
+    setForm(f => ({ ...f, valorNF: nf, valorPago: pago }));
+  }
   const c = contratos.find(x => x.id === form.contratoId);
   const t = c ? totaisPagamento(c, pagamentos, ocorrencias) : null;
 
   async function salvar() {
     if (!form.nf.trim()) return alert("Informe o número da nota fiscal.");
     if (!nVal(form.valorNF)) return alert("Informe o valor da nota fiscal.");
-    if (nVal(form.valorPago) > nVal(form.valorNF)) return alert("O valor pago não pode ser maior que o da nota.");
-    if (retido > 0 && !form.motivo.trim()) return alert(`Há R$ ${fmtM(retido)} retidos: informe o motivo da retenção.`);
-    const dados = { ...form, nf: form.nf.trim(), motivo: form.motivo.trim(), valorNF: nVal(form.valorNF), valorPago: nVal(form.valorPago) };
+    const ret = nVal(form.valorRetido);
+    if (ret > 0 && !form.motivo.trim()) return alert(`Há R$ ${fmtM(ret)} retidos: informe o motivo da retenção.`);
+    const dados = { contratoId: form.contratoId, nf: form.nf.trim(), dataNF: form.dataNF, valorNF: nVal(form.valorNF), valorPago: nVal(form.valorPago), dataPagamento: form.dataPagamento, motivo: form.motivo.trim(), situacao: form.situacao };
     if (p) await base44.entities.Pagamento.update(p.id, dados);
     else await base44.entities.Pagamento.create(dados);
     await refresh();
@@ -309,10 +337,10 @@ function FormPagamento({ p, contratoId, data, refresh, onClose }) {
         <Campo label="Emissão da nota"><input type="date" className={inputCls} value={form.dataNF} onChange={e => setF("dataNF", e.target.value)} /></Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
-        <Campo label="Valor da nota (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorNF} onChange={e => setF("valorNF", nVal(e.target.value))} /></Campo>
-        <Campo label="Valor pago (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorPago} onChange={e => setF("valorPago", nVal(e.target.value))} /></Campo>
+        <Campo label="Valor da nota (R$)"><input type="number" min="0" step="0.01" className={inputCls} value={form.valorNF} onChange={e => setNota(e.target.value)} /></Campo>
+        <Campo label="Valor retido (R$)" ajuda="Digite o valor retido. O valor pago é recalculado automaticamente."><input type="number" min="0" step="0.01" className={inputCls} value={form.valorRetido} onChange={e => setRetido(e.target.value)} /></Campo>
         <Campo label="Data do pagamento"><input type="date" className={inputCls} value={form.dataPagamento} onChange={e => setF("dataPagamento", e.target.value)} /></Campo>
-        <Campo label="Valor retido (R$)" ajuda="Diferença entre a nota e o pago."><input readOnly className={inputCls + " bg-slate-50"} value={fmtM(retido)} /></Campo>
+        <Campo label="Valor pago (R$)" ajuda="Calculado: nota − retido."><input readOnly className={inputCls + " bg-slate-50"} value={fmtM(form.valorPago)} /></Campo>
         <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_PAGAMENTO.map(s => <option key={s}>{s}</option>)}</select></Campo>
       </div>
       <Campo label="Motivo da retenção"><textarea className={textareaCls} value={form.motivo} onChange={e => setF("motivo", e.target.value)} placeholder="ex.: retenção de 2% a título de multa por atraso na entrega, conforme processo de penalidade." /></Campo>

@@ -64,8 +64,7 @@ export function Modal({ sobre, titulo, onClose, children, footer }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/55 z-[60] flex items-end md:items-center justify-center md:p-6"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 bg-slate-900/55 z-[60] flex items-end md:items-center justify-center md:p-6">
       <div ref={ref} className="bg-white w-full max-w-[880px] max-h-[92vh] overflow-auto rounded-t-md md:rounded-md border border-slate-300 shadow-xl">
         <header className="flex gap-4 items-start px-5 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <div className="min-w-0 flex-1">

@@ -299,6 +299,17 @@ function FormContrato({ c, data, refresh, onClose }) {
   })();
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  function handleInicio(v) {
+    setForm(f => {
+      const novo = { ...f, inicio: v };
+      if (v && !f.fim) {
+        const d = new Date(v + "T00:00:00");
+        d.setMonth(d.getMonth() + 12);
+        novo.fim = d.toISOString().slice(0, 10);
+      }
+      return novo;
+    });
+  }
 
   function setItem(i, k, v) {
     setItens(arr => {
@@ -420,8 +431,8 @@ function FormContrato({ c, data, refresh, onClose }) {
         )}
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
-        <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => setF("inicio", e.target.value)} /></Campo>
-        <Campo label="Fim da vigência"><input type="date" className={inputCls} value={form.fim} onChange={e => setF("fim", e.target.value)} /></Campo>
+        <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => handleInicio(e.target.value)} /></Campo>
+        <Campo label="Fim da vigência" ajuda="Preenchido automaticamente com 12 meses após o início — edite se necessário."><input type="date" className={inputCls} value={form.fim} onChange={e => setF("fim", e.target.value)} /></Campo>
         <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo>
         <Campo label="Status de entrega" ajuda="Contratos marcados como Entregue não aparecem na tela inicial."><select className={inputCls} value={form.statusEntrega} onChange={e => setF("statusEntrega", e.target.value)}><option>Aguardando entrega</option><option>Entregue</option></select></Campo>
       </div>

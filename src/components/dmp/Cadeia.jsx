@@ -27,7 +27,7 @@ export default function Cadeia({ benId, data, onClose }) {
   const vazio = pcaItems.length === 0 && atasComItem.length === 0 && contratosComItem.length === 0 && licitacoesComItem.length === 0;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/55 z-[60] flex justify-end" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 bg-slate-900/55 z-[60] flex justify-end">
       <div ref={ref} className="bg-white w-full max-w-[540px] h-full overflow-auto border-l border-slate-300 shadow-xl">
         <header className="flex gap-4 items-start px-5 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <div className="min-w-0 flex-1">
