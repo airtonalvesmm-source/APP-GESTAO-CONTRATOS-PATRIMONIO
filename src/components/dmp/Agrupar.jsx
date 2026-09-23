@@ -18,17 +18,19 @@ export function GrupoAnoCategoria({ grupos, renderItem }) {
     <div className="space-y-6">
       {grupos.map(g => (
         <div key={g.ano}>
-          <div className="flex items-baseline gap-3 border-b border-slate-300 pb-2 mb-3.5">
-            <h3 className="font-sans font-bold text-sm tracking-widest uppercase text-slate-800 flex items-center gap-2.5">
-              <span className="w-1 h-4 bg-amber-700 inline-block" />{g.ano}
+          <div className="flex items-center gap-3 bg-amber-700 text-white px-4 py-2.5 rounded-sm mb-4">
+            <h3 className="font-sans font-bold text-sm tracking-widest uppercase flex items-center gap-2.5">
+              <span className="w-1 h-4 bg-white/80 inline-block" />{g.ano}
             </h3>
-            <span className="font-mono text-[11px] text-slate-500 ml-auto">{g.total} {g.total === 1 ? "item" : "itens"}</span>
+            <span className="font-mono text-[11px] text-white/80 ml-auto">{g.total} {g.total === 1 ? "item" : "itens"}</span>
           </div>
           {g.categorias.map(c => (
             <div key={c.cat} className="mb-5">
-              <h4 className="font-sans font-semibold text-[12px] tracking-wider uppercase text-slate-600 mb-2.5 flex items-center gap-2">
-                <span className="w-1 h-3 bg-amber-700" />{c.cat} <span className="font-mono text-[10px] text-slate-400">· {c.itens.length}</span>
-              </h4>
+              <div className="flex items-center gap-2 bg-slate-200 border-b-2 border-slate-300 px-3 py-2 mb-3 rounded-sm">
+                <span className="w-1 h-3.5 bg-slate-500 inline-block" />
+                <h4 className="font-sans font-semibold text-[12px] tracking-wider uppercase text-slate-700">{c.cat}</h4>
+                <span className="font-mono text-[10px] text-slate-500 ml-auto">{c.itens.length} {c.itens.length === 1 ? "item" : "itens"}</span>
+              </div>
               <div className="space-y-3.5">
                 {c.itens.map(renderItem)}
               </div>
