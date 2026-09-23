@@ -239,9 +239,11 @@ function FormAta({ a, data, refresh, onClose }) {
     setForm(f => {
       const novo = { ...f, inicio: v };
       if (v && !f.fim) {
-        const d = new Date(v + "T00:00:00");
-        d.setMonth(d.getMonth() + 12);
-        novo.fim = d.toISOString().slice(0, 10);
+        const [y, m, d] = v.split("-");
+        let ano = Number(y) + 1;
+        let dia = d;
+        if (m === "02" && d === "29") dia = "28";
+        novo.fim = `${ano}-${m}-${dia}`;
       }
       return novo;
     });
