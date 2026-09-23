@@ -238,7 +238,7 @@ function FormAta({ a, data, refresh, onClose }) {
   function handleInicio(v) {
     setForm(f => {
       const novo = { ...f, inicio: v };
-      if (v && !f.fim) {
+      if (v) {
         const [y, m, d] = v.split("-");
         let ano = Number(y) + 1;
         let dia = d;
