@@ -69,9 +69,9 @@ export function calcPlanejamentoFunil(pca, atas, ano) {
 }
 
 // Fase 1.2 Bloco B: Execução das atas
-export function calcExecucaoAtas(atas, contratos, pagamentos, ocorrencias, filtro = "todas") {
+export function calcExecucaoAtas(atas, contratos, pagamentos, ocorrencias, filtro = "todas", ano) {
   let atasF = atas;
-  if (filtro === "2026") atasF = atas.filter(a => (a.inicio || "").slice(0, 4) === "2026");
+  if (filtro === "ano" && ano) atasF = atas.filter(a => (a.inicio || "").slice(0, 4) === String(ano));
   else if (filtro === "vigentes") atasF = atasVigentes(atas);
 
   const registrado = atasF.reduce((t, a) => t + resumoAta(a, contratos).reg, 0);
@@ -172,6 +172,96 @@ export function calcTopFornecedores(contratos, ocorrencias) {
   const total = Object.values(map).reduce((t, v) => t + v, 0);
   const top = Object.entries(map).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
   return { top, total };
+}
+
+// Ainda a contratar = planejado − empenhado em contratos do exercício
+export function calcAindaContratar(pca, contratos, ocorrencias, ano) {
+  const planejado = calcPlanejado(pca, ano);
+  const empenhado = contratos.filter(c => (c.inicio || "").slice(0, 4) === String(ano))
+    .reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
+  return Math.max(0, planejado - empenhado);
+}
+
+// PCA não contratado — itens do PCA do exercício que ainda não viraram contrato/empenho
+export function calcPCANaoContratado(pca, contratos, catalog, ano) {
+  const pcaAno = pca.filter(p => +p.exercicio === +ano);
+  const benIdsContratados = new Set();
+  contratos.forEach(c => (c.itens || []).forEach(i => {
+    if ((c.inicio || "").slice(0, 4) === String(ano)) benIdsContratados.add(i.benId);
+  }));
+  return pcaAno.filter(p => !benIdsContratados.has(p.benId)).map(p => {
+    const b = catalog.find(x => x.id === p.benId);
+    const qtd = Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada));
+    return { p, ben: b, qtd, valor: qtd * nVal(p.valor) };
+  }).filter(x => x.qtd > 0);
+}
+
+// Previsto vs gasto — planejado PCA vs efetivamente pago no exercício
+export function calcPrevistoVsGasto(pca, contratos, pagamentos, ocorrencias, ano) {
+  const planejado = calcPlanejado(pca, ano);
+  const contratosAno = contratos.filter(c => (c.inicio || "").slice(0, 4) === String(ano));
+  const pago = contratosAno.reduce((t, c) => t + totaisPagamento(c, pagamentos, ocorrencias).pago, 0);
+  const empenhado = contratosAno.reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
+  const pct = planejado ? pago / planejado * 100 : 0;
+  return { planejado, pago, empenhado, pct, saldo: Math.max(0, planejado - pago) };
+}
+
+// Top itens por ano — ranking por quantidade contratada no exercício
+export function calcTopItensPorAno(contratos, catalog, ano) {
+  const map = {};
+  contratos.forEach(c => {
+    if ((c.inicio || "").slice(0, 4) !== String(ano)) return;
+    (c.itens || []).forEach(i => {
+      const b = catalog.find(x => x.id === i.benId);
+      if (!b) return;
+      if (!map[b.id]) map[b.id] = { ben: b, qtd: 0, valor: 0 };
+      map[b.id].qtd += nQtd(i.qtd);
+      map[b.id].valor += nQtd(i.qtd) * nVal(i.valor);
+    });
+  });
+  return Object.values(map).sort((a, b) => b.qtd - a.qtd);
+}
+
+// Variação vs exercício anterior para os KPIs do topo
+export function calcVariacao(pca, contratos, ocorrencias, ano) {
+  const pAtual = calcPlanejado(pca, ano);
+  const pAnt = calcPlanejado(pca, ano - 1);
+  const cAtual = calcContratado(contratos, ocorrencias, ano);
+  const cAnt = calcContratado(contratos, ocorrencias, ano - 1);
+  const pct = (atual, ant) => ant > 0 ? (atual - ant) / ant * 100 : null;
+  return {
+    planejado: { atual: pAtual, ant: pAnt, pct: pct(pAtual, pAnt) },
+    contratado: { atual: cAtual, ant: cAnt, pct: pct(cAtual, cAnt) }
+  };
+}
+
+// Contratos vigentes com valor a pagar (para o card "A pagar")
+export function calcContratosAPagar(contratos, pagamentos, ocorrencias) {
+  return contratosVigentes(contratos, ocorrencias)
+    .filter(c => totaisPagamento(c, pagamentos, ocorrencias).aPagar > 0);
+}
+
+// Timeline unificada — atas e contratos vigentes posicionados por dias restantes
+export function calcTimelineVigencia(atas, contratos, pagamentos, ocorrencias) {
+  const itens = [];
+  atas.forEach(a => {
+    const d = diasAte(a.fim);
+    if (d === null || d < 0) return;
+    const sal = resumoAta(a, contratos).sal;
+    if (sal <= 0) return;
+    itens.push({ tipo: "ata", id: a.id, numero: a.numero, fornecedor: a.fornecedor || "—", dias: d, valor: sal, fim: a.fim });
+  });
+  contratos.forEach(c => {
+    const f = fimVigente(c, ocorrencias);
+    const d = diasAte(f);
+    if (d === null || d < 0) return;
+    const t = totaisPagamento(c, pagamentos, ocorrencias);
+    const empenhado = valorEmpenhado(c, ocorrencias);
+    const valor = Math.max(0, empenhado - t.pago);
+    if (valor <= 0 && t.empenhado <= 0) return;
+    itens.push({ tipo: "contrato", id: c.id, numero: `${c.tipo} ${c.numero}`, fornecedor: c.fornecedor || "—", dias: d, valor: valor || empenhado, fim: f });
+  });
+  return itens.sort((a, b) => a.dias - b.dias);
 }
 
 // Alertas centrais

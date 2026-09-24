@@ -1,18 +1,73 @@
 import React from "react";
-import { diasAte, fmtData, resumoAta, situacaoAta } from "@/lib/dmp-utils";
-import { fmtCurto, fmtPct, calcAtasVigentesDetalhado } from "@/lib/painel-calc";
+import { diasAte, fmtData, resumoAta, fmtM } from "@/lib/dmp-utils";
+import { fmtCurto, fmtPct, calcTimelineVigencia, calcAtasVigentesDetalhado } from "@/lib/painel-calc";
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+
+function TooltipTimeline({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const cor = d.tipo === "ata" ? "text-amber-700" : "text-slate-700";
+  return (
+    <div className="bg-white border border-slate-300 rounded-md shadow-lg px-3 py-2 text-[12px]">
+      <p className={`font-sans font-semibold ${cor} mb-0.5`}>{d.tipo === "ata" ? "Ata" : "Contrato"} {d.numero}</p>
+      <p className="font-sans text-slate-600">{d.fornecedor}</p>
+      <p className="font-sans text-slate-600 tabular-nums">Valor: R$ {fmtM(d.valor)}</p>
+      <p className="font-sans text-slate-600">Vence em {fmtData(d.fim)} · {d.dias} dia{d.dias === 1 ? "" : "s"}</p>
+    </div>
+  );
+}
+
+function Timeline({ data, setTab }) {
+  const { atas, contratos, pagamentos, ocorrencias } = data;
+  const itens = calcTimelineVigencia(atas, contratos, pagamentos, ocorrencias);
+  if (!itens.length) return (
+    <div className="bg-white border border-slate-300 rounded-lg p-4">
+      <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500 mb-3">Vigência — atas e contratos</h3>
+      <p className="text-emerald-700 text-[13px]">✓ Nenhuma ata ou contrato vigente com saldo.</p>
+    </div>
+  );
+  const maxDias = Math.max(...itens.map(x => x.dias), 1);
+  // jitter Y para evitar sobreposição
+  const atasData = itens.filter(x => x.tipo === "ata").map((x, i) => ({ ...x, y: (i % 3) * 1.2 + 0.5 }));
+  const contratosData = itens.filter(x => x.tipo === "contrato").map((x, i) => ({ ...x, y: (i % 3) * 1.2 + 0.5 }));
+  const corAta = "#b45309";
+  const corContrato = "#334155";
+
+  function onClickAta(e) { if (e?.payload?.id) setTab?.("atas"); }
+  function onClickContrato(e) { if (e?.payload?.id) setTab?.("contratos"); }
+
+  return (
+    <div className="bg-white border border-slate-300 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500">Vigência — atas e contratos</h3>
+        <div className="flex gap-3 font-sans text-[11px] text-slate-500">
+          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: corAta }} />Atas</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: corContrato }} />Contratos</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <ScatterChart margin={{ left: 8, right: 16, top: 8, bottom: 18 }}>
+          <XAxis type="number" dataKey="dias" domain={[0, maxDias]} tick={{ fontSize: 10, fill: "#64748b" }}
+            tickFormatter={(v) => v === 0 ? "hoje" : `${v}d`} axisLine={{ stroke: "#cbd5e1" }} tickLine={false} />
+          <YAxis type="number" dataKey="y" domain={[0, 4]} hide />
+          <ZAxis type="number" dataKey="valor" range={[40, 400]} />
+          <ReferenceLine x={0} stroke="#1e293b" strokeWidth={1.5} label={{ value: "hoje", position: "top", fill: "#1e293b", fontSize: 10 }} />
+          <Tooltip content={<TooltipTimeline />} cursor={{ strokeDasharray: "3 3" }} />
+          <Scatter data={atasData} fill={corAta} onClick={onClickAta} />
+          <Scatter data={contratosData} fill={corContrato} onClick={onClickContrato} />
+        </ScatterChart>
+      </ResponsiveContainer>
+      <p className="font-sans text-[11px] text-slate-500 mt-1">Passe o mouse para detalhes · clique para abrir a aba · tamanho do ponto proporcional ao valor</p>
+    </div>
+  );
+}
 
 function AtasVigentes({ data, setTab }) {
   const { atas, contratos } = data;
   const lista = calcAtasVigentesDetalhado(atas, contratos);
-  if (!lista.length) return (
-    <div className="bg-white border border-slate-300 rounded-md p-4">
-      <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500 mb-3">Atas vigentes</h3>
-      <p className="text-emerald-700 text-[13px]">✓ Nenhuma ata vigente com saldo.</p>
-    </div>
-  );
+  if (!lista.length) return null;
   return (
-    <div className="bg-white border border-slate-300 rounded-md p-4">
+    <div className="bg-white border border-slate-300 rounded-lg p-4">
       <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500 mb-3">Atas vigentes — {lista.length}</h3>
       <div className="space-y-3">
         {lista.map((x, i) => {
@@ -47,51 +102,13 @@ function AtasVigentes({ data, setTab }) {
   );
 }
 
-function Timeline({ data }) {
-  const { atas, contratos } = data;
-  const atasVig = atas
-    .map(a => ({ a, sal: resumoAta(a, contratos).sal, dias: diasAte(a.fim), classe: situacaoAta(a).classe }))
-    .filter(x => x.sal > 0 && x.dias !== null && x.dias >= 0)
-    .sort((a, b) => a.dias - b.dias);
-  if (!atasVig.length) return (
-    <div className="bg-white border border-slate-300 rounded-md p-4">
-      <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500 mb-3">Régua de vigência</h3>
-      <p className="text-emerald-700 text-[13px]">✓ Nenhuma ata vigente com saldo.</p>
-    </div>
-  );
-  const maxDias = Math.max(...atasVig.map(x => x.dias), 1);
-  const maxSaldo = Math.max(...atasVig.map(x => x.sal), 1);
-  const corBarra = { critico: "bg-red-500", aviso: "bg-amber-500", ok: "bg-emerald-500", neutro: "bg-slate-400" };
-  const cats = [...new Set(atasVig.map(x => x.a.categoria).filter(Boolean))];
-  return (
-    <div className="bg-white border border-slate-300 rounded-md p-4">
-      <h3 className="font-sans text-[11px] tracking-widest uppercase text-slate-500 mb-3">
-        Régua de vigência — hoje a {fmtData(atasVig[atasVig.length - 1].a.fim)}
-      </h3>
-      <div className="relative h-28 border-l border-r border-slate-200 overflow-hidden">
-        <div className="absolute top-0 bottom-0 w-px bg-slate-800 z-10" style={{ left: "0%" }}>
-          <span className="font-sans text-[9px] text-slate-800 absolute -top-4 -translate-x-1/2">hoje</span>
-        </div>
-        {atasVig.map((x, i) => {
-          const left = (x.dias / maxDias) * 100;
-          const w = Math.max(5, Math.min(28, x.sal / maxSaldo * 28));
-          const top = (i % 4) * 20 + 4;
-          return (
-            <div key={i} className={`absolute rounded-sm ${corBarra[x.classe] || corBarra.neutro}`}
-              style={{ left: `${left}%`, top: `${top}px`, width: `${w}px`, height: "14px" }}
-              title={`Ata ${x.a.numero} · ${x.a.fornecedor || "—"} · saldo ${fmtCurto(x.sal)} · vence ${fmtData(x.a.fim)}`} />
-          );
-        })}
-      </div>
-      <div className="flex gap-4 mt-3 font-sans text-[10px] text-slate-500">
-        {cats.map(c => <span key={c} className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-slate-600"></span>{c}</span>)}
-      </div>
-    </div>
-  );
-}
-
 export default function Vigencia({ data, setTab }) {
   const { atas, contratos } = data;
   const vig = atas.filter(a => { const d = diasAte(a.fim); return d === null || d >= 0; }).filter(a => resumoAta(a, contratos).sal > 0);
-  return vig.length < 6 ? <AtasVigentes data={data} setTab={setTab} /> : <Timeline data={data} />;
+  return (
+    <div className="space-y-4">
+      <Timeline data={data} setTab={setTab} />
+      {vig.length > 0 && vig.length < 6 && <AtasVigentes data={data} setTab={setTab} />}
+    </div>
+  );
 }

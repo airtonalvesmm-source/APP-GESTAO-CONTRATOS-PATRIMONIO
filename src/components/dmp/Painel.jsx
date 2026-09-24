@@ -7,6 +7,7 @@ import Risco from "./painel/Risco";
 import Vigencia from "./painel/Vigencia";
 import ExecucaoMensal from "./painel/ExecucaoMensal";
 import Fornecedores from "./painel/Fornecedores";
+import RankingItens from "./painel/RankingItens";
 import { gerarRelatorioPDF } from "./painel/Relatorio";
 import { ChevronDown, HelpCircle, RefreshCw, FileText } from "lucide-react";
 
@@ -58,8 +59,11 @@ export default function Painel({ data, setTab }) {
       <Funil data={data} ano={ano} setTab={setTab} />
       <Risco data={data} setTab={setTab} />
       <Vigencia data={data} setTab={setTab} />
-      <ExecucaoMensal data={data} ano={ano} />
-      <Fornecedores data={data} setTab={setTab} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ExecucaoMensal data={data} ano={ano} />
+        <Fornecedores data={data} setTab={setTab} />
+      </div>
+      <RankingItens data={data} ano={ano} setTab={setTab} />
     </div>
   );
 }
