@@ -182,14 +182,19 @@ export function calcAindaContratar(pca, contratos, ocorrencias, ano) {
   return Math.max(0, planejado - empenhado);
 }
 
-// PCA não contratado — itens do PCA do exercício que ainda não viraram contrato/empenho
+// PCA não contratado — itens do PCA do exercício com status "não iniciado",
+// espelhando a lógica da aba Execução do Plano Anual: vínculo pelo pcaId do item do contrato.
 export function calcPCANaoContratado(pca, contratos, catalog, ano) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
-  const benIdsContratados = new Set();
+  const qtdPorPca = {};
   contratos.forEach(c => (c.itens || []).forEach(i => {
-    if ((c.inicio || "").slice(0, 4) === String(ano)) benIdsContratados.add(i.benId);
+    if (!i.pcaId) return;
+    qtdPorPca[i.pcaId] = (qtdPorPca[i.pcaId] || 0) + nQtd(i.qtd);
   }));
-  return pcaAno.filter(p => !benIdsContratados.has(p.benId)).map(p => {
+  return pcaAno.filter(p => {
+    if (nQtd(p.qtdSobrestada) >= nQtd(p.qtd) && nQtd(p.qtd) > 0) return false; // sobrestado (total)
+    return (qtdPorPca[p.id] || 0) === 0; // não iniciado = nenhum contrato vinculado
+  }).map(p => {
     const b = catalog.find(x => x.id === p.benId);
     const qtd = Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada));
     return { p, ben: b, qtd, valor: qtd * nVal(p.valor) };
