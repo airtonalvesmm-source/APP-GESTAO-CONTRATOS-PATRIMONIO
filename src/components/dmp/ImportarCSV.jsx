@@ -57,8 +57,12 @@ export default function ImportarCSV({ entityName, colunas, refresh, label = "Imp
         const rec = {};
         let valido = true;
         for (const c of colunas) {
-          const val = row[c.header];
-          if (val == null || String(val).trim() === "") {
+          const headers = [c.header, ...(c.aliases || [])];
+          let val = "";
+          for (const h of headers) {
+            if (row[h] != null && String(row[h]).trim() !== "") { val = row[h]; break; }
+          }
+          if (val === "") {
             if (c.obrigatorio) { valido = false; }
             rec[c.campo] = c.tipo === "number" ? 0 : "";
             continue;

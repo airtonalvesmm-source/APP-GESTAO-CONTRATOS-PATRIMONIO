@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM, SITUACOES_CONTRATO } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, uid, baixarCSV,
   ocorrenciasDe, aditivoValor, diasAditivados, valorItensContrato, valorEmpenhado, fimVigente, nValS } from "@/lib/dmp-utils";
-import { opcoesBensAgrupadas } from "@/lib/subcat-utils";
+import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -23,7 +23,7 @@ export default function Contratos({ data, refresh }) {
   const [cat, setCat] = useState("");
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
-  const [agrupar, setAgrupar] = useState(false);
+  const [agrupar, setAgrupar] = useState(true);
   const [filtroSituacao, setFiltroSituacao] = useState("Vigente");
   const [filtroEntrega, setFiltroEntrega] = useState("Aguardando entrega");
   const [showRelatorio, setShowRelatorio] = useState(false);
@@ -104,7 +104,7 @@ export default function Contratos({ data, refresh }) {
 
   function exportCSV() {
     if (!contratos.length) return alert("Não há contratos lançados.");
-    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Ata vinculada", "Fornecedor", "CNPJ", "Objeto", "Situação", "Status de entrega", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
+    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Número da ata", "Fornecedor", "CNPJ", "Objeto", "Situação", "Status de entrega", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
     contratos.forEach(c => {
       const a = atas.find(x => x.id === c.ataId);
       const val = (c.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
@@ -216,7 +216,7 @@ export default function Contratos({ data, refresh }) {
               { header: "Número", campo: "numero", obrigatorio: true },
               { header: "Processo", campo: "processo" },
               { header: "Nota de empenho", campo: "notaEmpenho" },
-              { header: "Número da ata", campo: "_ataNumero", obrigatorio: true },
+              { header: "Número da ata", campo: "_ataNumero", obrigatorio: true, aliases: ["Ata vinculada"] },
               { header: "Objeto", campo: "objeto" },
               { header: "Situação", campo: "situacao" },
               { header: "Status de entrega", campo: "statusEntrega" },
@@ -393,17 +393,13 @@ function FormContrato({ c, data, refresh, onClose }) {
   }
 
   function opcoesPCA(benId, sel) {
-    const pcaAno = pca.filter(p => +p.exercicio === +anoContrato);
-    const pcaOutros = pca.filter(p => +p.exercicio !== +anoContrato);
-    const iguais = pcaAno.filter(p => p.benId === benId);
-    const outrosAno = pcaAno.filter(p => p.benId !== benId);
-    const iguaisOutros = pcaOutros.filter(p => p.benId === benId);
-    const outrosOutros = pcaOutros.filter(p => p.benId !== benId);
+    const iguais = pca.filter(p => p.benId === benId && +p.exercicio === +anoContrato);
+    const selItem = sel ? pca.find(p => p.id === sel) : null;
+    const selFora = selItem && !iguais.find(p => p.id === sel) ? selItem : null;
     return (<>
       <option value="">Sem vínculo com o plano</option>
-      {iguais.length > 0 && <optgroup label={`Mesmo bem — exercício ${anoContrato}`}>{iguais.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
-      {outrosAno.length > 0 && <optgroup label={`Outros itens — exercício ${anoContrato}`}>{outrosAno.map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
-      {(iguaisOutros.length > 0 || outrosOutros.length > 0) && <optgroup label="Outros exercícios">{[...iguaisOutros, ...outrosOutros].map(p => <option key={p.id} value={p.id} selected={p.id === sel}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
+      {selFora && <option value={selFora.id}>{(selFora.codigo ? selFora.codigo + " · " : "") + selFora.exercicio} — {catalog.find(b => b.id === selFora.benId)?.objeto || "(removido)"} (vínculo atual — exercício divergente)</option>}
+      {iguais.length > 0 && <optgroup label={`Mesmo bem — exercício ${anoContrato}`}>{iguais.map(p => <option key={p.id} value={p.id}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
     </>);
   }
 
@@ -419,15 +415,28 @@ function FormContrato({ c, data, refresh, onClose }) {
         <Campo label="Nota de empenho"><input className={inputCls} value={form.notaEmpenho} onChange={e => setF("notaEmpenho", e.target.value)} placeholder="ex.: 2026NE000418" /></Campo>
         <Campo label="Ata vinculada" ajuda={form.ataId ? "Itens da ata carregados abaixo — ajuste as quantidades e remova os que não serão contratados." : "Sem ata: contratação direta. Informe o fornecedor abaixo."}>
           <select className={inputCls} value={form.ataId} onChange={e => handleAtaChange(e.target.value)}>
-            <option value="">Sem ata vinculada</option>
-            {atas.map(at => <option key={at.id} value={at.id}>Ata {at.numero} — {at.fornecedor || ""}</option>)}
+            {opcoesAgrupadas({
+              items: atas,
+              grupoFns: [at => (at.inicio || at.fim || "").slice(0, 4) || "Sem ano", at => at.categoria || "Sem categoria", at => at.fornecedor || "Sem fornecedor"],
+              optionFn: at => <option key={at.id} value={at.id}>Ata {at.numero}</option>,
+              extraOption: <option value="">Sem ata vinculada</option>,
+              sortItems: (a, b) => {
+                const aa = (a.inicio || a.fim || "").slice(0, 4), ba = (b.inicio || b.fim || "").slice(0, 4);
+                return ba.localeCompare(aa) || (a.categoria || "").localeCompare(b.categoria || "", "pt-BR") || (a.fornecedor || "").localeCompare(b.fornecedor || "", "pt-BR");
+              }
+            })}
           </select>
         </Campo>
         {!form.ataId && (
           <Campo label="Fornecedor">
             <select className={inputCls} value={form.fornecedorId} onChange={e => setF("fornecedorId", e.target.value)}>
-              <option value="">Selecione o fornecedor</option>
-              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>)}
+              {opcoesAgrupadas({
+                items: fornecedores,
+                grupoFns: [f => f.categoria || "Sem categoria"],
+                optionFn: f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>,
+                extraOption: <option value="">Selecione o fornecedor</option>,
+                sortItems: (a, b) => (a.categoria || "").localeCompare(b.categoria || "", "pt-BR") || (a.razao || "").localeCompare(b.razao || "", "pt-BR")
+              })}
             </select>
           </Campo>
         )}
@@ -465,7 +474,7 @@ function FormContrato({ c, data, refresh, onClose }) {
                       </>
                     ) : (
                       <select className={inputCls} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>
-                        {opcoesBensAgrupadas(catalog, null, it.benId)}
+                        {opcoesBensTodasCategorias(catalog, it.benId)}
                       </select>
                     )}
                   </Campo>

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV, parsearCSV } from "@/lib/dmp-utils";
-import { opcoesBensAgrupadas } from "@/lib/subcat-utils";
+import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
@@ -18,7 +18,7 @@ export default function Atas({ data, refresh }) {
   const [cat, setCat] = useState("");
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("vigencia");
-  const [agrupar, setAgrupar] = useState(false);
+  const [agrupar, setAgrupar] = useState(true);
   const [vigencia, setVigencia] = useState("vigente");
 
   const anos = Array.from(new Set(atas.map(a => a.inicio?.slice(0, 4) || a.fim?.slice(0, 4) || "").filter(Boolean))).sort().reverse();
@@ -74,13 +74,11 @@ export default function Atas({ data, refresh }) {
 
   function exportCSV() {
     if (!atas.length) return alert("Não há atas cadastradas.");
-    const l = [["Ata", "Fornecedor", "Fim da vigência", "Dias restantes", "Item da ata", "Objeto", "CATMAT", "Unidade", "Qtd. registrada", "Qtd. consumida", "Saldo", "Valor unitário", "Valor do saldo"]];
-    atas.forEach(a => (a.itens || []).forEach(it => {
-      const b = catalog.find(x => x.id === it.benId) || {};
-      const c = consumido(a.id, it.id, contratos), s = nQtd(it.qtd) - c, d = diasAte(a.fim);
-      l.push([a.numero, a.fornecedor || "", fmtData(a.fim), d === null ? "" : d, it.numItem || "", b.objeto || "", b.catmat || "", b.unidade || "", fmtQ(it.qtd), fmtQ(c), fmtQ(s), fmtM(it.valor), fmtM(s * nVal(it.valor))]);
-    }));
-    baixarCSV("saldos-atas.csv", l);
+    const l = [["Número da ata", "Processo", "Órgão gerenciador", "Categoria", "CNPJ do fornecedor", "Início da vigência", "Fim da vigência"]];
+    atas.forEach(a => {
+      l.push([a.numero, a.processo || "", a.gerenciador || "", a.categoria || "", a.cnpj || "", fmtData(a.inicio), fmtData(a.fim)]);
+    });
+    baixarCSV("atas.csv", l);
   }
 
   const grupos = useMemo(() => agrupar ? agruparPorAnoCategoria(lista, a => anoDaAta(a), a => catDaAta(a)) : [], [lista, agrupar]);
@@ -155,7 +153,7 @@ export default function Atas({ data, refresh }) {
     <div>
       <TelaCab titulo="Atas de registro de preços" desc="Cadastre as atas vigentes e acompanhe o saldo de cada item conforme os contratos e empenhos lançados."
         direita={<>
-          <Btn onClick={exportCSV}>Baixar saldos (CSV)</Btn>
+          <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Ata" refresh={refresh} data={data}
             colunas={[
               { header: "Número da ata", campo: "numero", obrigatorio: true },
@@ -393,7 +391,7 @@ function FormAta({ a, data, refresh, onClose }) {
     const daCategoria = catalog.filter(b => !b.oculto && b.categoria === catBase);
     // Se a categoria tem itens, agrupa por subcategoria dela; senão, mostra todos os bens agrupados
     if (daCategoria.length) return opcoesBensAgrupadas(catalog, catBase, sel);
-    return opcoesBensAgrupadas(catalog, null, sel);
+    return opcoesBensTodasCategorias(catalog, sel);
   }
 
   return (
@@ -423,13 +421,27 @@ function FormAta({ a, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Licitação de origem" ajuda={licitacoes.length ? "Certame que gerou esta ata." : "Nenhuma licitação cadastrada."}>
           <select className={inputCls} value={form.licitacaoId} onChange={e => setF("licitacaoId", e.target.value)}>
-            <option value="">Sem licitação vinculada</option>
-            {licitacoes.map(l => <option key={l.id} value={l.id}>{l.modalidade} nº {l.numero}/{l.ano}{l.categoria ? ` — ${l.categoria}` : ""}</option>)}
+            {opcoesAgrupadas({
+              items: licitacoes,
+              grupoFns: [l => String(l.ano || "Sem ano"), l => l.categoria || "Sem categoria"],
+              optionFn: l => <option key={l.id} value={l.id}>{l.modalidade} nº {l.numero}/{l.ano}</option>,
+              extraOption: <option value="">Sem licitação vinculada</option>,
+              sortItems: (a, b) => String(b.ano || "").localeCompare(String(a.ano || "")) || (a.categoria || "").localeCompare(b.categoria || "", "pt-BR") || (a.modalidade || "").localeCompare(b.modalidade || "", "pt-BR")
+            })}
           </select>
         </Campo>
         <Campo label="Fornecedor" ajuda="Apenas fornecedores da categoria selecionada (ou sem categoria).">
           <select className={inputCls} value={form.fornecedorId} onChange={e => setF("fornecedorId", e.target.value)} disabled={fornecedores.length === 0}>
-            {(() => { const fs = fornecedores.filter(f => !f.categoria || f.categoria === form.categoria); return fs.length ? fs.map(f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>) : <option value="">Nenhum fornecedor da categoria</option>; })()}
+            {(() => {
+              const fs = fornecedores.filter(f => !f.categoria || f.categoria === form.categoria);
+              if (!fs.length) return <option value="">Nenhum fornecedor da categoria</option>;
+              return opcoesAgrupadas({
+                items: fs,
+                grupoFns: [f => f.categoria || "Sem categoria"],
+                optionFn: f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>,
+                sortItems: (a, b) => (a.categoria || "").localeCompare(b.categoria || "", "pt-BR") || (a.razao || "").localeCompare(b.razao || "", "pt-BR")
+              });
+            })()}
           </select>
         </Campo>
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => handleInicio(e.target.value)} /></Campo>

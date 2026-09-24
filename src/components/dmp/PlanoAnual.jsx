@@ -87,13 +87,13 @@ export default function PlanoAnual({ data, refresh }) {
 
   function csvPlano() {
     if (!itensExercicio.length) return alert("Não há itens no exercício selecionado.");
-    const l = [["Código PCA", "Objeto", "PDM", "CATMAT", "Categoria", "Unidade", "Qtd. autorizada", "Qtd. sobrestada", "Qtd. efetiva", "Status", "Valor unitário", "Valor total", "Aplicação", "Justificativa", "Motivo do sobrestamento", "Data do sobrestamento"]];
+    const l = [["Código PCA", "Exercício", "Objeto", "PDM", "CATMAT", "Categoria", "Unidade", "Quantidade", "Qtd. sobrestada", "Qtd. efetiva", "Status", "Valor unitário", "Valor total", "Aplicação", "Justificativa", "Motivo do sobrestamento", "Data do sobrestamento"]];
     itensExercicio.forEach(p => {
       const b = bem(p.benId);
       const sob = sobrestamentoDoItem(p);
       const qE = qtdEfetiva(p);
       const status = sob.tipo === "nenhum" ? "Ativo" : sob.tipo === "total" ? "Sobrestado (total)" : "Sobrestado (parcial)";
-      l.push([p.codigo || "", b.objeto, b.pdm, b.catmat, b.categoria, b.unidade, fmtQ(p.qtd), fmtQ(nQtd(p.qtdSobrestada)), fmtQ(qE), status, fmtM(p.valor), fmtM(qE * nVal(p.valor)), b.aplicacao, p.justificativa || "", p.motivoSobrestamento || "", fmtData(p.dataSobrestamento)]);
+      l.push([p.codigo || "", p.exercicio, b.objeto, b.pdm, b.catmat, b.categoria, b.unidade, fmtQ(p.qtd), fmtQ(nQtd(p.qtdSobrestada)), fmtQ(qE), status, fmtM(p.valor), fmtM(qE * nVal(p.valor)), b.aplicacao, p.justificativa || "", p.motivoSobrestamento || "", fmtData(p.dataSobrestamento)]);
     });
     baixarCSV(`pca-${exercicio}.csv`, l);
   }
@@ -127,7 +127,7 @@ export default function PlanoAnual({ data, refresh }) {
               { header: "Código PCA", campo: "codigo" },
               { header: "CATMAT", campo: "_catmat", obrigatorio: true },
               { header: "Exercício", campo: "exercicio", tipo: "number", obrigatorio: true },
-              { header: "Quantidade", campo: "qtd", tipo: "number", obrigatorio: true },
+              { header: "Quantidade", campo: "qtd", tipo: "number", obrigatorio: true, aliases: ["Qtd. autorizada"] },
               { header: "Valor unitário", campo: "valor", tipo: "number" },
               { header: "Justificativa", campo: "justificativa" }
             ]}

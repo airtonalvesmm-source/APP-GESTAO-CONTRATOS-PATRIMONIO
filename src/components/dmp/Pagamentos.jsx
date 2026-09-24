@@ -10,6 +10,7 @@ import ImportarCSV from "./ImportarCSV";
 import { FormOcorrencia } from "./Contratos";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
+import { opcoesAgrupadas } from "@/lib/subcat-utils";
 
 export default function Pagamentos({ data, refresh }) {
   const { contratos, ocorrencias, pagamentos, atas, catalog } = data;
@@ -21,7 +22,7 @@ export default function Pagamentos({ data, refresh }) {
   const [cat, setCat] = useState("");
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("retencao");
-  const [agrupar, setAgrupar] = useState(false);
+  const [agrupar, setAgrupar] = useState(true);
   const [situacao, setSituacao] = useState("");
 
   function catDoContrato(c) {
@@ -284,7 +285,14 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
 }
 
 function FormPagamento({ p, contratoId, data, refresh, onClose }) {
-  const { contratos, pagamentos, ocorrencias } = data;
+  const { contratos, pagamentos, ocorrencias, atas, catalog } = data;
+  function catDeC(c) {
+    const a = atas.find(x => x.id === c.ataId);
+    if (a?.categoria) return a.categoria;
+    const cats = (c.itens || []).map(i => catalog.find(b => b.id === i.benId)?.categoria).filter(Boolean);
+    if (cats.length) { const counts = {}; cats.forEach(cat => counts[cat] = (counts[cat] || 0) + 1); return Object.entries(counts).sort((x, y) => y[1] - x[1])[0][0]; }
+    return "Sem categoria";
+  }
   const cid = p?.contratoId || contratoId || contratos[0]?.id;
   const c0 = contratos.find(x => x.id === cid);
   const t0 = c0 ? totaisPagamento(c0, pagamentos, ocorrencias) : null;
@@ -330,7 +338,15 @@ function FormPagamento({ p, contratoId, data, refresh, onClose }) {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Contrato ou empenho" ajuda={t ? `Empenhado R$ ${fmtM(t.empenhado)} · já pago R$ ${fmtM(t.pago)} · a pagar R$ ${fmtM(t.aPagar)}` : ""}>
           <select className={inputCls} value={form.contratoId} onChange={e => setF("contratoId", e.target.value)}>
-            {contratos.map(c => <option key={c.id} value={c.id}>{c.tipo} {c.numero}{c.notaEmpenho ? ` · NE ${c.notaEmpenho}` : ""} — {c.fornecedor || ""}</option>)}
+            {opcoesAgrupadas({
+              items: contratos,
+              grupoFns: [c => (c.inicio || c.fim || "").slice(0, 4) || "Sem ano", c => catDeC(c), c => c.fornecedor || "Sem fornecedor"],
+              optionFn: c => <option key={c.id} value={c.id}>{c.tipo} {c.numero}{c.notaEmpenho ? ` · NE ${c.notaEmpenho}` : ""}</option>,
+              sortItems: (a, b) => {
+                const aa = (a.inicio || a.fim || "").slice(0, 4), ba = (b.inicio || b.fim || "").slice(0, 4);
+                return ba.localeCompare(aa) || (catDeC(a) || "").localeCompare(catDeC(b) || "", "pt-BR") || (a.fornecedor || "").localeCompare(b.fornecedor || "", "pt-BR");
+              }
+            })}
           </select>
         </Campo>
         <Campo label="Número da nota fiscal"><input className={inputCls} value={form.nf} onChange={e => setF("nf", e.target.value)} /></Campo>

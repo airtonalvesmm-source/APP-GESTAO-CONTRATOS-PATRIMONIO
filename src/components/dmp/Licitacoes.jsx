@@ -17,7 +17,7 @@ export default function Licitacoes({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
   const [abertos, setAbertos] = useState(new Set());
-  const [agrupar, setAgrupar] = useState(false);
+  const [agrupar, setAgrupar] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
 
   const anos = Array.from(new Set(licitacoes.filter(l => l.ano).map(l => l.ano))).sort().reverse();
@@ -142,7 +142,7 @@ export default function Licitacoes({ data, refresh }) {
               { header: "Processo", campo: "processo" },
               { header: "Categoria", campo: "categoria" },
               { header: "Registro de preços", campo: "srp" },
-              { header: "Status", campo: "status" },
+              { header: "Situação", campo: "status", aliases: ["Status"] },
               { header: "Qtd. de itens", campo: "qtdItens", tipo: "number" },
               { header: "Valor global", campo: "valorGlobal", tipo: "number" }
             ]}
