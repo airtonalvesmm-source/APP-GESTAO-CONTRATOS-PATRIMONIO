@@ -39,7 +39,7 @@ export default function Risco({ data, setTab, dark }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className={`bg-white border-2 rounded-lg p-4 flex flex-col ${vencendo.length > 0 ? (dark ? "border-slate-700 bg-slate-800/70" : "border-amber-200") : (dark ? "border-slate-700 bg-slate-800/70" : "border-emerald-200")}`}>
+      <div className={`border-2 rounded-lg p-4 flex flex-col ${vencendo.length > 0 ? (dark ? "border-slate-700 bg-slate-800/70" : "border-amber-200 bg-white") : (dark ? "border-slate-700 bg-slate-800/70" : "border-emerald-200 bg-white")}`}>
         <h3 className={`font-sans text-[11px] tracking-widest uppercase mb-2 ${h3Cls(dark, vencendo.length === 0)}`}>Atas em risco — 90 dias</h3>
         {vencendo.length > 0 ? (
           <>

@@ -201,6 +201,25 @@ export function calcPCANaoContratado(pca, contratos, catalog, ano) {
   }).filter(x => x.qtd > 0);
 }
 
+// Execução do PCA — percentual de itens do exercício com ao menos um contrato/empenho vinculado
+export function calcExecucaoPCA(pca, contratos, ano) {
+  const pcaAno = pca.filter(p => +p.exercicio === +ano);
+  const total = pcaAno.length;
+  const qtdPorPca = {};
+  contratos.forEach(c => (c.itens || []).forEach(i => {
+    if (!i.pcaId) return;
+    qtdPorPca[i.pcaId] = (qtdPorPca[i.pcaId] || 0) + nQtd(i.qtd);
+  }));
+  let executados = 0, naoIniciados = 0, sobrestados = 0;
+  pcaAno.forEach(p => {
+    if (nQtd(p.qtdSobrestada) >= nQtd(p.qtd) && nQtd(p.qtd) > 0) { sobrestados++; return; }
+    if ((qtdPorPca[p.id] || 0) === 0) naoIniciados++;
+    else executados++;
+  });
+  const pct = total ? executados / total * 100 : 0;
+  return { total, executados, naoIniciados, sobrestados, pct };
+}
+
 // Previsto vs gasto — planejado PCA vs efetivamente pago no exercício
 export function calcPrevistoVsGasto(pca, contratos, pagamentos, ocorrencias, ano) {
   const planejado = calcPlanejado(pca, ano);

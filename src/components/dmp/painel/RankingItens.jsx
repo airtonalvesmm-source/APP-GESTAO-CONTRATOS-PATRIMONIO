@@ -23,13 +23,15 @@ function TooltipItem({ active, payload, dark }) {
 export default function RankingItens({ data, ano, setTab, dark }) {
   const { contratos, catalog } = data;
   const anos = useMemo(() => {
-    const s = new Set(contratos.map(c => (c.inicio || "").slice(0, 4)).filter(Boolean));
-    s.add(ano);
+    const s = new Set();
+    contratos.forEach(c => { const y = (c.inicio || "").slice(0, 4); if (y) s.add(+y); });
+    if (ano) s.add(+ano);
     return Array.from(s).filter(Boolean).sort((a, b) => b - a);
   }, [contratos, ano]);
 
   const [cat, setCat] = useState("Todas");
   const [anoLocal, setAnoLocal] = useState(ano);
+  const [metrica, setMetrica] = useState("qtd");
   useEffect(() => { setAnoLocal(ano); }, [ano]);
 
   const top = useMemo(() => {
@@ -44,8 +46,8 @@ export default function RankingItens({ data, ano, setTab, dark }) {
       map[b.id].qtd += nQtd(i.qtd);
       map[b.id].valor += nQtd(i.qtd) * nVal(i.valor);
     }));
-    return Object.values(map).sort((a, b) => b.qtd - a.qtd);
-  }, [contratos, catalog, cat, anoLocal]);
+    return Object.values(map).sort((a, b) => metrica === "valor" ? b.valor - a.valor : b.qtd - a.qtd);
+  }, [contratos, catalog, cat, anoLocal, metrica]);
 
   const cardBg = dark ? "bg-slate-800/70 border-slate-700" : "bg-white border-slate-300";
   const h3 = dark ? "text-slate-400" : "text-slate-500";
@@ -65,7 +67,11 @@ export default function RankingItens({ data, ano, setTab, dark }) {
     <div className={`${cardBg} border rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className={`font-sans text-[11px] tracking-widest uppercase ${h3}`}>{titulo}</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className={`inline-flex rounded-sm border overflow-hidden ${dark ? "border-slate-600" : "border-slate-300"}`}>
+            <button onClick={() => setMetrica("qtd")} className={`px-2.5 py-1.5 font-sans text-[12px] ${metrica === "qtd" ? (dark ? "bg-sky-600 text-white" : "bg-slate-800 text-white") : (dark ? "bg-slate-800 text-slate-300" : "bg-white text-slate-600")}`}>Quantidade</button>
+            <button onClick={() => setMetrica("valor")} className={`px-2.5 py-1.5 font-sans text-[12px] ${metrica === "valor" ? (dark ? "bg-sky-600 text-white" : "bg-slate-800 text-white") : (dark ? "bg-slate-800 text-slate-300" : "bg-white text-slate-600")}`}>Gastos</button>
+          </div>
           <select value={cat} onChange={e => setCat(e.target.value)} className={selCls}>
             <option value="Todas">Todas as categorias</option>
             {CAT_ARP.map(c => <option key={c} value={c}>{c}</option>)}
@@ -91,7 +97,11 @@ export default function RankingItens({ data, ano, setTab, dark }) {
     <div className={`${cardBg} border rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className={`font-sans text-[11px] tracking-widest uppercase ${h3}`}>{titulo}</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className={`inline-flex rounded-sm border overflow-hidden ${dark ? "border-slate-600" : "border-slate-300"}`}>
+            <button onClick={() => setMetrica("qtd")} className={`px-2.5 py-1.5 font-sans text-[12px] ${metrica === "qtd" ? (dark ? "bg-sky-600 text-white" : "bg-slate-800 text-white") : (dark ? "bg-slate-800 text-slate-300" : "bg-white text-slate-600")}`}>Quantidade</button>
+            <button onClick={() => setMetrica("valor")} className={`px-2.5 py-1.5 font-sans text-[12px] ${metrica === "valor" ? (dark ? "bg-sky-600 text-white" : "bg-slate-800 text-white") : (dark ? "bg-slate-800 text-slate-300" : "bg-white text-slate-600")}`}>Gastos</button>
+          </div>
           <select value={cat} onChange={e => setCat(e.target.value)} className={selCls}>
             <option value="Todas">Todas as categorias</option>
             {CAT_ARP.map(c => <option key={c} value={c}>{c}</option>)}
@@ -107,13 +117,13 @@ export default function RankingItens({ data, ano, setTab, dark }) {
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 10.5, fill: tick }} axisLine={false} tickLine={false} />
           <Tooltip content={<TooltipItem dark={dark} />} cursor={{ fill: cursor }} />
-          <Bar dataKey="qtd" radius={[3, 3, 3, 3]} barSize={18} fill={barFill}>
-            <LabelList dataKey="qtd" position="right" formatter={(v) => fmtQ(v) + " un."} style={{ fontSize: 10.5, fill: labelFill, fontFamily: "ui-sans-serif, system-ui" }} />
+          <Bar dataKey={metrica === "valor" ? "valor" : "qtd"} radius={[3, 3, 3, 3]} barSize={18} fill={barFill}>
+            <LabelList dataKey={metrica === "valor" ? "valor" : "qtd"} position="right" formatter={metrica === "valor" ? (v) => "R$ " + fmtM(v) : (v) => fmtQ(v) + " un."} style={{ fontSize: 10.5, fill: labelFill, fontFamily: "ui-sans-serif, system-ui" }} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <div className="flex items-center justify-between flex-wrap gap-2 mt-2">
-        <p className={`font-sans text-[11px] ${footTxt}`}>Top {top10.length} itens por quantidade contratada · total <b className={`tabular-nums ${strong}`}>{fmtCurto(totalVal)}</b></p>
+        <p className={`font-sans text-[11px] ${footTxt}`}>Top {top10.length} itens por {metrica === "valor" ? "valor" : "quantidade"} contratada · total <b className={`tabular-nums ${strong}`}>{fmtCurto(totalVal)}</b></p>
         <button onClick={() => setTab?.("contratos")} className={`border ${btn} rounded-md px-2.5 py-1 text-[11px] font-sans`}>Ver contratos</button>
       </div>
     </div>

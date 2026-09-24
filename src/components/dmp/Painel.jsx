@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { anoAtual } from "@/lib/dmp-utils";
 import { Campo, inputCls } from "./ui";
 import Indicadores from "./painel/Indicadores";
+import GaugePCA from "./painel/GaugePCA";
 import Funil from "./painel/Funil";
 import Risco from "./painel/Risco";
 import Vigencia from "./painel/Vigencia";
@@ -79,6 +80,7 @@ export default function Painel({ data, setTab }) {
           <p className={`font-sans text-[12.5px] ${ajudaTxtCls}`}><b className={ajudaB}>Saldo de ata</b> — quantidade já licitada que ainda pode ser comprada pelo preço registrado, até o vencimento da ata.</p>
         </div>
       )}
+      <GaugePCA data={data} ano={ano} dark={dark} />
       <Indicadores data={data} ano={ano} setTab={setTab} dark={dark} />
       <Funil data={data} ano={ano} setTab={setTab} dark={dark} />
       <Risco data={data} setTab={setTab} dark={dark} />
