@@ -38,7 +38,7 @@ const labelFill = (dark) => dark ? "#e2e8f0" : "#334155";
 function BlocoA({ data, ano, setTab, dark }) {
   const { pca, atas, contratos, ocorrencias } = data;
   const COR = cores(dark);
-  const f = calcPlanejamentoFunil(pca, atas, ano);
+  const f = calcPlanejamentoFunil(pca, atas, ano, contratos);
   const aindaContratar = calcAindaContratar(pca, contratos, ocorrencias, ano);
   const chartData = [
     { name: "Planejado", valor: f.planejado, fill: COR.destaque },

@@ -155,6 +155,7 @@ export default function Atas({ data, refresh }) {
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Ata" refresh={refresh} data={data}
+            existentes={atas} chave={r => norm(r.numero)}
             colunas={[
               { header: "Número da ata", campo: "numero", obrigatorio: true },
               { header: "Processo", campo: "processo" },
@@ -221,8 +222,10 @@ function BarraFiltros({ termo, setTermo, cat, setCat, ano, setAno, ord, setOrd, 
 }
 
 function FormAta({ a, data, refresh, onClose }) {
-  const { catalog, licitacoes, fornecedores, contratos } = data;
-  function catCatalog(cat) { return cat === "Climatização" ? "Ar-condicionado" : cat; }
+  const { catalog, licitacoes, fornecedores, contratos, atas } = data;
+  const catCatalog = (cat) => cat;
+  // Fornecedor sugerido pela IA — só é cadastrado quando a ata for salva
+  const [fornNovo, setFornNovo] = useState(null);
   const [form, setForm] = useState({
     numero: a?.numero || "", processo: a?.processo || "", gerenciador: a?.gerenciador || "Ministério Público do Estado do Piauí",
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
@@ -328,18 +331,17 @@ function FormAta({ a, data, refresh, onClose }) {
       const cnpjNum = cleanCnpj(d.cnpj);
       if (cnpjNum) {
         const existente = fornecedores.find(f => cleanCnpj(f.cnpj) === cnpjNum);
-        if (existente) { fornId = existente.id; }
+        if (existente) { fornId = existente.id; setFornNovo(null); }
         else if (d.fornecedor) {
-          const novo = await base44.entities.Fornecedor.create({ razao: d.fornecedor, cnpj: d.cnpj || "" });
-          fornId = novo.id;
-          await refresh();
+          setFornNovo({ razao: d.fornecedor, cnpj: d.cnpj || "" });
+          fornId = "__novo__";
         }
       }
       const catExtraida = d.categoria ? CAT_ARP.find(c => norm(c) === norm(d.categoria)) : null;
       const itensExtraidos = (d.itens || []).map(it => {
         const catmatStr = it.catmat ? String(it.catmat).trim() : "";
         const bem = catmatStr ? catalog.find(b => String(b.catmat || "").trim() === catmatStr) : null;
-        return { id: uid(), benId: bem ? bem.id : (catalog[0]?.id || ""), numItem: String(it.numItem || ""), qtd: it.qtd || "", valor: it.valor || "", _match: !!bem };
+        return { id: uid(), benId: bem ? bem.id : "", numItem: String(it.numItem || ""), qtd: it.qtd || "", valor: it.valor || "", _match: !!bem, _descricao: it.descricao || "" };
       });
       const matched = itensExtraidos.filter(i => i._match).length;
       const unmatched = itensExtraidos.length - matched;
@@ -355,8 +357,9 @@ function FormAta({ a, data, refresh, onClose }) {
       }));
       if (itensExtraidos.length) setItens(itensExtraidos.map(({ _match, ...rest }) => rest));
       let msg = `${itensExtraidos.length} itens extraídos (${matched} vinculados ao catálogo`;
-      if (unmatched > 0) msg += `, ${unmatched} sem CATMAT correspondente — revise manualmente`;
+      if (unmatched > 0) msg += `, ${unmatched} sem CATMAT correspondente — marcados em vermelho, escolha o item do catálogo`;
       msg += "). Revise os dados antes de salvar.";
+      if (fornId === "__novo__") msg += ` Fornecedor novo (${d.fornecedor}) será cadastrado somente ao salvar a ata.`;
       setIaStatus(msg);
     } catch (e) {
       setIaStatus("Erro ao processar o arquivo: " + (e.message || e));
@@ -367,16 +370,32 @@ function FormAta({ a, data, refresh, onClose }) {
 
   async function salvar() {
     if (!form.numero.trim()) return alert("Informe o número da ata.");
+    if (atas.some(x => x.id !== a?.id && norm(x.numero) === norm(form.numero))) return alert(`Já existe uma ata com o número ${form.numero.trim()}.`);
+    const semBem = itens.filter(it => nQtd(it.qtd) > 0 && !it.benId);
+    if (semBem.length) return alert(`${semBem.length} item(ns) sem correspondência no catálogo (marcados em vermelho). Escolha o item do catálogo ou remova a linha.`);
     const itensVal = itens.filter(it => nQtd(it.qtd) > 0).map(it => ({ id: it.id || uid(), benId: it.benId, numItem: String(it.numItem || "").trim(), qtd: nQtd(it.qtd), valor: nVal(it.valor) }));
     if (!itensVal.length) return alert("Registre ao menos um item com quantidade.");
     if (!form.fornecedorId) return alert("Selecione o fornecedor.");
-    const f = fornecedores.find(x => x.id === form.fornecedorId) || {};
-    const dados = { ...form, numero: form.numero.trim(), processo: form.processo.trim(), fornecedor: f.razao || "", cnpj: f.cnpj || "", itens: itensVal };
     if (a) {
-      for (const it of itensVal) {
-        const c = consumido(a.id, it.id, contratos);
-        if (it.qtd < c) return alert(`Quantidade menor que o já consumido em ${catalog.find(b => b.id === it.benId)?.objeto || "item"} (${fmtQ(c)}).`);
+      // Todo item original já usado em contratos precisa continuar na ata com quantidade suficiente
+      for (const orig of a.itens || []) {
+        const c = consumido(a.id, orig.id, contratos);
+        if (c <= 0) continue;
+        const novo = itensVal.find(x => x.id === orig.id);
+        const nome = catalog.find(b => b.id === orig.benId)?.objeto || "item";
+        if (!novo) return alert(`O item "${nome}" já foi usado em contratos (${fmtQ(c)} un. consumidas) e não pode ser removido nem zerado.`);
+        if (novo.qtd < c) return alert(`Quantidade menor que o já consumido em "${nome}" (${fmtQ(c)} un.).`);
+        if (novo.benId !== orig.benId) return alert(`O item "${nome}" já foi usado em contratos e não pode ter o bem trocado.`);
       }
+    }
+    let fornecedorId = form.fornecedorId;
+    if (fornecedorId === "__novo__" && fornNovo) {
+      const criado = await base44.entities.Fornecedor.create({ razao: fornNovo.razao, cnpj: fornNovo.cnpj, categoria: form.categoria });
+      fornecedorId = criado.id;
+    }
+    const f = fornecedorId === form.fornecedorId ? (fornecedores.find(x => x.id === fornecedorId) || {}) : { razao: fornNovo.razao, cnpj: fornNovo.cnpj };
+    const dados = { ...form, fornecedorId, numero: form.numero.trim(), processo: form.processo.trim(), fornecedor: f.razao || "", cnpj: f.cnpj || "", itens: itensVal };
+    if (a) {
       await base44.entities.Ata.update(a.id, dados);
     } else {
       await base44.entities.Ata.create(dados);
@@ -434,9 +453,11 @@ function FormAta({ a, data, refresh, onClose }) {
           <select className={inputCls} value={form.fornecedorId} onChange={e => setF("fornecedorId", e.target.value)} disabled={fornecedores.length === 0}>
             {(() => {
               const fs = fornecedores.filter(f => !f.categoria || f.categoria === form.categoria);
-              if (!fs.length) return <option value="">Nenhum fornecedor da categoria</option>;
+              const extraNovo = fornNovo ? <option value="__novo__">Novo: {fornNovo.razao}{fornNovo.cnpj ? ` — ${fornNovo.cnpj}` : ""} (cadastrado ao salvar)</option> : <option value="">Selecione o fornecedor</option>;
+              if (!fs.length) return <>{extraNovo}{!fornNovo && <option value="" disabled>Nenhum fornecedor da categoria</option>}</>;
               return opcoesAgrupadas({
                 items: fs,
+                extraOption: extraNovo,
                 grupoFns: [f => f.categoria || "Sem categoria"],
                 optionFn: f => <option key={f.id} value={f.id}>{f.razao}{f.cnpj ? ` — ${f.cnpj}` : ""}</option>,
                 sortItems: (a, b) => (a.categoria || "").localeCompare(b.categoria || "", "pt-BR") || (a.razao || "").localeCompare(b.razao || "", "pt-BR")
@@ -450,8 +471,13 @@ function FormAta({ a, data, refresh, onClose }) {
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens registrados</p>
       <div className="border border-slate-300 rounded-sm overflow-hidden">
         {itens.map((it, i) => (
-          <div key={i} className="grid gap-2.5 px-3 py-2.5 border-b border-slate-100 last:border-0 [grid-template-columns:minmax(0,2.4fr)_90px_110px_120px_36px] items-end">
-            <Campo label={`Item ${i + 1}`}><select className={inputCls} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>{opcoesBens(it.benId)}</select></Campo>
+          <div key={i} className={`grid gap-2.5 px-3 py-2.5 border-b border-slate-100 last:border-0 [grid-template-columns:minmax(0,2.4fr)_90px_110px_120px_36px] items-end ${!it.benId ? "bg-red-50" : ""}`}>
+            <Campo label={`Item ${i + 1}`} ajuda={!it.benId ? `Sem CATMAT correspondente${it._descricao ? `: "${it._descricao.slice(0, 80)}"` : ""} — escolha o item do catálogo.` : ""}>
+              <select className={`${inputCls} ${!it.benId ? "border-red-400" : ""}`} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>
+                {!it.benId && <option value="">— Selecione o item do catálogo —</option>}
+                {opcoesBens(it.benId)}
+              </select>
+            </Campo>
             <Campo label="Nº na ata"><input className={inputCls} value={it.numItem} onChange={e => setItem(i, "numItem", e.target.value)} /></Campo>
             <Campo label="Qtd."><input type="number" min="0" className={inputCls} value={it.qtd} onChange={e => setItem(i, "qtd", e.target.value)} /></Campo>
             <Campo label="Vlr. unit. (R$)"><input inputMode="decimal" className={inputCls} value={it.valor} onChange={e => setItem(i, "valor", e.target.value)} /></Campo>

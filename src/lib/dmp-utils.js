@@ -5,12 +5,52 @@ export const fmtQ = (n) => (Number(n) || 0).toLocaleString("pt-BR", { maximumFra
 export const fmtData = (d) => { if (!d) return "—"; const p = String(d).split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
 
 export const nQtd = (v) => { const n = parseFloat(String(v || "").replace(",", ".")); return isFinite(n) && n > 0 ? n : 0; };
+
+// Interpreta número digitado no padrão brasileiro: "1.500" = 1500; "1.500,00" = 1500; "1,50" = 1,5
+function parseNumBR(t) {
+  if (t.indexOf(",") > -1) return parseFloat(t.replace(/\./g, "").replace(",", "."));
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return parseFloat(t.replace(/\./g, ""));
+  return parseFloat(t);
+}
 export const nVal = (v) => {
-  const t = String(v == null ? "" : v).trim().replace(/[^\d,.-]/g, "");
+  if (typeof v === "number") return isFinite(v) && v >= 0 ? v : 0;
+  const t = String(v == null ? "" : v).trim().replace(/[^\d,.]/g, "");
   if (!t) return 0;
-  const n = parseFloat(t.indexOf(",") > -1 ? t.replace(/\./g, "").replace(",", ".") : t);
+  const n = parseNumBR(t);
   return isFinite(n) && n >= 0 ? n : 0;
 };
+
+// Datas: aceita d/m/aaaa, dd/mm/aaaa, d-m-aaaa e aaaa-m-d; devolve aaaa-mm-dd ou "" se inválida
+export function parseDataBR(s) {
+  const v = String(s || "").trim();
+  if (!v) return "";
+  let d, m, y;
+  const br = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (br) { d = +br[1]; m = +br[2]; y = +br[3]; }
+  else if (iso) { y = +iso[1]; m = +iso[2]; d = +iso[3]; }
+  else return "";
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return "";
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// CNPJ: somente dígitos e validação dos dígitos verificadores
+export const soDigitos = (s) => String(s || "").replace(/\D/g, "");
+export function cnpjValido(s) {
+  const c = soDigitos(s);
+  if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
+  const dv = (base) => {
+    const pesos = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const r = pesos.reduce((t, p, i) => t + p * +base[i], 0) % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return dv(c.slice(0, 12)) === +c[12] && dv(c.slice(0, 13)) === +c[13];
+}
+
+// Contratos cancelados ou rescindidos não consomem saldo de ata nem entram nos totais
+export const SITUACOES_INATIVAS = ["Cancelado", "Rescindido"];
+export const contratoAtivo = (c) => !SITUACOES_INATIVAS.includes(c?.situacao);
 
 export const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 export const cmpTexto = (a, b) => norm(a).localeCompare(norm(b), "pt-BR");
@@ -44,7 +84,7 @@ export const anoDeTexto = (d) => (d && String(d).length >= 4) ? String(d).slice(
 export function consumido(ataId, itemAtaId, contratos, ignorarContrato) {
   let q = 0;
   contratos.forEach(c => {
-    if (c.ataId !== ataId || c.id === ignorarContrato) return;
+    if (c.ataId !== ataId || c.id === ignorarContrato || !contratoAtivo(c)) return;
     (c.itens || []).forEach(i => { if (i.itemAtaId === itemAtaId) q += nQtd(i.qtd); });
   });
   return q;
@@ -81,22 +121,25 @@ export const valorEmpenhado = (c, ocorrencias) => valorItensContrato(c) + aditiv
 export const fimVigente = (c, ocorrencias) => c.fim ? somaDias(c.fim, diasAditivados(c.id, ocorrencias)) : "";
 
 export const nValS = (v) => {
+  if (typeof v === "number") return isFinite(v) ? v : 0;
   const t = String(v == null ? "" : v).trim().replace(/[^\d,.-]/g, "");
   if (!t) return 0;
   const neg = t.charAt(0) === "-";
-  const corpo = t.replace(/-/g, "");
-  const n = parseFloat(corpo.indexOf(",") > -1 ? corpo.replace(/\./g, "").replace(",", ".") : corpo);
+  const n = parseNumBR(t.replace(/-/g, ""));
   return isFinite(n) ? (neg ? -n : n) : 0;
 };
 
-// Pagamentos
+// Pagamentos — notas canceladas não contam; "retido" soma só notas com situação Retido
 export const pagamentosDe = (id, pagamentos) => pagamentos.filter(p => p.contratoId === id);
 export function totaisPagamento(c, pagamentos, ocorrencias) {
   const ps = pagamentosDe(c.id, pagamentos);
-  const nf = ps.reduce((t, p) => t + nVal(p.valorNF), 0);
-  const pago = ps.reduce((t, p) => t + nVal(p.valorPago), 0);
+  const validas = ps.filter(p => p.situacao !== "Cancelado");
+  const nf = validas.reduce((t, p) => t + nVal(p.valorNF), 0);
+  const pago = validas.reduce((t, p) => t + nVal(p.valorPago), 0);
+  const retido = validas.filter(p => p.situacao === "Retido").reduce((t, p) => t + Math.max(0, nVal(p.valorNF) - nVal(p.valorPago)), 0);
   const empenhado = valorEmpenhado(c, ocorrencias);
-  return { ps, nf, pago, retido: Math.max(0, nf - pago), empenhado, aPagar: Math.max(0, empenhado - pago) };
+  const aPagar = contratoAtivo(c) ? Math.max(0, empenhado - pago) : 0;
+  return { ps, nf, pago, retido, empenhado, aPagar };
 }
 
 // CSV

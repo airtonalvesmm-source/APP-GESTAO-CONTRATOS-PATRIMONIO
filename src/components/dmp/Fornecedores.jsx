@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { fmtM, baixarCSV } from "@/lib/dmp-utils";
+import { fmtM, baixarCSV, norm, soDigitos, cnpjValido } from "@/lib/dmp-utils";
 import { CAT_ARP } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, inputCls, Modal } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -44,6 +44,7 @@ export default function Fornecedores({ data, refresh }) {
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Fornecedor" refresh={refresh}
+            existentes={fornecedores} chave={r => soDigitos(r.cnpj) || norm(r.razao)}
             colunas={[
               { header: "Razão social", campo: "razao", obrigatorio: true },
               { header: "CNPJ", campo: "cnpj" },
@@ -104,7 +105,7 @@ export default function Fornecedores({ data, refresh }) {
       )}
 
       {(novo || editId) && (
-        <FormFornecedor f={editId ? fornecedores.find(x => x.id === editId) : null} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />
+        <FormFornecedor f={editId ? fornecedores.find(x => x.id === editId) : null} data={data} refresh={refresh} onClose={() => { setNovo(false); setEditId(null); }} />
       )}
     </div>
   );
@@ -114,15 +115,30 @@ function Th({ children, className = "" }) {
   return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
 }
 
-function FormFornecedor({ f, refresh, onClose }) {
+function FormFornecedor({ f, data, refresh, onClose }) {
+  const { fornecedores, atas, contratos } = data;
   const [razao, setRazao] = useState(f?.razao || "");
   const [cnpj, setCnpj] = useState(f?.cnpj || "");
   const [categoria, setCategoria] = useState(f?.categoria || "");
 
   async function salvar() {
-    if (!razao.trim()) return alert("Informe a razão social.");
-    if (f) await base44.entities.Fornecedor.update(f.id, { razao: razao.trim(), cnpj: cnpj.trim(), categoria });
-    else await base44.entities.Fornecedor.create({ razao: razao.trim(), cnpj: cnpj.trim(), categoria });
+    const r = razao.trim(), c = cnpj.trim();
+    if (!r) return alert("Informe a razão social.");
+    if (c && !cnpjValido(c)) return alert("CNPJ inválido. Confira os 14 dígitos.");
+    if (c && fornecedores.some(x => x.id !== f?.id && soDigitos(x.cnpj) === soDigitos(c))) return alert("Já existe um fornecedor cadastrado com este CNPJ.");
+    const dados = { razao: r, cnpj: c, categoria };
+    if (!f) {
+      await base44.entities.Fornecedor.create(dados);
+    } else {
+      await base44.entities.Fornecedor.update(f.id, dados);
+      const mudou = r !== (f.razao || "") || c !== (f.cnpj || "");
+      const atasV = atas.filter(a => a.fornecedorId === f.id);
+      const ctsV = contratos.filter(x => x.fornecedorId === f.id);
+      if (mudou && (atasV.length || ctsV.length) && confirm(`Aplicar a razão social e o CNPJ corrigidos também em ${atasV.length} ata(s) e ${ctsV.length} contrato(s) vinculados?\n\nCancele para manter os documentos com os dados originais.`)) {
+        if (atasV.length) await base44.entities.Ata.bulkUpdate(atasV.map(a => ({ id: a.id, fornecedor: r, cnpj: c })));
+        if (ctsV.length) await base44.entities.Contrato.bulkUpdate(ctsV.map(x => ({ id: x.id, fornecedor: r, cnpj: c })));
+      }
+    }
     await refresh();
     onClose();
     alert(f ? "Fornecedor atualizado." : "Fornecedor cadastrado.");

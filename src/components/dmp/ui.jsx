@@ -87,15 +87,28 @@ export function Modal({ sobre, titulo, onClose, children, footer }) {
   );
 }
 
-export function Btn({ children, variant = "default", ...props }) {
+// Botão com trava: se o onClick for assíncrono, fica desabilitado até terminar (evita duplo clique)
+// e mostra o erro ao usuário se a gravação falhar.
+export function Btn({ children, variant = "default", onClick, disabled, ...props }) {
+  const [ocupado, setOcupado] = useState(false);
+  const trava = useRef(false);
   const variants = {
     default: "border-slate-300 bg-white text-slate-700 hover:border-slate-500",
     forte: "bg-slate-800 border-slate-800 text-white hover:bg-slate-700",
     risco: "border-slate-300 bg-white text-red-800 hover:border-red-500"
   };
+  async function handle(e) {
+    if (trava.current || !onClick) return;
+    const r = onClick(e);
+    if (!r || typeof r.then !== "function") return;
+    trava.current = true; setOcupado(true);
+    try { await r; }
+    catch (err) { alert("Não foi possível concluir a operação: " + (err?.response?.data?.error || err?.message || err)); }
+    finally { trava.current = false; setOcupado(false); }
+  }
   return (
-    <button {...props}
-      className={`border rounded-sm px-3 py-2 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors ${variants[variant]} ${props.className || ""}`}>
+    <button {...props} onClick={handle} disabled={disabled || ocupado} aria-busy={ocupado}
+      className={`border rounded-sm px-3 py-2 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-wait ${variants[variant]} ${props.className || ""}`}>
       {children}
     </button>
   );

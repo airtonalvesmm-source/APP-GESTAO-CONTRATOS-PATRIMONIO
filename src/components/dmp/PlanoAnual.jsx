@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ORDEM, UNIDADES_ORCAMENTARIAS, SITUACOES_OBJETO, URGENCIAS } from "@/lib/dmp-data";
-import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV, contratoAtivo } from "@/lib/dmp-utils";
 import { agruparBensPorSubcategoria } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -42,7 +42,7 @@ export default function PlanoAnual({ data, refresh }) {
 
   function execucaoDoItem(p) {
     let qtd = 0, valor = 0; const lanc = [];
-    contratos.forEach(c => (c.itens || []).forEach(i => {
+    contratos.filter(contratoAtivo).forEach(c => (c.itens || []).forEach(i => {
       if (i.pcaId !== p.id) return;
       qtd += nQtd(i.qtd); valor += nQtd(i.qtd) * nVal(i.valor);
       lanc.push(c.tipo + " " + c.numero);
@@ -79,6 +79,9 @@ export default function PlanoAnual({ data, refresh }) {
   const temJust = filtrados.some(p => p.justificativa && p.justificativa.trim());
 
   async function excluirItem(p) {
+    const cts = contratos.filter(c => (c.itens || []).some(i => i.pcaId === p.id)).map(c => `${c.tipo} ${c.numero}`);
+    const dfdsV = dfds.filter(d => (d.itensIds || []).includes(p.id)).map(d => `DFD ${d.processo || "(sem processo)"}`);
+    if (cts.length || dfdsV.length) return alert(`Este item não pode ser excluído porque está vinculado a:\n\n${[...cts, ...dfdsV].join("\n")}\n\nRemova o vínculo nesses lançamentos/DFDs antes, ou use "Sobrestar" para retirá-lo do plano.`);
     if (!confirm("Excluir este item do Plano Anual?")) return;
     await base44.entities.PCAItem.delete(p.id);
     await refresh();
@@ -123,6 +126,7 @@ export default function PlanoAnual({ data, refresh }) {
           {modo === "dfd" && <Btn variant="forte" onClick={() => setDfdNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Emitir novo DFD</Btn>}
           {modo !== "dfd" && <Btn onClick={() => modo === "exec" ? csvExecucao() : csvPlano()}>Baixar CSV</Btn>}
           {modo === "plan" && <ImportarCSV entityName="PCAItem" refresh={refresh} data={data}
+            existentes={pca} chave={r => r.benId + "|" + (+r.exercicio)}
             colunas={[
               { header: "Código PCA", campo: "codigo" },
               { header: "CATMAT", campo: "_catmat", obrigatorio: true },
@@ -228,10 +232,10 @@ function Th({ children, className = "" }) {
 }
 
 function FormPCA({ r, data, exercicio, refresh, onClose }) {
-  const { catalog } = data;
+  const { catalog, pca } = data;
   const [form, setForm] = useState({
     benId: r?.benId || catalog[0]?.id || "", exercicio: r?.exercicio || exercicio,
-    codigo: r?.codigo || "", qtd: r?.qtd || "", valor: r?.valor || 0, justificativa: r?.justificativa || ""
+    codigo: r?.codigo || "", qtd: r?.qtd || "", valor: r?.valor ? fmtM(r.valor) : "", justificativa: r?.justificativa || ""
   });
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   const b = catalog.find(x => x.id === form.benId);
@@ -240,6 +244,8 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
     if (!nQtd(form.qtd)) return alert("Informe uma quantidade maior que zero.");
     if (r && nQtd(r.qtdSobrestada) > nQtd(form.qtd)) return alert(`A quantidade autorizada (${fmtQ(nQtd(form.qtd))}) não pode ser menor que a quantidade sobrestada (${fmtQ(nQtd(r.qtdSobrestada))}). Remova ou ajuste o sobrestamento primeiro.`);
     const dados = { benId: form.benId, exercicio: +form.exercicio || anoAtual, codigo: form.codigo.trim(), qtd: nQtd(form.qtd), valor: nVal(form.valor), justificativa: form.justificativa.trim() };
+    const repetido = pca.find(p => p.id !== r?.id && p.benId === dados.benId && +p.exercicio === dados.exercicio);
+    if (repetido && !confirm(`Este bem já está no plano de ${dados.exercicio}${repetido.codigo ? ` (código ${repetido.codigo})` : ""}. Incluir mesmo assim como item separado?`)) return;
     if (r) {
       await base44.entities.PCAItem.update(r.id, { ...dados, qtdSobrestada: nQtd(r.qtdSobrestada), motivoSobrestamento: r.motivoSobrestamento || "", dataSobrestamento: r.dataSobrestamento || "" });
     } else {
@@ -272,7 +278,7 @@ function FormPCA({ r, data, exercicio, refresh, onClose }) {
         <Campo label="Exercício"><input type="number" min="2020" max="2099" className={inputCls} value={form.exercicio} onChange={e => setF("exercicio", e.target.value)} /></Campo>
         <Campo label="Código do PCA"><input className={inputCls} value={form.codigo} onChange={e => setF("codigo", e.target.value)} placeholder="ex.: 2027.0031" /></Campo>
         <Campo label="Quantidade"><input type="number" min="1" className={inputCls} value={form.qtd} onChange={e => setF("qtd", e.target.value)} /></Campo>
-        <Campo label="Valor unitário estimado (R$)"><input inputMode="decimal" className={inputCls} value={form.valor ? fmtM(form.valor) : ""} onChange={e => setF("valor", nVal(e.target.value))} /></Campo>
+        <Campo label="Valor unitário estimado (R$)"><input inputMode="decimal" className={inputCls} value={form.valor} onChange={e => setF("valor", e.target.value)} onBlur={e => setF("valor", e.target.value.trim() ? fmtM(nVal(e.target.value)) : "")} placeholder="ex.: 1.500,00" /></Campo>
       </div>
       <Campo label="Justificativa da necessidade"><textarea className={textareaCls} value={form.justificativa} onChange={e => setF("justificativa", e.target.value)} placeholder="ex.: manutenção do sistema de videomonitoramento das sedes das promotorias de justiça do interior." /></Campo>
       {b && <p className="font-sans text-sm text-slate-600 mt-3"><b>Aplicação:</b> {b.aplicacao}</p>}

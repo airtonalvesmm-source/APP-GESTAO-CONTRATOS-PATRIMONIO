@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { carregarDados } from "@/lib/carregar-dados";
 import { calcularRelatorio, agruparPorPDM, agruparPorSubcategoria } from "@/lib/relatorio-calc";
 import { fmtData } from "@/lib/dmp-utils";
 import { Btn, inputCls } from "@/components/dmp/ui";
@@ -27,18 +27,7 @@ export default function RelatorioEstatistico() {
   const itemIds = (urlParams.get("items") || "").split(",").filter(Boolean);
 
   const refresh = useCallback(async () => {
-    const [catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds] = await Promise.all([
-      base44.entities.CatalogItem.list("-created_date", 500),
-      base44.entities.PCAItem.list("-created_date", 500),
-      base44.entities.Licitacao.list("-created_date", 500),
-      base44.entities.Ata.list("-created_date", 500),
-      base44.entities.Contrato.list("-created_date", 500),
-      base44.entities.Fornecedor.list("-created_date", 500),
-      base44.entities.Pagamento.list("-created_date", 500),
-      base44.entities.Ocorrencia.list("-created_date", 500),
-      base44.entities.DFD.list("-created_date", 500)
-    ]);
-    setData({ catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds });
+    setData(await carregarDados());
   }, []);
 
   useEffect(() => { (async () => { try { await refresh(); } finally { setLoading(false); } })(); }, [refresh]);

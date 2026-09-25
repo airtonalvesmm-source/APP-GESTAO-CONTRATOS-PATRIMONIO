@@ -135,6 +135,7 @@ export default function Licitacoes({ data, refresh }) {
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Licitacao" refresh={refresh}
+            existentes={licitacoes} chave={r => norm(r.numero) + "|" + String(r.ano || "").trim() + "|" + norm(r.modalidade)}
             colunas={[
               { header: "Número", campo: "numero", obrigatorio: true },
               { header: "Ano", campo: "ano", obrigatorio: true },

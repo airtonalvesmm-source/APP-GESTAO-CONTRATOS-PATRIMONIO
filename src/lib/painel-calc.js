@@ -1,5 +1,8 @@
 // Cálculos do Painel Executivo — funções puras sobre os dados das entidades
-import { nQtd, nVal, fmtM, fmtQ, fmtData, diasAte, resumoAta, saldoItem, valorEmpenhado, fimVigente, totaisPagamento, situacaoAta, ocorrenciasDe } from "./dmp-utils";
+import { nQtd, nVal, fmtM, fmtQ, fmtData, diasAte, resumoAta, saldoItem, valorEmpenhado, fimVigente, totaisPagamento, situacaoAta, ocorrenciasDe, contratoAtivo } from "./dmp-utils";
+
+// Contratos cancelados/rescindidos ficam fora dos totais
+const ativos = (contratos) => contratos.filter(contratoAtivo);
 import { FALTAS } from "./dmp-data";
 
 export function fmtCurto(n) {
@@ -23,7 +26,7 @@ export function calcPlanejado(pca, ano) {
 }
 
 export function calcContratado(contratos, ocorrencias, ano) {
-  return contratos.filter(c => (c.inicio || "").slice(0, 4) === String(ano)).reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
+  return ativos(contratos).filter(c => (c.inicio || "").slice(0, 4) === String(ano)).reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
 }
 
 export function atasVigentes(atas) {
@@ -47,7 +50,7 @@ export function calcSaldoAtasDetalhado(atas, contratos) {
 }
 
 export function contratosVigentes(contratos, ocorrencias) {
-  return contratos.filter(c => { const f = fimVigente(c, ocorrencias); const d = diasAte(f); return d === null || d >= 0; });
+  return ativos(contratos).filter(c => { const f = fimVigente(c, ocorrencias); const d = diasAte(f); return d === null || d >= 0; });
 }
 
 export function calcAPagar(contratos, pagamentos, ocorrencias) {
@@ -55,13 +58,16 @@ export function calcAPagar(contratos, pagamentos, ocorrencias) {
 }
 
 // Fase 1.2 Bloco A: Planejamento
-export function calcPlanejamentoFunil(pca, atas, ano) {
+// "Licitado" = bem presente em ata vigente, ou item do PCA vinculado diretamente (pcaId) a contrato ativo
+export function calcPlanejamentoFunil(pca, atas, ano, contratos = []) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
   const itensPlanejados = pcaAno.length;
   const planejado = pcaAno.reduce((t, p) => t + qtdEfetiva(p) * nVal(p.valor), 0);
   const benIdsAta = new Set();
-  atas.forEach(a => (a.itens || []).forEach(it => benIdsAta.add(it.benId)));
-  const licitados = pcaAno.filter(p => benIdsAta.has(p.benId));
+  atasVigentes(atas).forEach(a => (a.itens || []).forEach(it => benIdsAta.add(it.benId)));
+  const pcaIdsContrato = new Set();
+  ativos(contratos).forEach(c => (c.itens || []).forEach(i => { if (i.pcaId) pcaIdsContrato.add(i.pcaId); }));
+  const licitados = pcaAno.filter(p => benIdsAta.has(p.benId) || pcaIdsContrato.has(p.id));
   const itensLicitados = licitados.length;
   const licitado = licitados.reduce((t, p) => t + qtdEfetiva(p) * nVal(p.valor), 0);
   const aLicitrar = planejado - licitado;
@@ -154,7 +160,7 @@ export function calcAtasVigentesDetalhado(atas, contratos) {
 // Fase 5.2: Execução mensal
 export function calcExecucaoMensal(contratos, ocorrencias, ano) {
   const meses = Array(12).fill(0);
-  contratos.forEach(c => {
+  ativos(contratos).forEach(c => {
     if ((c.inicio || "").slice(0, 4) !== String(ano)) return;
     const mes = +(c.inicio || "").slice(5, 7) - 1;
     if (mes >= 0 && mes < 12) meses[mes] += valorEmpenhado(c, ocorrencias);
@@ -165,7 +171,7 @@ export function calcExecucaoMensal(contratos, ocorrencias, ano) {
 // Fase 5.3: Concentração de fornecedores
 export function calcTopFornecedores(contratos, ocorrencias) {
   const map = {};
-  contratos.forEach(c => {
+  ativos(contratos).forEach(c => {
     const f = c.fornecedor || "—";
     map[f] = (map[f] || 0) + valorEmpenhado(c, ocorrencias);
   });
@@ -177,7 +183,7 @@ export function calcTopFornecedores(contratos, ocorrencias) {
 // Ainda a contratar = planejado − empenhado em contratos do exercício
 export function calcAindaContratar(pca, contratos, ocorrencias, ano) {
   const planejado = calcPlanejado(pca, ano);
-  const empenhado = contratos.filter(c => (c.inicio || "").slice(0, 4) === String(ano))
+  const empenhado = ativos(contratos).filter(c => (c.inicio || "").slice(0, 4) === String(ano))
     .reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
   return Math.max(0, planejado - empenhado);
 }
@@ -187,7 +193,7 @@ export function calcAindaContratar(pca, contratos, ocorrencias, ano) {
 export function calcPCANaoContratado(pca, contratos, catalog, ano) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
   const qtdPorPca = {};
-  contratos.forEach(c => (c.itens || []).forEach(i => {
+  ativos(contratos).forEach(c => (c.itens || []).forEach(i => {
     if (!i.pcaId) return;
     qtdPorPca[i.pcaId] = (qtdPorPca[i.pcaId] || 0) + nQtd(i.qtd);
   }));
@@ -206,7 +212,7 @@ export function calcExecucaoPCA(pca, contratos, ano) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
   const total = pcaAno.length;
   const qtdPorPca = {};
-  contratos.forEach(c => (c.itens || []).forEach(i => {
+  ativos(contratos).forEach(c => (c.itens || []).forEach(i => {
     if (!i.pcaId) return;
     qtdPorPca[i.pcaId] = (qtdPorPca[i.pcaId] || 0) + nQtd(i.qtd);
   }));
@@ -223,7 +229,7 @@ export function calcExecucaoPCA(pca, contratos, ano) {
 // Previsto vs gasto — planejado PCA vs efetivamente pago no exercício
 export function calcPrevistoVsGasto(pca, contratos, pagamentos, ocorrencias, ano) {
   const planejado = calcPlanejado(pca, ano);
-  const contratosAno = contratos.filter(c => (c.inicio || "").slice(0, 4) === String(ano));
+  const contratosAno = ativos(contratos).filter(c => (c.inicio || "").slice(0, 4) === String(ano));
   const pago = contratosAno.reduce((t, c) => t + totaisPagamento(c, pagamentos, ocorrencias).pago, 0);
   const empenhado = contratosAno.reduce((t, c) => t + valorEmpenhado(c, ocorrencias), 0);
   const pct = planejado ? pago / planejado * 100 : 0;

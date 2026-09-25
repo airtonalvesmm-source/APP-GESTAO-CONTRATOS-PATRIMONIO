@@ -9,7 +9,7 @@ export function gerarRelatorioPDF(data, ano) {
   const contratado = calcContratado(data.contratos, data.ocorrencias, ano);
   const saldo = calcSaldoAtasDetalhado(data.atas, data.contratos);
   const aPagar = calcAPagar(data.contratos, data.pagamentos, data.ocorrencias);
-  const plan = calcPlanejamentoFunil(data.pca, data.atas, ano);
+  const plan = calcPlanejamentoFunil(data.pca, data.atas, ano, data.contratos);
   const exec = calcExecucaoAtas(data.atas, data.contratos, data.pagamentos, data.ocorrencias, "todas");
   const eco = calcEconomiaCobertura(data.contratos, data.pca, ano);
   const { top, total } = calcTopFornecedores(data.contratos, data.ocorrencias);

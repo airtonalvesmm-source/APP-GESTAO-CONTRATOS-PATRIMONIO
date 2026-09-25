@@ -1,113 +1,60 @@
 import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { parsearCSV } from "@/lib/dmp-utils";
+import { mapearLinhas, separarDuplicados, semVazios } from "@/lib/csv-import";
 import { Modal, Btn, Campo } from "./ui";
 import { Upload, FileSpreadsheet } from "lucide-react";
 
 /**
  * Botão que abre um modal de importação CSV.
- * props:
- *  - entityName: nome da entidade (ex.: "CatalogItem")
- *  - colunas: array de { header, campo, tipo } descrevendo o mapeamento
- *  - refresh: função para recarregar dados após importar
- *  - label: texto do botão (default "Importar CSV")
- *  - ajuda: texto extra exibido no modal
+ * props: entityName, colunas [{ header, campo, tipo, obrigatorio, aliases }], refresh, label, ajuda, preProcess, data,
+ *  chave (rec => string) + existentes (registros atuais) — para detectar linhas que já existem.
  */
-export default function ImportarCSV({ entityName, colunas, refresh, label = "Importar CSV", ajuda, preProcess, data }) {
+export default function ImportarCSV({ entityName, colunas, refresh, label = "Importar CSV", ajuda, preProcess, data, chave, existentes }) {
   const [aberto, setAberto] = useState(false);
   const [status, setStatus] = useState("");
   const [erro, setErro] = useState("");
-  const [importando, setImportando] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [pendente, setPendente] = useState(null);
   const fileRef = useRef(null);
 
   function reset() {
-    setStatus(""); setErro(""); setPreview(null); setImportando(false);
+    setStatus(""); setErro(""); setPreview(null); setPendente(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
   async function lerArquivo(e) {
     const f = e.target.files[0];
     if (!f) return;
-    setErro("");
-    setStatus("");
-    try {
-      const texto = await f.text();
-      const linhas = parsearCSV(texto);
-      if (!linhas.length) { setErro("O arquivo está vazio ou não pôde ser lido."); return; }
-      setPreview({ nome: f.name, total: linhas.length, amostra: linhas.slice(0, 3) });
-    } catch (err) {
-      setErro("Falha ao ler o arquivo: " + (err.message || err));
-    }
+    setErro(""); setStatus(""); setPendente(null);
+    const linhas = parsearCSV(await f.text());
+    if (!linhas.length) { setErro("O arquivo está vazio ou não pôde ser lido."); return; }
+    setPreview({ nome: f.name, total: linhas.length, amostra: linhas.slice(0, 3) });
   }
 
   async function confirmar() {
     if (!fileRef.current?.files[0]) return;
-    setImportando(true); setErro(""); setStatus("");
-    try {
-      const texto = await fileRef.current.files[0].text();
-      const linhas = parsearCSV(texto);
-      if (!linhas.length) { setErro("Nenhuma linha de dados encontrada."); setImportando(false); return; }
+    setErro(""); setStatus("");
+    const linhas = parsearCSV(await fileRef.current.files[0].text());
+    const { registros, ignorados } = mapearLinhas(linhas, colunas, preProcess, data);
+    if (!registros.length) { setErro("Nenhuma linha válida. Verifique as colunas obrigatórias, as datas e os vínculos."); return; }
+    const { novos, dups } = separarDuplicados(registros, existentes, chave);
+    if (dups.length) { setPendente({ novos, dups, ignorados }); return; }
+    await executar({ novos, dups: [], ignorados }, "pular");
+  }
 
-      const cabecalhos = Object.keys(linhas[0]);
-      const registros = [];
-      const ignorados = [];
-
-      linhas.forEach((row, idx) => {
-        const rec = {};
-        let valido = true;
-        for (const c of colunas) {
-          const headers = [c.header, ...(c.aliases || [])];
-          let val = "";
-          for (const h of headers) {
-            if (row[h] != null && String(row[h]).trim() !== "") { val = row[h]; break; }
-          }
-          if (val === "") {
-            if (c.obrigatorio) { valido = false; }
-            rec[c.campo] = c.tipo === "number" ? 0 : "";
-            continue;
-          }
-          let v = String(val).trim();
-          if (c.tipo === "number") {
-            const t = v.replace(/[^\d,.-]/g, "");
-            rec[c.campo] = parseFloat(t.indexOf(",") > -1 ? t.replace(/\./g, "").replace(",", ".") : t) || 0;
-          } else if (c.tipo === "date") {
-            // aceita dd/mm/aaaa -> aaaa-mm-dd, ou já ISO
-            const p = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-            rec[c.campo] = p ? `${p[3]}-${p[2]}-${p[1]}` : v;
-          } else if (c.tipo === "boolean") {
-            rec[c.campo] = /^(sim|true|1|s)$/i.test(v);
-          } else {
-            rec[c.campo] = v;
-          }
-        }
-        if (valido) {
-          const finalRec = preProcess ? preProcess(rec, data) : rec;
-          if (finalRec) registros.push(finalRec);
-          else ignorados.push(idx + 2);
-        } else ignorados.push(idx + 2);
-      });
-
-      if (!registros.length) {
-        setErro("Nenhuma linha válida. Verifique se as colunas obrigatórias estão preenchidas.");
-        setImportando(false);
-        return;
-      }
-
-      // bulkCreate em lotes de 100
-      let criados = 0;
-      for (let i = 0; i < registros.length; i += 100) {
-        const lote = registros.slice(i, i + 100);
-        await base44.entities[entityName].bulkCreate(lote);
-        criados += lote.length;
-      }
-      setStatus(`${criados} registro(s) importado(s)${ignorados.length ? `, ${ignorados.length} ignorado(s) por campos obrigatórios em branco (linhas: ${ignorados.slice(0, 10).join(", ")}${ignorados.length > 10 ? "…" : ""})` : ""}.`);
-      await refresh();
-    } catch (err) {
-      setErro("Erro ao importar: " + (err.message || err));
-    } finally {
-      setImportando(false);
+  async function executar({ novos, dups, ignorados }, modo) {
+    for (let i = 0; i < novos.length; i += 100) await base44.entities[entityName].bulkCreate(novos.slice(i, i + 100));
+    let atualizados = 0;
+    if (modo === "atualizar") {
+      for (const d of dups) { await base44.entities[entityName].update(d.id, semVazios(d.rec)); atualizados++; }
     }
+    const partes = [`${novos.length} registro(s) criado(s)`];
+    if (dups.length) partes.push(modo === "atualizar" ? `${atualizados} atualizado(s)` : `${dups.length} já existente(s) ignorado(s)`);
+    if (ignorados.length) partes.push(`${ignorados.length} linha(s) inválida(s) ignorada(s) (linhas: ${ignorados.slice(0, 10).join(", ")}${ignorados.length > 10 ? "…" : ""})`);
+    setStatus(partes.join(", ") + ".");
+    setPendente(null);
+    await refresh();
   }
 
   return (
@@ -118,9 +65,7 @@ export default function ImportarCSV({ entityName, colunas, refresh, label = "Imp
         <Modal sobre="Importação de dados" titulo={`Importar ${entityName} via CSV`} onClose={() => setAberto(false)}
           footer={<>
             <Btn onClick={() => setAberto(false)}>Fechar</Btn>
-            <Btn variant="forte" onClick={confirmar} disabled={importando || !preview}>
-              {importando ? "Importando…" : "Confirmar importação"}
-            </Btn>
+            {!pendente && <Btn variant="forte" onClick={confirmar} disabled={!preview}>Confirmar importação</Btn>}
           </>}>
           <div className="mb-4">
             <Campo label="Arquivo CSV">
@@ -130,6 +75,7 @@ export default function ImportarCSV({ entityName, colunas, refresh, label = "Imp
               Formato esperado: CSV separado por ponto e vírgula (;), com a primeira linha como cabeçalho.
               Colunas reconhecidas: <b>{colunas.map(c => c.header).join(", ")}</b>.
               {colunas.some(c => c.obrigatorio) && <> Obrigatórias: <b>{colunas.filter(c => c.obrigatorio).map(c => c.header).join(", ")}</b>.</>}
+              {" "}Datas aceitas: dd/mm/aaaa ou d/m/aaaa. Valores: 1.500,00 ou 1500.
             </p>
             {ajuda && <p className="font-sans text-[12px] text-slate-500 mt-1.5">{ajuda}</p>}
           </div>
@@ -147,11 +93,24 @@ export default function ImportarCSV({ entityName, colunas, refresh, label = "Imp
             </div>
           )}
 
+          {pendente && (
+            <div className="border border-amber-300 bg-amber-50 rounded-sm px-3 py-3 mb-3">
+              <p className="font-sans text-[13px] text-amber-900 mb-2.5">
+                <b>{pendente.dups.length}</b> linha(s) correspondem a registros que já existem. {pendente.novos.length} são novas.
+                O que fazer com as existentes?
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Btn onClick={() => executar(pendente, "pular")}>Pular existentes</Btn>
+                <Btn variant="forte" onClick={() => executar(pendente, "atualizar")}>Atualizar existentes</Btn>
+              </div>
+            </div>
+          )}
+
           {status && <div className="border border-emerald-300 bg-emerald-50 rounded-sm px-3 py-2 text-sm text-emerald-800 mb-3">{status}</div>}
           {erro && <div className="border border-red-300 bg-red-50 rounded-sm px-3 py-2 text-sm text-red-800 mb-3">{erro}</div>}
 
           <p className="font-sans text-[11.5px] text-slate-500">
-            Dica: exporte o CSV pelo botão "Baixar CSV" para obter um modelo com as colunas e o formato corretos, edite-o e reimporte.
+            Dica: exporte o CSV pelo botão "Baixar CSV" para obter um modelo com as colunas corretas. O CSV não substitui o backup — para cópia completa, use a exportação de dados do painel do app.
           </p>
         </Modal>
       )}

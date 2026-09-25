@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
-import { BENS_BASE, ORDEM, SUBCATEGORIAS_PADRAO, SUBCAT_POR_ARTE } from "@/lib/dmp-data";
+import { carregarDados } from "@/lib/carregar-dados";
 import Catalogo from "@/components/dmp/Catalogo";
 import PlanoAnual from "@/components/dmp/PlanoAnual";
 import Licitacoes from "@/components/dmp/Licitacoes";
@@ -30,80 +29,32 @@ export default function Home() {
     fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: [], categorias: []
   });
 
+  const [erro, setErro] = useState("");
+
   const refresh = useCallback(async () => {
-    const [catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias, categorias] = await Promise.all([
-      base44.entities.CatalogItem.list("-created_date", 500),
-      base44.entities.PCAItem.list("-created_date", 500),
-      base44.entities.Licitacao.list("-created_date", 500),
-      base44.entities.Ata.list("-created_date", 500),
-      base44.entities.Contrato.list("-created_date", 500),
-      base44.entities.Fornecedor.list("-created_date", 500),
-      base44.entities.Pagamento.list("-created_date", 500),
-      base44.entities.Ocorrencia.list("-created_date", 500),
-      base44.entities.DFD.list("-created_date", 500),
-      base44.entities.Subcategoria.list("-created_date", 500),
-      base44.entities.Categoria.list("-created_date", 500)
-    ]);
-    setData({ catalog, pca, licitacoes, atas, contratos, fornecedores, pagamentos, ocorrencias, dfds, subcategorias, categorias });
+    setData(await carregarDados());
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        await refresh();
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const carregar = useCallback(async () => {
+    setLoading(true); setErro("");
+    try { await refresh(); }
+    catch (e) { setErro(e?.message || String(e)); }
+    finally { setLoading(false); }
   }, [refresh]);
 
-  // Seed catalog on first load if empty
-  useEffect(() => {
-    if (!loading && data.catalog.length === 0) {
-      (async () => {
-        const itens = BENS_BASE.map(b => ({
-          objeto: b.objeto, pdm: b.pdm, catmat: b.catmat, arte: b.arte,
-          unidade: b.unidade || "UNIDADE", categoria: b.categoria,
-          subcategoria: SUBCAT_POR_ARTE[b.arte] || "",
-          aplicacao: b.aplicacao, descricao: b.descricao, nota: b.nota || "",
-          ehProprio: false, oculto: false
-        }));
-        await base44.entities.CatalogItem.bulkCreate(itens);
-        // Seed sugerido de subcategorias por categoria
-        const subs = [];
-        Object.entries(SUBCATEGORIAS_PADRAO).forEach(([cat, nomes]) => {
-          nomes.forEach((nome, i) => subs.push({ categoria: cat, nome, ordem: i }));
-        });
-        if (subs.length) await base44.entities.Subcategoria.bulkCreate(subs);
-        await refresh();
-      })();
-    }
-  }, [loading, data.catalog.length, refresh]);
+  useEffect(() => { carregar(); }, [carregar]);
 
-  // Backfill de subcategoria em itens antigos sem o campo preenchido
-  useEffect(() => {
-    if (!loading && data.catalog.length > 0) {
-      const semSub = data.catalog.filter(b => !b.oculto && !b.subcategoria && SUBCAT_POR_ARTE[b.arte]);
-      if (semSub.length) {
-        (async () => {
-          await base44.entities.CatalogItem.bulkUpdate(
-            semSub.map(b => ({ id: b.id, subcategoria: SUBCAT_POR_ARTE[b.arte] }))
-          );
-          await refresh();
-        })();
-      }
-    }
-  }, [loading, data.catalog, refresh]);
-
-  // Seed de categorias padrão no primeiro carregamento
-  useEffect(() => {
-    if (!loading && data.categorias && data.categorias.length === 0) {
-      (async () => {
-        await base44.entities.Categoria.bulkCreate(ORDEM.map((nome, i) => ({ nome, ordem: i })));
-        await refresh();
-      })();
-    }
-  }, [loading, data.categorias, refresh]);
+  if (erro) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-stone-100 p-6">
+        <div className="max-w-md bg-white border border-red-300 rounded-sm p-6 text-center font-sans">
+          <p className="text-[15px] font-semibold text-red-800 mb-2">Não foi possível carregar os dados</p>
+          <p className="text-[13px] text-slate-600 mb-4">Verifique a conexão e tente novamente. Nenhum dado foi alterado. ({erro})</p>
+          <button onClick={carregar} className="border border-slate-800 bg-slate-800 text-white rounded-sm px-4 py-2 text-[13px] font-semibold">Tentar novamente</button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

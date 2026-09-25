@@ -143,6 +143,7 @@ export default function Catalogo({ data, refresh }) {
           <Btn onClick={() => setGerenciarSubs(true)}><Tags className="w-4 h-4 inline mr-1" />Subcategorias</Btn>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="CatalogItem" refresh={refresh}
+            existentes={catalog} chave={r => norm(r.catmat) + "|" + norm(r.objeto)}
             colunas={[
               { header: "Denominação", campo: "objeto", obrigatorio: true },
               { header: "PDM", campo: "pdm" },
@@ -155,7 +156,7 @@ export default function Catalogo({ data, refresh }) {
               { header: "Ilustração", campo: "arte" },
               { header: "Foto (URL)", campo: "imagem" }
             ]}
-            ajuda="A categoria deve ser uma das: Ar-condicionado, Eletroeletrônicos, Mobiliário, Segurança. A subcategoria é livre e serve para agrupar itens dentro da categoria. A ilustração é opcional (padrão: generico)." />
+            ajuda="A categoria deve ser uma das: Climatização, Eletroeletrônicos, Mobiliário, Segurança. A subcategoria é livre e serve para agrupar itens dentro da categoria. A ilustração é opcional (padrão: generico)." />
           <Btn variant="forte" onClick={() => setEditId("novo")}><Plus className="w-4 h-4 inline mr-1" />Adicionar item</Btn>
         </>}
       />

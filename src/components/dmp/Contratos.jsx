@@ -31,10 +31,7 @@ export default function Contratos({ data, refresh }) {
   function catDoContrato(c) {
     const a = atas.find(x => x.id === c.ataId);
     if (a?.categoria) return a.categoria;
-    const cats = (c.itens || []).map(i => {
-      const cat = catalog.find(b => b.id === i.benId)?.categoria;
-      return cat === "Ar-condicionado" ? "Climatização" : cat;
-    }).filter(Boolean);
+    const cats = (c.itens || []).map(i => catalog.find(b => b.id === i.benId)?.categoria).filter(Boolean);
     if (cats.length) {
       const counts = {};
       cats.forEach(cat => counts[cat] = (counts[cat] || 0) + 1);
@@ -84,14 +81,14 @@ export default function Contratos({ data, refresh }) {
   function temFalta(id) { return ocorrenciasDe(id, ocorrencias).some(o => FALTAS.includes(o.tipo)); }
 
   async function excluir(c) {
-    if (!confirm("Excluir este lançamento? O saldo da ata será devolvido.")) return;
-    await base44.entities.Contrato.delete(c.id);
-    const ocs = ocorrencias.filter(o => o.contratoId === c.id);
-    for (const o of ocs) await base44.entities.Ocorrencia.delete(o.id);
-    const pgs = pagamentos.filter(p => p.contratoId === c.id);
-    for (const p of pgs) await base44.entities.Pagamento.delete(p.id);
+    const pagos = pagamentos.filter(p => p.contratoId === c.id && (p.situacao === "Pago" || nVal(p.valorPago) > 0));
+    if (pagos.length) return alert(`Não é possível excluir: há ${pagos.length} nota(s) fiscal(is) com pagamento registrado.\n\nPara preservar o histórico financeiro, edite o lançamento e altere a situação para "Cancelado" — o saldo volta para a ata e o lançamento sai dos totais.`);
+    const nOc = ocorrencias.filter(o => o.contratoId === c.id).length;
+    const nPg = pagamentos.filter(p => p.contratoId === c.id).length;
+    if (!confirm(`Excluir este lançamento${nOc || nPg ? `, ${nOc} ocorrência(s) e ${nPg} nota(s) pendente(s)` : ""}? O saldo da ata será devolvido.`)) return;
+    await base44.functions.invoke("excluirContrato", { contratoId: c.id });
     await refresh();
-    alert("Lançamento excluído: saldo devolvido, pagamentos e ocorrências removidos.");
+    alert("Lançamento excluído: saldo devolvido, notas e ocorrências removidas.");
   }
 
   function toggle(id) { setAbertos(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
@@ -211,6 +208,7 @@ export default function Contratos({ data, refresh }) {
           <Btn onClick={() => setShowRelatorio(true)}><BarChart3 className="w-4 h-4 inline mr-1" />Relatório unificado</Btn>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Contrato" refresh={refresh} data={data}
+            existentes={contratos} chave={r => norm(r.tipo || "Contrato") + "|" + norm(r.numero)}
             colunas={[
               { header: "Tipo", campo: "tipo" },
               { header: "Número", campo: "numero", obrigatorio: true },

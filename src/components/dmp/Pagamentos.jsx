@@ -28,10 +28,7 @@ export default function Pagamentos({ data, refresh }) {
   function catDoContrato(c) {
     const a = atas.find(x => x.id === c.ataId);
     if (a?.categoria) return a.categoria;
-    const cats = (c.itens || []).map(i => {
-      const cat = catalog.find(b => b.id === i.benId)?.categoria;
-      return cat === "Ar-condicionado" ? "Climatização" : cat;
-    }).filter(Boolean);
+    const cats = (c.itens || []).map(i => catalog.find(b => b.id === i.benId)?.categoria).filter(Boolean);
     if (cats.length) {
       const counts = {};
       cats.forEach(cat => counts[cat] = (counts[cat] || 0) + 1);
@@ -72,7 +69,7 @@ export default function Pagamentos({ data, refresh }) {
     const out = [];
     contratos.forEach(c => {
       const t = totaisPagamento(c, pagamentos, ocorrencias);
-      if (t.retido > 0) out.push({ txt: `<b>${c.tipo} ${c.numero}</b>: R$ ${fmtM(t.retido)} retidos em ${t.ps.filter(p => nVal(p.valorNF) > nVal(p.valorPago)).length} nota(s).` });
+      if (t.retido > 0) out.push({ txt: `<b>${c.tipo} ${c.numero}</b>: R$ ${fmtM(t.retido)} retidos em ${t.ps.filter(p => p.situacao === "Retido").length} nota(s).` });
       if (ocorrenciasDe(c.id, ocorrencias).some(o => FALTAS.includes(o.tipo)))
         out.push({ txt: `<b>${c.tipo} ${c.numero}</b>: descumprimento registrado — ${ocorrenciasDe(c.id, ocorrencias).filter(o => FALTAS.includes(o.tipo)).map(o => o.tipo).join("; ")}.` });
       const d = diasAte(fimVigente(c, ocorrencias));
@@ -219,6 +216,7 @@ export default function Pagamentos({ data, refresh }) {
         direita={<>
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="Pagamento" refresh={refresh} data={data}
+            existentes={pagamentos} chave={r => r.contratoId + "|" + norm(r.nf)}
             colunas={[
               { header: "Contrato", campo: "_contratoNum", obrigatorio: true },
               { header: "Nota fiscal", campo: "nf", obrigatorio: true },
