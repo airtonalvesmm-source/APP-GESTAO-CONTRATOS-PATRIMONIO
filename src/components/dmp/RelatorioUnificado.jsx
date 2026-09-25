@@ -9,9 +9,15 @@ export default function RelatorioUnificado({ data, onClose }) {
   const { contratos, pagamentos, ocorrencias, atas } = data;
   const [filtroEntrega, setFiltroEntrega] = useState("");
   const [filtroRisco, setFiltroRisco] = useState("");
+  const [filtroAno, setFiltroAno] = useState("");
+  const [filtroSituacao, setFiltroSituacao] = useState("");
+  const anoDe = (c) => c.inicio?.slice(0, 4) || c.fim?.slice(0, 4) || "";
+  const anos = useMemo(() => [...new Set(contratos.map(anoDe).filter(Boolean))].sort((a, b) => b - a), [contratos]);
 
   const linhas = useMemo(() => {
     return contratos.filter(c => {
+      if (filtroAno && anoDe(c) !== filtroAno) return false;
+      if (filtroSituacao && (c.situacao || "") !== filtroSituacao) return false;
       if (filtroEntrega && (c.statusEntrega || "Aguardando entrega") !== filtroEntrega) return false;
       if (filtroRisco) {
         const ocs = ocorrenciasDe(c.id, ocorrencias);
@@ -22,7 +28,7 @@ export default function RelatorioUnificado({ data, onClose }) {
       }
       return true;
     });
-  }, [contratos, pagamentos, ocorrencias, filtroEntrega, filtroRisco]);
+  }, [contratos, pagamentos, ocorrencias, filtroEntrega, filtroRisco, filtroAno, filtroSituacao]);
 
   function baixar() { exportarRelatorioUnificado(linhas, pagamentos, ocorrencias, atas); }
   function imprimir() { imprimirRelatorioUnificado(linhas, pagamentos, ocorrencias, atas); }
@@ -45,6 +51,8 @@ export default function RelatorioUnificado({ data, onClose }) {
         {totalRisco > 0 && <> · <b className="text-amber-700">{totalRisco} contrato(s) com atraso ou retenção</b></>}
       </p>
       <div className="flex gap-2.5 items-end flex-wrap mb-4">
+        <div className="min-w-[120px]"><Campo label="Ano"><select value={filtroAno} onChange={e => setFiltroAno(e.target.value)} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select></Campo></div>
+        <div className="min-w-[150px]"><Campo label="Situação"><select value={filtroSituacao} onChange={e => setFiltroSituacao(e.target.value)} className={inputCls}><option value="">Todas</option>{["Vigente", "Encerrado", "Rescindido", "Suspenso", "Cancelado"].map(s => <option key={s} value={s}>{s}</option>)}</select></Campo></div>
         <div className="min-w-[160px]"><Campo label="Status de entrega"><select value={filtroEntrega} onChange={e => setFiltroEntrega(e.target.value)} className={inputCls}><option value="">Todos</option><option value="Aguardando entrega">Aguardando entrega</option><option value="Entregue">Entregue</option></select></Campo></div>
         <div className="min-w-[160px]"><Campo label="Atraso / Retenção"><select value={filtroRisco} onChange={e => setFiltroRisco(e.target.value)} className={inputCls}><option value="">Todos</option><option value="sim">Com atraso/retenção</option><option value="nao">Sem atraso/retenção</option></select></Campo></div>
         <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto self-center">{linhas.length} {linhas.length === 1 ? "contrato" : "contratos"}</span>
