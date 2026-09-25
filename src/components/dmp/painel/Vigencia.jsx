@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { diasAte, fmtData, fmtM, resumoAta, valorEmpenhado, totaisPagamento } from "@/lib/dmp-utils";
 import { fmtCurto, fmtPct, calcTimelineVigencia } from "@/lib/painel-calc";
 
@@ -50,6 +50,8 @@ export default function Vigencia({ data, setTab, dark }) {
     }
     return { ...it, pct: Math.min(100, pct), saldo };
   });
+  const [tipo, setTipo] = useState("ata");
+  const lista = itens.filter(x => x.tipo === tipo);
 
   const cardBg = dark ? "bg-slate-800/70 border-slate-700" : "bg-white border-slate-200";
   const innerB = dark ? "border-slate-700" : "border-slate-200";
@@ -66,16 +68,19 @@ export default function Vigencia({ data, setTab, dark }) {
     <div className={`${dark ? "bg-slate-800/40 border-slate-700" : "bg-white border-slate-300"} border rounded-lg p-4`}>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className={`font-sans text-[11px] tracking-widest uppercase ${h3}`}>Vigência — atas e contratos</h3>
-        <div className={`flex gap-3 font-sans text-[11px] ${muted}`}>
-          <span className="flex items-center gap-1"><span className={`inline-block w-2.5 h-2.5 rounded-full ${dark ? "bg-sky-400" : "bg-amber-700"}`} />Atas</span>
-          <span className="flex items-center gap-1"><span className={`inline-block w-2.5 h-2.5 rounded-full ${dark ? "bg-slate-400" : "bg-slate-700"}`} />Contratos</span>
+        <div className={`inline-flex rounded-sm border overflow-hidden ${dark ? "border-slate-600" : "border-slate-300"}`}>
+          {[["ata", "Atas"], ["contrato", "Contratos"]].map(([v, l]) => (
+            <button key={v} onClick={() => setTipo(v)} className={`px-3 py-1.5 font-sans text-[12px] ${tipo === v ? (dark ? "bg-sky-600 text-white" : "bg-slate-800 text-white") : (dark ? "bg-slate-800 text-slate-300" : "bg-white text-slate-600")}`}>
+              {l} ({itens.filter(x => x.tipo === v).length})
+            </button>
+          ))}
         </div>
       </div>
-      {!itens.length ? (
-        <p className={`${dark ? "text-emerald-400" : "text-emerald-700"} text-[13px]`}>✓ Nenhuma ata ou contrato vigente com saldo.</p>
+      {!lista.length ? (
+        <p className={`${dark ? "text-emerald-400" : "text-emerald-700"} text-[13px]`}>✓ Nenhum{tipo === "ata" ? "a ata vigente" : " contrato vigente"} com saldo.</p>
       ) : (
         <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-          {itens.map((it, i) => {
+          {lista.map((it, i) => {
             const u = urgencia(it.dias);
             const cat = it.tipo === "ata" ? (atas.find(a => a.id === it.id)?.categoria) : (() => {
               const c = contratos.find(x => x.id === it.id);
