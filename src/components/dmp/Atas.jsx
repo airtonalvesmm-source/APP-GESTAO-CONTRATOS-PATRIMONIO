@@ -8,6 +8,7 @@ import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
+import { BadgeContratos, TabelaContratosDaAta } from "./ContratosDaAta";
 
 export default function Atas({ data, refresh }) {
   const { atas, contratos, catalog, licitacoes, fornecedores } = data;
@@ -94,6 +95,7 @@ export default function Atas({ data, refresh }) {
           <span className="font-mono text-[11px] text-slate-500">{(a.itens || []).length} itens · saldo R$ {fmtM(r.sal)}</span>
           <span className="ml-auto flex gap-2 items-center flex-wrap">
             {a.categoria && <Pill tipo="neutro">{a.categoria}</Pill>}
+            <BadgeContratos ata={a} contratos={contratos} />
             <Pill tipo={s.classe}>{s.txt}</Pill>
             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${aberto ? "rotate-180" : ""}`} />
           </span>
@@ -139,6 +141,8 @@ export default function Atas({ data, refresh }) {
             ) : (
               <Vazio titulo="Ata sem itens" texto="Edite a ata para registrar os itens e as quantidades." />
             )}
+            <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-5 mb-2">Contratos vinculados</p>
+            <TabelaContratosDaAta ata={a} contratos={contratos} ocorrencias={data.ocorrencias} />
             <div className="flex gap-2 flex-wrap mt-3.5">
               <MiniBtn onClick={() => setEditId(a.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar ata</MiniBtn>
               <MiniBtn variant="risco" onClick={() => excluir(a)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>

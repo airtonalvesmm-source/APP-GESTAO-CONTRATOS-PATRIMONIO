@@ -7,9 +7,10 @@ import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
+import { LinhaAtaExpansivel, BadgeContratos } from "./ContratosDaAta";
 
 export default function Licitacoes({ data, refresh }) {
-  const { licitacoes, atas } = data;
+  const { licitacoes, atas, contratos, ocorrencias } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
   const [termo, setTermo] = useState("");
@@ -17,6 +18,7 @@ export default function Licitacoes({ data, refresh }) {
   const [ano, setAno] = useState("");
   const [ord, setOrd] = useState("recentes");
   const [abertos, setAbertos] = useState(new Set());
+  const [atasAbertas, setAtasAbertas] = useState(new Set());
   const [agrupar, setAgrupar] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -58,6 +60,9 @@ export default function Licitacoes({ data, refresh }) {
   function toggle(id) {
     setAbertos(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
+  function toggleAta(id) {
+    setAtasAbertas(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
 
   function exportCSV() {
     if (!licitacoes.length) return alert("Não há licitações cadastradas.");
@@ -94,27 +99,21 @@ export default function Licitacoes({ data, refresh }) {
               Processo: {l.processo || "—"} · Registro de preços: {l.srp} · Itens: {fmtQ(l.qtdItens)} · Valor global: R$ {fmtM(l.valorGlobal)}
             </p>
             {atasL.length > 0 ? (
-              <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                <table className="w-full border-collapse text-[13.5px]">
-                  <thead><tr className="bg-stone-50">
-                    <Th>Ata</Th><Th>Fornecedor</Th><Th>Categoria</Th>
-                    <Th className="text-right">Itens</Th><Th className="text-right">Valor registrado (R$)</Th>
-                  </tr></thead>
-                  <tbody>
-                    {atasL.map(a => {
-                      const reg = (a.itens || []).reduce((t, it) => t + nQtd(it.qtd) * nVal(it.valor), 0);
-                      return (
-                        <tr key={a.id} className="border-b border-slate-100">
-                          <td className="px-3 py-2 font-mono text-xs">{a.numero}</td>
-                          <td className="px-3 py-2">{a.fornecedor || "—"}</td>
-                          <td className="px-3 py-2">{a.categoria || "—"}</td>
-                          <td className="px-3 py-2 text-right font-mono text-sm">{(a.itens || []).length}</td>
-                          <td className="px-3 py-2 text-right font-mono text-sm">{fmtM(reg)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="border border-slate-300 rounded-sm overflow-hidden">
+                <div className="bg-stone-50 px-3 py-2 flex gap-3 items-center">
+                  <span className="font-sans text-[9.5px] tracking-widest uppercase text-slate-500">Atas vinculadas — clique para ver os contratos</span>
+                  <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto">{atasL.length} {atasL.length === 1 ? "ata" : "atas"}</span>
+                </div>
+                {atasL.map(a => (
+                  <LinhaAtaExpansivel
+                    key={a.id}
+                    ata={a}
+                    contratos={contratos}
+                    ocorrencias={ocorrencias}
+                    aberto={atasAbertas.has(a.id)}
+                    onToggle={() => toggleAta(a.id)}
+                  />
+                ))}
               </div>
             ) : (
               <Vazio titulo="Nenhuma ata vinculada" texto="Ao cadastrar a ata, escolha este certame em 'Licitação de origem'." />
