@@ -35,6 +35,9 @@ export default function GerenciarCategorias({ categorias, subcategorias, catalog
       if (itens.length) await base44.entities.CatalogItem.bulkUpdate(itens.map(b => ({ id: b.id, categoria: nome })));
       const subs = (subcategorias || []).filter(s => s.categoria === antigo);
       if (subs.length) await base44.entities.Subcategoria.bulkUpdate(subs.map(s => ({ id: s.id, categoria: nome })));
+      await base44.entities.Ata.updateMany({ categoria: antigo }, { $set: { categoria: nome } });
+      await base44.entities.Licitacao.updateMany({ categoria: antigo }, { $set: { categoria: nome } });
+      await base44.entities.Fornecedor.updateMany({ categoria: antigo }, { $set: { categoria: nome } });
     }
     await base44.entities.Categoria.update(c.id, { nome });
     setEditId(null); setEditNome("");
