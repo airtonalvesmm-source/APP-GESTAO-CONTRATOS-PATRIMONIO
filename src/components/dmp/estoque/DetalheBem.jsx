@@ -57,6 +57,16 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
     if (refresh) await refresh();
   }
 
+  async function excluirSelecionados() {
+    const alvos = unidades.filter(u => selSaida.has(u.id));
+    if (!alvos.length) return;
+    const msg = `Excluir DEFINITIVAMENTE ${alvos.length} unidade(s) selecionada(s)?\n\nAs movimentações de entrada associadas também serão removidas.`;
+    if (!confirm(msg)) return;
+    await excluirBens(alvos.map(u => u.id), bens);
+    setSelSaida(new Set());
+    if (refresh) await refresh();
+  }
+
   if (!b) return <Modal titulo="Bem não encontrado" onClose={onClose}><Vazio titulo="Item removido" texto="Este item não existe mais no catálogo." /></Modal>;
 
   const disp = unidades.filter(u => u.situacao === "em estoque").length;
@@ -105,9 +115,15 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
             <div className="flex items-baseline gap-3 flex-wrap mb-2">
               <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500">Unidades patrimoniadas</h4>
               {selSaida.size > 0 && (
-                <button onClick={() => setSaidaAberta(true)} className="ml-auto inline-flex items-center gap-1.5 border border-amber-700 bg-amber-700 text-white rounded-sm px-3 py-1.5 font-sans font-semibold text-[12px] hover:bg-amber-800 cursor-pointer">
-                  <LogOut className="w-3.5 h-3.5" />Dar saída de {selSaida.size}
-                </button>
+                <div className="ml-auto flex gap-2">
+                  <button onClick={excluirSelecionados} disabled={salvando}
+                    className="inline-flex items-center gap-1.5 border border-red-600 bg-white text-red-700 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12px] hover:bg-red-50 cursor-pointer disabled:opacity-50">
+                    <Trash2 className="w-3.5 h-3.5" />Excluir {selSaida.size}
+                  </button>
+                  <button onClick={() => setSaidaAberta(true)} className="inline-flex items-center gap-1.5 border border-amber-700 bg-amber-700 text-white rounded-sm px-3 py-1.5 font-sans font-semibold text-[12px] hover:bg-amber-800 cursor-pointer">
+                    <LogOut className="w-3.5 h-3.5" />Dar saída de {selSaida.size}
+                  </button>
+                </div>
               )}
             </div>
             {unidades.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Marque as unidades em estoque para dar saída, ou clique na placa para editá-la.</p>}
