@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { isoData, hoje } from "@/lib/dmp-utils";
-import { optgroupsDepartamentos } from "@/lib/departamentos";
 import { Modal, Btn, Campo, Vazio, inputCls, textareaCls } from "../ui";
+import BuscarDepartamento from "./BuscarDepartamento";
 
 // Mini-modal de saída contextual: transfere um conjunto de unidades (ids) de
 // BemPatrimonial para um departamento de destino. Reusa a mesma lógica de
@@ -59,14 +59,7 @@ export default function SaidaSelecionados({ unidades, departamentos, refresh, on
       ) : (
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
           <Campo label="Departamento de destino">
-            <select className={inputCls} value={depId} onChange={e => setDepId(e.target.value)}>
-              <option value="">Selecione o departamento</option>
-              {optgroupsDepartamentos(departamentos).map(g => (
-                <optgroup key={g.label} label={g.label}>
-                  {g.items.map(d => <option key={d.id} value={d.id}>{d.sigla ? d.sigla + " — " : ""}{d.nome}</option>)}
-                </optgroup>
-              ))}
-            </select>
+            <BuscarDepartamento departamentos={departamentos} value={depId} onChange={setDepId} />
           </Campo>
           <Campo label="Observação (opcional)" ajuda="Ex.: processo, ofício ou justificativa da destinação.">
             <input className={inputCls} value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex.: Ofício nº 12/2026" />

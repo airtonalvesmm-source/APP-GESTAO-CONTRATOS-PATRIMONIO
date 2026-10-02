@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { norm, fmtData } from "@/lib/dmp-utils";
-import { optgroupsDepartamentos } from "@/lib/departamentos";
 import { Modal, Btn, Campo, inputCls } from "../ui";
+import BuscarDepartamento from "./BuscarDepartamento";
 
 export default function EditarRegistro({ bem, data, onClose }) {
   const { catalog, contratos, departamentos, bens, pagamentos } = data;
@@ -123,14 +123,12 @@ export default function EditarRegistro({ bem, data, onClose }) {
           </select>
         </Campo>
         <Campo label="Departamento de destino" ajuda="Obrigatório quando a situação for 'transferido'.">
-          <select className={inputCls} value={form.departamentoId} onChange={e => set("departamentoId", e.target.value)} disabled={form.situacao !== "transferido"}>
-            <option value="">Selecione o departamento</option>
-            {optgroupsDepartamentos(departamentos).map(g => (
-              <optgroup key={g.label} label={g.label}>
-                {g.items.map(d => <option key={d.id} value={d.id}>{d.sigla ? d.sigla + " — " : ""}{d.nome}</option>)}
-              </optgroup>
-            ))}
-          </select>
+          <BuscarDepartamento
+            departamentos={departamentos}
+            value={form.departamentoId}
+            onChange={id => set("departamentoId", id)}
+            disabled={form.situacao !== "transferido"}
+          />
         </Campo>
       </div>
     </Modal>
