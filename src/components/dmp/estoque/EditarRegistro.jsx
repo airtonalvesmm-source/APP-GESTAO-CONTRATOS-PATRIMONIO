@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { norm } from "@/lib/dmp-utils";
+import { norm, fmtData } from "@/lib/dmp-utils";
 import { optgroupsDepartamentos } from "@/lib/departamentos";
 import { Modal, Btn, Campo, inputCls } from "../ui";
 
 export default function EditarRegistro({ bem, data, onClose }) {
-  const { catalog, contratos, departamentos, bens } = data;
+  const { catalog, contratos, departamentos, bens, pagamentos } = data;
   const item = catalog.find(x => x.id === bem.benId);
   const [form, setForm] = useState({
     contratoId: bem.contratoId || "",
@@ -21,7 +21,17 @@ export default function EditarRegistro({ bem, data, onClose }) {
   const contratosEntregues = (contratos || []).filter(c => c.statusEntrega === "Entregue");
   const contratoAtual = contratos.find(c => c.id === bem.contratoId);
 
+  const nfsDoContrato = useMemo(() => {
+    if (!form.contratoId) return [];
+    return (pagamentos || []).filter(p => p.contratoId === form.contratoId && p.nf);
+  }, [pagamentos, form.contratoId]);
+
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  function selecionarNF(nf) {
+    const pag = nfsDoContrato.find(p => p.nf === nf);
+    setForm(f => ({ ...f, numeroNF: nf, dataNF: pag?.dataNF || f.dataNF }));
+  }
 
   async function salvar() {
     const placa = String(form.placa || "").trim();
@@ -83,8 +93,16 @@ export default function EditarRegistro({ bem, data, onClose }) {
           </select>
         </Campo>
 
-        <Campo label="Número da nota fiscal">
-          <input className={inputCls} value={form.numeroNF} onChange={e => set("numeroNF", e.target.value)} placeholder="Ex.: 000.123" />
+        <Campo label="Número da nota fiscal" ajuda={nfsDoContrato.length === 0 && form.contratoId ? "Nenhuma NF cadastrada para este contrato na aba Pagamentos." : undefined}>
+          <select className={inputCls} value={form.numeroNF} onChange={e => selecionarNF(e.target.value)}>
+            <option value="">{form.numeroNF ? "(remover nota fiscal)" : "Selecione a nota fiscal"}</option>
+            {form.numeroNF && !nfsDoContrato.some(p => p.nf === form.numeroNF) && (
+              <option value={form.numeroNF}>{form.numeroNF} (não cadastrada no contrato)</option>
+            )}
+            {nfsDoContrato.map(p => (
+              <option key={p.id} value={p.nf}>{p.nf}{p.dataNF ? ` · ${fmtData(p.dataNF)}` : ""}</option>
+            ))}
+          </select>
         </Campo>
         <Campo label="Emissão da NF">
           <input type="date" className={inputCls} value={form.dataNF} onChange={e => set("dataNF", e.target.value)} />
