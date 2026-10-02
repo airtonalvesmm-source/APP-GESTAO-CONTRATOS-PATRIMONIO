@@ -16,6 +16,8 @@ export default function FormEntrada({ data, refresh, onClose }) {
   const [fornFiltro, setFornFiltro] = useState("");
   const [ord, setOrd] = useState("numero");
   const [importarCSV, setImportarCSV] = useState(false);
+  const [modoPlaca, setModoPlaca] = useState("auto"); // "auto" | "manual"
+  const [placasManuais, setPlacasManuais] = useState("");
 
   function sugestaoPlaca(bens) {
     let max = 0;
@@ -101,31 +103,47 @@ export default function FormEntrada({ data, refresh, onClose }) {
   }
 
   async function confirmar() {
-    if (!isFinite(base) || base <= 0) return alert("Informe uma placa inicial válida (número inteiro positivo).");
     if (totalSelecionado === 0) return alert("Selecione ao menos um item para registrar a entrada.");
     const placasExistentes = new Set((bens || []).map(b => String(b.placa)));
-    const novasPlacas = [];
-    let prox = base;
+    const placasAtribuir = [];
+    if (modoPlaca === "auto") {
+      if (!isFinite(base) || base <= 0) return alert("Informe uma placa inicial válida (número inteiro positivo).");
+      let prox = base;
+      for (let i = 0; i < totalSelecionado; i++) {
+        let placa = String(prox++);
+        while (placasExistentes.has(placa)) placa = String(prox++);
+        placasExistentes.add(placa);
+        placasAtribuir.push(placa);
+      }
+    } else {
+      const brutas = placasManuais.split(/[\s,;]+/).map(s => s.replace(/\D/g, "")).filter(Boolean);
+      if (brutas.length !== totalSelecionado) return alert(`Foram informadas ${brutas.length} placa(s), mas você selecionou ${totalSelecionado} bem(ns). Ajuste a lista para coincidir.`);
+      const vistos = new Set();
+      for (const p of brutas) {
+        if (vistos.has(p)) return alert(`Placa duplicada na lista: ${p}.`);
+        if (placasExistentes.has(p)) return alert(`A placa ${p} já existe no estoque.`);
+        vistos.add(p); placasExistentes.add(p);
+        placasAtribuir.push(p);
+      }
+    }
     const registros = [];
+    let idx = 0;
     Object.entries(selecao).forEach(([contratoId, map]) => {
       const pg = nfSel[contratoId] ? pagamentos.find(p => p.id === nfSel[contratoId]) : null;
       Object.entries(map).forEach(([benId, qtdStr]) => {
         const qtd = nQtd(qtdStr);
         if (qtd <= 0) return;
         for (let i = 0; i < qtd; i++) {
-          let placa = String(prox++);
-          while (placasExistentes.has(placa)) placa = String(prox++);
-          placasExistentes.add(placa);
-          novasPlacas.push(placa);
           registros.push({
             benId, contratoId, pagamentoId: pg?.id || "",
             numeroNF: pg?.nf || "", dataNF: pg?.dataNF || "",
-            placa, situacao: "em estoque", dataEntrada: isoData(hoje())
+            placa: placasAtribuir[idx++], situacao: "em estoque", dataEntrada: isoData(hoje())
           });
         }
       });
     });
-    if (!confirm(`Registrar ${registros.length} bem(ns) patrimonial(is) no estoque (placas ${novasPlacas[0]} a ${novasPlacas[novasPlacas.length - 1]})?`)) return;
+    const prim = placasAtribuir[0], ult = placasAtribuir[placasAtribuir.length - 1];
+    if (!confirm(`Registrar ${registros.length} bem(ns) patrimonial(is) no estoque (placas ${prim}${modoPlaca === "auto" ? ` a ${ult}` : ""})?`)) return;
     for (let i = 0; i < registros.length; i += 100) {
       await base44.entities.BemPatrimonial.bulkCreate(registros.slice(i, i + 100));
     }
@@ -142,20 +160,39 @@ export default function FormEntrada({ data, refresh, onClose }) {
     <Modal sobre="Estoque" titulo="Registrar entrada de bens" onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={confirmar} disabled={totalSelecionado === 0}>Registrar {totalSelecionado > 0 ? `${totalSelecionado} bem(ns)` : "entrada"}</Btn></>}>
       <div className="mb-4 p-3.5 border border-slate-300 bg-stone-50 rounded-sm">
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
-          <Campo label="Placa inicial" ajuda="A faixa de placas é gerada automaticamente a partir deste número.">
-            <input type="number" min="1" className={inputCls} value={placaInicial} onChange={e => setPlacaInicial(e.target.value)} />
-          </Campo>
-          <div className="self-end">
-            {totalSelecionado > 0 ? (
-              <p className="font-sans text-[13px] text-slate-700">
-                Serão geradas <b>{totalSelecionado}</b> placas: <span className="font-mono">{isFinite(placaFinal) ? `${base} a ${placaFinal}` : base}</span>
-              </p>
-            ) : (
-              <p className="font-sans text-[12.5px] text-slate-500">Selecione os itens entregues para gerar as placas.</p>
-            )}
-          </div>
+        <div className="flex gap-1.5 mb-3">
+          <button onClick={() => setModoPlaca("auto")} aria-pressed={modoPlaca === "auto"}
+            className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+              ${modoPlaca === "auto" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+            <Boxes className="w-3.5 h-3.5" />Automática
+          </button>
+          <button onClick={() => setModoPlaca("manual")} aria-pressed={modoPlaca === "manual"}
+            className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+              ${modoPlaca === "manual" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+            <Check className="w-3.5 h-3.5" />Manual
+          </button>
         </div>
+        {modoPlaca === "auto" ? (
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+            <Campo label="Placa inicial" ajuda="A faixa de placas é gerada automaticamente a partir deste número.">
+              <input type="number" min="1" className={inputCls} value={placaInicial} onChange={e => setPlacaInicial(e.target.value)} />
+            </Campo>
+            <div className="self-end">
+              {totalSelecionado > 0 ? (
+                <p className="font-sans text-[13px] text-slate-700">
+                  Serão geradas <b>{totalSelecionado}</b> placas: <span className="font-mono">{isFinite(placaFinal) ? `${base} a ${placaFinal}` : base}</span>
+                </p>
+              ) : (
+                <p className="font-sans text-[12.5px] text-slate-500">Selecione os itens entregues para gerar as placas.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Campo label="Placas manuais" ajuda={`Digite as ${totalSelecionado > 0 ? totalSelecionado : ""} placas separadas por vírgula, espaço ou linha (apenas números). A quantidade deve ser igual à de bens selecionados.`}>
+            <textarea className={`${inputCls} min-h-[90px] font-mono`} value={placasManuais} onChange={e => setPlacasManuais(e.target.value)}
+              placeholder={totalSelecionado > 0 ? `Ex.: ${Array.from({ length: Math.min(totalSelecionado, 3) }, (_, i) => 1001 + i).join(", ")}...` : "Selecione os itens primeiro"} />
+          </Campo>
+        )}
       </div>
 
       <div className="flex gap-2 items-center flex-wrap mb-4">
