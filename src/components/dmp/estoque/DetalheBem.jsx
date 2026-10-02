@@ -4,10 +4,11 @@ import { fmtData, fmtQ, norm } from "@/lib/dmp-utils";
 import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Plaqueta, Vazio, Pill, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
-import { Check, X, LogOut } from "lucide-react";
+import { Check, X, LogOut, Trash2 } from "lucide-react";
 import SaidaSelecionados from "./SaidaSelecionados";
+import { excluirBens } from "@/lib/excluir-bem";
 
-export default function DetalheBem({ benId, data, refresh, onClose }) {
+export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
   const { catalog, contratos, departamentos, bens, movimentacoes } = data;
   const b = catalog.find(x => x.id === benId);
   const [sel, setSel] = useState(null);
@@ -42,6 +43,18 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
     } finally {
       setSalvando(false);
     }
+  }
+
+  async function excluirUnidade(u) {
+    const transf = u.situacao === "transferido";
+    const msg = transf
+      ? `Excluir DEFINITIVAMENTE a unidade de placa ${u.placa}?\n\nAtenção: esta unidade já foi transferida a um departamento — o registro de destino e o histórico de movimentação também serão removidos.`
+      : `Excluir DEFINITIVAMENTE a unidade de placa ${u.placa}?\n\nA movimentação de entrada associada também será removida.`;
+    if (!confirm(msg)) return;
+    await excluirBens([u.id], bens);
+    setSelSaida(new Set());
+    if (sel === u.id) setSel(null);
+    if (refresh) await refresh();
   }
 
   if (!b) return <Modal titulo="Bem não encontrado" onClose={onClose}><Vazio titulo="Item removido" texto="Este item não existe mais no catálogo." /></Modal>;
@@ -102,7 +115,7 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
               <Vazio titulo="Sem unidades" texto="Nenhum bem patrimoniado deste tipo." />
             ) : (
               <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                <table className="w-full border-collapse text-[13px] min-w-[680px]">
+                <table className="w-full border-collapse text-[13px] min-w-[760px]">
                   <thead><tr className="bg-stone-50">
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-2.5 py-2 w-8"></th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Placa</th>
@@ -111,6 +124,7 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Emissão</th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Situação</th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Destino</th>
+                    <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2 w-10">Excluir</th>
                   </tr></thead>
                   <tbody>
                     {unidades.map(u => {
@@ -146,6 +160,15 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
                           <td className="px-3 py-2 font-mono text-[12px]">{fmtData(u.dataNF)}</td>
                           <td className="px-3 py-2"><Pill tipo={emEstoque ? "ok" : "neutro"}>{u.situacao}</Pill></td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{d ? caminhoDepartamento(d, departamentos) : "—"}</td>
+                          <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
+                            {(isAdmin || emEstoque) && sel !== u.id ? (
+                              <button onClick={() => excluirUnidade(u)} disabled={salvando}
+                                title={emEstoque ? "Excluir unidade" : "Excluir unidade (já transferida)"}
+                                className="text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-sm p-1 transition-colors disabled:opacity-40">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            ) : <span className="text-slate-300">—</span>}
+                          </td>
                         </tr>
                       );
                     })}

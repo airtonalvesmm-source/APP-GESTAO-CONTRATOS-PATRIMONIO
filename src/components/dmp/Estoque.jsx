@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { ORDEM } from "@/lib/dmp-data";
 import { Desenho } from "@/components/dmp/Desenho";
 import { fmtQ, fmtData, norm, baixarCSV, isoData, hoje } from "@/lib/dmp-utils";
@@ -10,9 +11,12 @@ import ImportarDepartamentos from "./estoque/ImportarDepartamentos";
 import FormEntrada from "./estoque/FormEntrada";
 import DetalheBem from "./estoque/DetalheBem";
 import FormSaida from "./estoque/FormSaida";
-import { Plus, LogOut, Upload, Boxes, Building2 } from "lucide-react";
+import ExcluirBens from "./estoque/ExcluirBens";
+import { Plus, LogOut, Upload, Boxes, Building2, Trash2 } from "lucide-react";
 
 export default function Estoque({ data, refresh }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { catalog, contratos, pagamentos, bens, movimentacoes, departamentos, subcategorias } = data;
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todas");
   const [subcatAtiva, setSubcatAtiva] = useState("");
@@ -21,6 +25,7 @@ export default function Estoque({ data, refresh }) {
   const [fichaBenId, setFichaBenId] = useState(null);
   const [entrada, setEntrada] = useState(false);
   const [saida, setSaida] = useState(false);
+  const [excluir, setExcluir] = useState(false);
 
   const cats = useMemo(() => {
     const c = (data.categorias || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(c => c.nome);
@@ -87,6 +92,7 @@ export default function Estoque({ data, refresh }) {
         direita={<>
           <ImportarDepartamentos data={data} refresh={refresh} />
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
+          <Btn variant="risco" onClick={() => setExcluir(true)} disabled={bens.length === 0}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>
           <Btn onClick={() => setSaida(true)} disabled={totais.disp === 0 || departamentos.length === 0}><LogOut className="w-4 h-4 inline mr-1" />Dar saída</Btn>
           <Btn variant="forte" onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>
         </>}
@@ -174,10 +180,11 @@ export default function Estoque({ data, refresh }) {
       )}
 
       {fichaBenId && (
-        <DetalheBem benId={fichaBenId} data={data} refresh={refresh} onClose={() => setFichaBenId(null)} />
+        <DetalheBem benId={fichaBenId} data={data} isAdmin={isAdmin} refresh={refresh} onClose={() => setFichaBenId(null)} />
       )}
       {entrada && <FormEntrada data={data} refresh={refresh} onClose={() => setEntrada(false)} />}
       {saida && <FormSaida data={data} refresh={refresh} onClose={() => setSaida(false)} />}
+      {excluir && <ExcluirBens data={data} isAdmin={isAdmin} refresh={refresh} onClose={() => setExcluir(false)} />}
     </div>
   );
 }
