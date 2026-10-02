@@ -5,7 +5,7 @@ import { ORDEM } from "@/lib/dmp-data";
 import { Desenho } from "@/components/dmp/Desenho";
 import { fmtQ, fmtData, norm, baixarCSV, isoData, hoje } from "@/lib/dmp-utils";
 import { sugestoesSubcategoria, agruparBensPorSubcategoria } from "@/lib/subcat-utils";
-import { Modal, Btn, MiniBtn, Campo, Vazio, inputCls } from "./ui";
+import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, Pill, inputCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarDepartamentos from "./estoque/ImportarDepartamentos";
 import FormEntrada from "./estoque/FormEntrada";
@@ -207,30 +207,20 @@ export default function Estoque({ data, refresh }) {
 }
 
 function CartaoEstoque({ b, disp, total, onClick }) {
-  const transf = total - disp;
   return (
     <div onClick={onClick} className="bg-white border border-slate-300 rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5">
-      <span className="aspect-[4/3] bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] border-b border-slate-200 flex items-center justify-center text-stone-500">
+      <span className="aspect-[4/3] bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] border-b border-slate-200 flex items-center justify-center text-stone-500 relative">
         {b.imagem ? <img src={b.imagem} alt={b.objeto} className="w-full h-full object-cover" /> : <Desenho arte={b.arte} />}
+        <span className="absolute top-2 right-2 flex gap-1">
+          <Pill tipo={disp > 0 ? "ok" : "neutro"}>{disp} em estoque</Pill>
+        </span>
       </span>
       <span className="p-2.5 flex flex-col gap-1.5 flex-1">
         <span className="block font-sans font-semibold text-[12.5px] leading-snug text-slate-800">{b.objeto}</span>
         {b.subcategoria && <span className="inline-block self-start font-mono text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-slate-200 bg-slate-50 text-slate-500">{b.subcategoria}</span>}
         <span className="block text-[11.5px] leading-snug text-slate-500 line-clamp-2">{b.aplicacao}</span>
-        <span className="mt-auto grid grid-cols-3 gap-px rounded-sm border border-slate-200 bg-slate-200 overflow-hidden text-center">
-          <span className="bg-emerald-50 py-1.5 px-1">
-            <span className="block font-mono text-[8px] tracking-widest uppercase text-emerald-700">Em estoque</span>
-            <span className="block font-mono text-[15px] font-bold text-emerald-800 leading-tight">{disp}</span>
-          </span>
-          <span className="bg-amber-50 py-1.5 px-1">
-            <span className="block font-mono text-[8px] tracking-widest uppercase text-amber-700">Transferidos</span>
-            <span className="block font-mono text-[15px] font-bold text-amber-800 leading-tight">{transf}</span>
-          </span>
-          <span className="bg-slate-50 py-1.5 px-1">
-            <span className="block font-mono text-[8px] tracking-widest uppercase text-slate-600">Total</span>
-            <span className="block font-mono text-[15px] font-bold text-slate-800 leading-tight">{total}</span>
-          </span>
-        </span>
+        <Plaqueta pdm={b.pdm} catmat={b.catmat} />
+        <span className="font-mono text-[10.5px] tracking-wider uppercase text-slate-500 mt-0.5">{total} {total === 1 ? "unidade" : "unidades"} patrimoniada{total === 1 ? "" : "s"}</span>
       </span>
     </div>
   );
