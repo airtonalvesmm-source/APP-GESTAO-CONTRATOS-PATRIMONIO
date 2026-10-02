@@ -12,7 +12,8 @@ import FormEntrada from "./estoque/FormEntrada";
 import DetalheBem from "./estoque/DetalheBem";
 import FormSaida from "./estoque/FormSaida";
 import ExcluirBens from "./estoque/ExcluirBens";
-import { Plus, LogOut, Upload, Boxes, Building2, Trash2 } from "lucide-react";
+import RegistrosEntrada from "./estoque/RegistrosEntrada";
+import { Plus, LogOut, Upload, Boxes, Building2, Trash2, ListChecks } from "lucide-react";
 
 export default function Estoque({ data, refresh }) {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export default function Estoque({ data, refresh }) {
   const [entrada, setEntrada] = useState(false);
   const [saida, setSaida] = useState(false);
   const [excluir, setExcluir] = useState(false);
+  const [visao, setVisao] = useState("itens");
 
   const cats = useMemo(() => {
     const c = (data.categorias || []).slice().sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map(c => c.nome);
@@ -105,8 +107,23 @@ export default function Estoque({ data, refresh }) {
         </div>
       )}
 
+      <div className="flex gap-1.5 mb-4 border-b border-slate-200 pb-3">
+        <button onClick={() => setVisao("itens")} aria-pressed={visao === "itens"}
+          className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+            ${visao === "itens" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+          <Boxes className="w-3.5 h-3.5" />Itens em estoque
+        </button>
+        <button onClick={() => setVisao("registros")} aria-pressed={visao === "registros"}
+          className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+            ${visao === "registros" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+          <ListChecks className="w-3.5 h-3.5" />Registros de entrada
+        </button>
+      </div>
+
       {bens.length === 0 ? (
         <Vazio titulo="Nenhum bem patrimoniado" texto="Registre a entrada a partir de um contrato entregue para começar a controlar o estoque." />
+      ) : visao === "registros" ? (
+        <RegistrosEntrada data={data} refresh={refresh} />
       ) : (
         <>
           <div className="sticky top-0 z-20 bg-stone-100/95 backdrop-blur-sm border-b border-slate-300 -mx-5 px-5 py-2.5 mb-5">
