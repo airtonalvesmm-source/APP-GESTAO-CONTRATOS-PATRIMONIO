@@ -1,19 +1,45 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
 import { fmtData, fmtQ, norm } from "@/lib/dmp-utils";
 import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Plaqueta, Vazio, Pill, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
+import { Check, X } from "lucide-react";
 
-export default function DetalheBem({ benId, data, onClose }) {
+export default function DetalheBem({ benId, data, refresh, onClose }) {
   const { catalog, contratos, departamentos, bens, movimentacoes } = data;
   const b = catalog.find(x => x.id === benId);
   const [sel, setSel] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   const unidades = useMemo(() => (bens || []).filter(u => u.benId === benId).slice().sort((a, c) => norm(a.placa).localeCompare(c.placa, "pt-BR", { numeric: true })), [bens, benId]);
   const movs = useMemo(() => {
     const ids = new Set(unidades.map(u => u.placa));
     return (movimentacoes || []).filter(m => ids.has(m.bemId)).slice().sort((a, c) => String(c.data || "").localeCompare(String(a.data || "")));
   }, [movimentacoes, unidades]);
+
+  useEffect(() => {
+    const u = unidades.find(x => x.id === sel);
+    setEditVal(u ? String(u.placa) : "");
+  }, [sel, unidades]);
+
+  async function salvarPlaca(u) {
+    const v = String(editVal ?? "").trim();
+    if (!v) return alert("Informe a placa.");
+    if (!/^\d+$/.test(v)) return alert("A placa deve conter apenas números.");
+    if ((bens || []).some(x => x.id !== u.id && String(x.placa) === v)) return alert(`Já existe um bem com a placa ${v}.`);
+    setSalvando(true);
+    try {
+      await base44.entities.BemPatrimonial.update(u.id, { placa: v });
+      setSel(null);
+      if (refresh) await refresh();
+    } catch (e) {
+      alert("Erro ao salvar a placa: " + (e.message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   if (!b) return <Modal titulo="Bem não encontrado" onClose={onClose}><Vazio titulo="Item removido" texto="Este item não existe mais no catálogo." /></Modal>;
 
@@ -55,6 +81,7 @@ export default function DetalheBem({ benId, data, onClose }) {
           </div>
           <div className="mb-5">
             <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-2">Unidades patrimoniadas</h4>
+            {unidades.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Clique em uma unidade para editar a placa de tombamento.</p>}
             {unidades.length === 0 ? (
               <Vazio titulo="Sem unidades" texto="Nenhum bem patrimoniado deste tipo." />
             ) : (
@@ -74,7 +101,17 @@ export default function DetalheBem({ benId, data, onClose }) {
                       const d = departamentos.find(x => x.id === u.departamentoId);
                       return (
                         <tr key={u.id} className="border-t border-slate-100 hover:bg-stone-50 cursor-pointer" onClick={() => setSel(s => s === u.id ? null : u.id)}>
-                          <td className="px-3 py-2 font-mono font-semibold text-slate-800">{u.placa}</td>
+                          <td className="px-3 py-2 font-mono font-semibold text-slate-800">
+                            {sel === u.id ? (
+                              <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
+                                <input autoFocus type="text" inputMode="numeric" className={`${inputCls} w-24`} value={editVal} disabled={salvando}
+                                  onChange={e => setEditVal(e.target.value.replace(/\D/g, ""))}
+                                  onKeyDown={e => { if (e.key === "Enter") salvarPlaca(u); if (e.key === "Escape") setSel(null); }} />
+                                <button onClick={() => salvarPlaca(u)} disabled={salvando} className="text-emerald-700 hover:text-emerald-800 disabled:opacity-50" title="Salvar placa"><Check className="w-4 h-4" /></button>
+                                <button onClick={() => setSel(null)} disabled={salvando} className="text-slate-400 hover:text-slate-600 disabled:opacity-50" title="Cancelar"><X className="w-4 h-4" /></button>
+                              </div>
+                            ) : u.placa}
+                          </td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{c.numero || "—"}</td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{u.numeroNF || "—"}</td>
                           <td className="px-3 py-2 font-mono text-[12px]">{fmtData(u.dataNF)}</td>

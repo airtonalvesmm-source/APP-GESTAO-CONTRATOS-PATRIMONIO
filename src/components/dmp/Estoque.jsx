@@ -174,7 +174,7 @@ export default function Estoque({ data, refresh }) {
       )}
 
       {fichaBenId && (
-        <DetalheBem benId={fichaBenId} data={data} onClose={() => setFichaBenId(null)} />
+        <DetalheBem benId={fichaBenId} data={data} refresh={refresh} onClose={() => setFichaBenId(null)} />
       )}
       {entrada && <FormEntrada data={data} refresh={refresh} onClose={() => setEntrada(false)} />}
       {saida && <FormSaida data={data} refresh={refresh} onClose={() => setSaida(false)} />}
