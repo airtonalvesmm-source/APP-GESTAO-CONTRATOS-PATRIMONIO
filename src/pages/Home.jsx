@@ -9,6 +9,7 @@ import Pagamentos from "@/components/dmp/Pagamentos";
 import Fornecedores from "@/components/dmp/Fornecedores";
 import Painel from "@/components/dmp/Painel";
 import CentralAlertas from "@/components/dmp/CentralAlertas";
+import Estoque from "@/components/dmp/Estoque";
 
 const TABS = [
   { id: "painel", label: "Painel" },
@@ -18,6 +19,7 @@ const TABS = [
   { id: "atas", label: "Atas" },
   { id: "contratos", label: "Contratos" },
   { id: "pagamentos", label: "Pagamentos" },
+  { id: "estoque", label: "Estoque" },
   { id: "fornecedores", label: "Fornecedores" }
 ];
 
@@ -26,7 +28,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     catalog: [], pca: [], licitacoes: [], atas: [], contratos: [],
-    fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: [], categorias: []
+    fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: [], categorias: [],
+    departamentos: [], bens: [], movimentacoes: []
   });
 
   const [erro, setErro] = useState("");
@@ -94,6 +97,7 @@ export default function Home() {
         {tab === "atas" && <Atas data={data} refresh={refresh} />}
         {tab === "contratos" && <Contratos data={data} refresh={refresh} />}
         {tab === "pagamentos" && <Pagamentos data={data} refresh={refresh} />}
+        {tab === "estoque" && <Estoque data={data} refresh={refresh} />}
         {tab === "fornecedores" && <Fornecedores data={data} refresh={refresh} />}
       </main>
 

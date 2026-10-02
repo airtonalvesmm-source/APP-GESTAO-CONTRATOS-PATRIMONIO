@@ -1,0 +1,84 @@
+{
+  "name": "MovimentacaoEstoque",
+  "type": "object",
+  "properties": {
+    "bemId": {
+      "type": "string",
+      "title": "ID do bem patrimonial"
+    },
+    "tipo": {
+      "type": "string",
+      "title": "Tipo de movimenta\u00e7\u00e3o",
+      "enum": [
+        "entrada",
+        "saida"
+      ]
+    },
+    "departamentoId": {
+      "type": "string",
+      "title": "ID do departamento"
+    },
+    "data": {
+      "type": "string",
+      "title": "Data da movimenta\u00e7\u00e3o",
+      "format": "date"
+    },
+    "observacao": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o"
+    }
+  },
+  "required": [
+    "bemId",
+    "tipo"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

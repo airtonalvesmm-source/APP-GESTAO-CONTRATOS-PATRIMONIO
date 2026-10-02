@@ -1,0 +1,107 @@
+{
+  "name": "BemPatrimonial",
+  "type": "object",
+  "properties": {
+    "benId": {
+      "type": "string",
+      "title": "ID do item do cat\u00e1logo"
+    },
+    "contratoId": {
+      "type": "string",
+      "title": "ID do contrato"
+    },
+    "pagamentoId": {
+      "type": "string",
+      "title": "ID da nota fiscal (pagamento)"
+    },
+    "numeroNF": {
+      "type": "string",
+      "title": "N\u00famero da nota fiscal"
+    },
+    "dataNF": {
+      "type": "string",
+      "title": "Data de emiss\u00e3o da nota",
+      "format": "date"
+    },
+    "placa": {
+      "type": "string",
+      "title": "Placa de tombamento"
+    },
+    "situacao": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o",
+      "enum": [
+        "em estoque",
+        "transferido"
+      ],
+      "default": "em estoque"
+    },
+    "departamentoId": {
+      "type": "string",
+      "title": "ID do departamento de destino"
+    },
+    "dataEntrada": {
+      "type": "string",
+      "title": "Data de entrada no estoque",
+      "format": "date"
+    },
+    "dataSaida": {
+      "type": "string",
+      "title": "Data de sa\u00edda do estoque",
+      "format": "date"
+    }
+  },
+  "required": [
+    "benId",
+    "placa"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

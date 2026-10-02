@@ -15,7 +15,8 @@ export async function listarTudo(nome) {
 export const ENTIDADES = {
   catalog: "CatalogItem", pca: "PCAItem", licitacoes: "Licitacao", atas: "Ata", contratos: "Contrato",
   fornecedores: "Fornecedor", pagamentos: "Pagamento", ocorrencias: "Ocorrencia", dfds: "DFD",
-  subcategorias: "Subcategoria", categorias: "Categoria"
+  subcategorias: "Subcategoria", categorias: "Categoria",
+  departamentos: "Departamento", bens: "BemPatrimonial", movimentacoes: "MovimentacaoEstoque"
 };
 
 export async function carregarDados() {

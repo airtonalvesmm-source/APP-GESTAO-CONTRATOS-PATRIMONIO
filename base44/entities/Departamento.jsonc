@@ -1,0 +1,71 @@
+{
+  "name": "Departamento",
+  "type": "object",
+  "properties": {
+    "sigla": {
+      "type": "string",
+      "title": "Sigla"
+    },
+    "nome": {
+      "type": "string",
+      "title": "Nome do departamento"
+    },
+    "unidade": {
+      "type": "string",
+      "title": "Unidade",
+      "default": "PGJ"
+    }
+  },
+  "required": [
+    "nome"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
