@@ -26,29 +26,30 @@ function montarMapa(departamentos) {
 export default function ImportarDepartamentos({ data, refresh }) {
   const { departamentos } = data;
   const [aberto, setAberto] = useState(false);
+  const [linhas, setLinhas] = useState(null);
   const [preview, setPreview] = useState(null);
   const [status, setStatus] = useState("");
   const [erro, setErro] = useState("");
   const [processando, setProcessando] = useState(false);
   const fileRef = useRef(null);
 
-  function reset() { setPreview(null); setStatus(""); setErro(""); if (fileRef.current) fileRef.current.value = ""; }
+  function reset() { setLinhas(null); setPreview(null); setStatus(""); setErro(""); if (fileRef.current) fileRef.current.value = ""; }
 
   async function lerArquivo(e) {
     const f = e.target.files[0];
     if (!f) return;
-    reset();
-    const linhas = parsearCSV(await f.text());
-    if (!linhas.length) { setErro("Arquivo vazio ou ilegível."); return; }
-    const amostra = linhas.slice(0, 5).map(valsLinha);
-    setPreview({ nome: f.name, total: linhas.length, amostra });
+    setLinhas(null); setPreview(null); setStatus(""); setErro("");
+    const parsed = parsearCSV(await f.text());
+    if (!parsed.length) { setErro("Arquivo vazio ou ilegível."); return; }
+    setLinhas(parsed);
+    const amostra = parsed.slice(0, 5).map(valsLinha);
+    setPreview({ nome: f.name, total: parsed.length, amostra });
   }
 
   async function confirmar() {
-    if (!fileRef.current?.files[0]) return;
+    if (!linhas || !linhas.length) return;
     setErro(""); setStatus(""); setProcessando(true);
     try {
-      const linhas = parsearCSV(await fileRef.current.files[0].text());
       if (!linhas.length) { setErro("Nenhuma linha de dados."); setProcessando(false); return; }
       const mapa = montarMapa(departamentos);
       let criados = 0, raizes = 0, interm = 0, espec = 0, reusados = 0;
@@ -72,6 +73,7 @@ export default function ImportarDepartamentos({ data, refresh }) {
         void idPai;
       }
       setStatus(`${criados} departamento(s) criado(s) · ${reusados} reutilizado(s). Raízes: ${raizes}, intermediários: ${interm}, específicos: ${espec}.`);
+      setLinhas(null);
       setPreview(null);
       if (fileRef.current) fileRef.current.value = "";
       await refresh();
@@ -89,7 +91,7 @@ export default function ImportarDepartamentos({ data, refresh }) {
         <Modal sobre="Estoque" titulo="Importar hierarquia de departamentos" onClose={() => setAberto(false)}
           footer={<>
             <Btn onClick={() => setAberto(false)}>Fechar</Btn>
-            <Btn variant="forte" onClick={confirmar} disabled={!preview || processando}>{processando ? "Importando…" : "Confirmar importação"}</Btn>
+            <Btn variant="forte" onClick={confirmar} disabled={!linhas || processando}>{processando ? "Importando…" : "Confirmar importação"}</Btn>
           </>}>
           <div className="mb-4">
             <Campo label="Arquivo CSV">

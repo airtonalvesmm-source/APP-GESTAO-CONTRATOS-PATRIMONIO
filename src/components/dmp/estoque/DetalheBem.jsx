@@ -4,7 +4,8 @@ import { fmtData, fmtQ, norm } from "@/lib/dmp-utils";
 import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Plaqueta, Vazio, Pill, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
-import { Check, X } from "lucide-react";
+import { Check, X, LogOut } from "lucide-react";
+import SaidaSelecionados from "./SaidaSelecionados";
 
 export default function DetalheBem({ benId, data, refresh, onClose }) {
   const { catalog, contratos, departamentos, bens, movimentacoes } = data;
@@ -12,6 +13,8 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
   const [sel, setSel] = useState(null);
   const [editVal, setEditVal] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [selSaida, setSelSaida] = useState(new Set());
+  const [saidaAberta, setSaidaAberta] = useState(false);
 
   const unidades = useMemo(() => (bens || []).filter(u => u.benId === benId).slice().sort((a, c) => norm(a.placa).localeCompare(c.placa, "pt-BR", { numeric: true })), [bens, benId]);
   const movs = useMemo(() => {
@@ -44,6 +47,12 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
   if (!b) return <Modal titulo="Bem não encontrado" onClose={onClose}><Vazio titulo="Item removido" texto="Este item não existe mais no catálogo." /></Modal>;
 
   const disp = unidades.filter(u => u.situacao === "em estoque").length;
+
+  function toggleSaida(id) {
+    setSelSaida(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function limparSaida() { setSelSaida(new Set()); }
+  const selecionadosSaida = unidades.filter(u => selSaida.has(u.id));
 
   return (
     <Modal sobre={b.categoria} titulo={b.objeto} onClose={onClose}
@@ -80,14 +89,22 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
             <p className="font-sans text-[13.5px] text-slate-700 whitespace-pre-wrap leading-relaxed">{b.descricao || "—"}</p>
           </div>
           <div className="mb-5">
-            <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-2">Unidades patrimoniadas</h4>
-            {unidades.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Clique em uma unidade para editar a placa de tombamento.</p>}
+            <div className="flex items-baseline gap-3 flex-wrap mb-2">
+              <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500">Unidades patrimoniadas</h4>
+              {selSaida.size > 0 && (
+                <button onClick={() => setSaidaAberta(true)} className="ml-auto inline-flex items-center gap-1.5 border border-amber-700 bg-amber-700 text-white rounded-sm px-3 py-1.5 font-sans font-semibold text-[12px] hover:bg-amber-800 cursor-pointer">
+                  <LogOut className="w-3.5 h-3.5" />Dar saída de {selSaida.size}
+                </button>
+              )}
+            </div>
+            {unidades.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Marque as unidades em estoque para dar saída, ou clique na placa para editá-la.</p>}
             {unidades.length === 0 ? (
               <Vazio titulo="Sem unidades" texto="Nenhum bem patrimoniado deste tipo." />
             ) : (
               <div className="overflow-x-auto border border-slate-300 rounded-sm">
-                <table className="w-full border-collapse text-[13px] min-w-[620px]">
+                <table className="w-full border-collapse text-[13px] min-w-[680px]">
                   <thead><tr className="bg-stone-50">
+                    <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-2.5 py-2 w-8"></th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Placa</th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Contrato</th>
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2">Nota fiscal</th>
@@ -99,8 +116,18 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
                     {unidades.map(u => {
                       const c = contratos.find(x => x.id === u.contratoId) || {};
                       const d = departamentos.find(x => x.id === u.departamentoId);
+                      const emEstoque = u.situacao === "em estoque";
+                      const on = selSaida.has(u.id);
                       return (
-                        <tr key={u.id} className="border-t border-slate-100 hover:bg-stone-50 cursor-pointer" onClick={() => setSel(s => s === u.id ? null : u.id)}>
+                        <tr key={u.id} className={`border-t border-slate-100 ${emEstoque ? "cursor-pointer hover:bg-stone-50" : ""} ${on ? "bg-amber-50/60" : ""}`}
+                          onClick={emEstoque && sel !== u.id ? () => toggleSaida(u.id) : undefined}>
+                          <td className="px-2.5 py-2 text-center" onClick={e => e.stopPropagation()}>
+                            {emEstoque ? (
+                              <button onClick={() => toggleSaida(u.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${on ? "bg-amber-700 border-amber-700 text-white" : "bg-white border-slate-400"}`}>
+                                {on && <Check className="w-3 h-3" />}
+                              </button>
+                            ) : null}
+                          </td>
                           <td className="px-3 py-2 font-mono font-semibold text-slate-800">
                             {sel === u.id ? (
                               <div className="flex gap-1 items-center" onClick={e => e.stopPropagation()}>
@@ -110,12 +137,14 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
                                 <button onClick={() => salvarPlaca(u)} disabled={salvando} className="text-emerald-700 hover:text-emerald-800 disabled:opacity-50" title="Salvar placa"><Check className="w-4 h-4" /></button>
                                 <button onClick={() => setSel(null)} disabled={salvando} className="text-slate-400 hover:text-slate-600 disabled:opacity-50" title="Cancelar"><X className="w-4 h-4" /></button>
                               </div>
-                            ) : u.placa}
+                            ) : (
+                              <button onClick={(e) => { e.stopPropagation(); setSel(s => s === u.id ? null : u.id); }} className="text-left hover:underline decoration-dotted">{u.placa}</button>
+                            )}
                           </td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{c.numero || "—"}</td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{u.numeroNF || "—"}</td>
                           <td className="px-3 py-2 font-mono text-[12px]">{fmtData(u.dataNF)}</td>
-                          <td className="px-3 py-2"><Pill tipo={u.situacao === "em estoque" ? "ok" : "neutro"}>{u.situacao}</Pill></td>
+                          <td className="px-3 py-2"><Pill tipo={emEstoque ? "ok" : "neutro"}>{u.situacao}</Pill></td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{d ? caminhoDepartamento(d, departamentos) : "—"}</td>
                         </tr>
                       );
@@ -146,6 +175,14 @@ export default function DetalheBem({ benId, data, refresh, onClose }) {
           )}
         </div>
       </div>
+      {saidaAberta && (
+        <SaidaSelecionados
+          unidades={selecionadosSaida}
+          departamentos={departamentos}
+          refresh={async () => { limparSaida(); if (refresh) await refresh(); }}
+          onClose={() => setSaidaAberta(false)}
+        />
+      )}
     </Modal>
   );
 }
