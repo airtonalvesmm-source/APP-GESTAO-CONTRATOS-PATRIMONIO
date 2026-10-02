@@ -14,6 +14,10 @@
       "type": "string",
       "title": "Unidade",
       "default": "PGJ"
+    },
+    "paiId": {
+      "type": "string",
+      "title": "ID do departamento pai (hierarquia)"
     }
   },
   "required": [

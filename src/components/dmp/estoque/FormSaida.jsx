@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { norm, isoData, hoje } from "@/lib/dmp-utils";
+import { optgroupsDepartamentos } from "@/lib/departamentos";
 import { Modal, Btn, Campo, Vazio, inputCls, textareaCls } from "../ui";
 import { Check, Search } from "lucide-react";
 
@@ -62,7 +63,11 @@ export default function FormSaida({ data, refresh, onClose }) {
             <Campo label="Departamento de destino">
               <select className={inputCls} value={depId} onChange={e => setDepId(e.target.value)}>
                 <option value="">Selecione o departamento</option>
-                {departamentos.slice().sort((a, b) => norm(a.nome).localeCompare(b.nome, "pt-BR")).map(d => <option key={d.id} value={d.id}>{d.sigla ? d.sigla + " — " : ""}{d.nome}</option>)}
+                {optgroupsDepartamentos(departamentos).map(g => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.items.map(d => <option key={d.id} value={d.id}>{d.sigla ? d.sigla + " — " : ""}{d.nome}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </Campo>
             <Campo label="Observação (opcional)" ajuda="Ex.: processo, ofício ou justificativa da destinação.">

@@ -6,7 +6,7 @@ import { fmtQ, fmtData, norm, baixarCSV, isoData, hoje } from "@/lib/dmp-utils";
 import { sugestoesSubcategoria, agruparBensPorSubcategoria } from "@/lib/subcat-utils";
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, Pill, inputCls } from "./ui";
 import { TelaCab } from "./Catalogo";
-import ImportarCSV from "./ImportarCSV";
+import ImportarDepartamentos from "./estoque/ImportarDepartamentos";
 import FormEntrada from "./estoque/FormEntrada";
 import DetalheBem from "./estoque/DetalheBem";
 import FormSaida from "./estoque/FormSaida";
@@ -85,14 +85,7 @@ export default function Estoque({ data, refresh }) {
         titulo="Estoque e patrimônio"
         desc="Bens patrimoniados entrada de contratos e notas fiscais entregues. Navegue por categoria, consulte a placa de tombamento e dê saída para os departamentos."
         direita={<>
-          <ImportarCSV entityName="Departamento" refresh={refresh}
-            existentes={departamentos} chave={r => norm(r.sigla) + "|" + norm(r.nome)}
-            colunas={[
-              { header: "Sigla", campo: "sigla" },
-              { header: "Nome", campo: "nome", obrigatorio: true },
-              { header: "Unidade", campo: "unidade" }
-            ]}
-            ajuda="Importe os departamentos que receberão os bens. A sigla ajuda a identificar o destino nas saídas." />
+          <ImportarDepartamentos data={data} refresh={refresh} />
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <Btn onClick={() => setSaida(true)} disabled={totais.disp === 0 || departamentos.length === 0}><LogOut className="w-4 h-4 inline mr-1" />Dar saída</Btn>
           <Btn variant="forte" onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>

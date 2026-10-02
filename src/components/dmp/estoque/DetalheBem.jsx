@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { fmtData, fmtQ, norm } from "@/lib/dmp-utils";
+import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Plaqueta, Vazio, Pill, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
 
@@ -78,7 +79,7 @@ export default function DetalheBem({ benId, data, onClose }) {
                           <td className="px-3 py-2 font-sans text-[12.5px]">{u.numeroNF || "—"}</td>
                           <td className="px-3 py-2 font-mono text-[12px]">{fmtData(u.dataNF)}</td>
                           <td className="px-3 py-2"><Pill tipo={u.situacao === "em estoque" ? "ok" : "neutro"}>{u.situacao}</Pill></td>
-                          <td className="px-3 py-2 font-sans text-[12.5px]">{d ? `${d.sigla ? d.sigla + " — " : ""}${d.nome}` : "—"}</td>
+                          <td className="px-3 py-2 font-sans text-[12.5px]">{d ? caminhoDepartamento(d, departamentos) : "—"}</td>
                         </tr>
                       );
                     })}
