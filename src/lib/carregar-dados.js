@@ -16,7 +16,8 @@ export const ENTIDADES = {
   catalog: "CatalogItem", pca: "PCAItem", licitacoes: "Licitacao", atas: "Ata", contratos: "Contrato",
   fornecedores: "Fornecedor", pagamentos: "Pagamento", ocorrencias: "Ocorrencia", dfds: "DFD",
   subcategorias: "Subcategoria", categorias: "Categoria",
-  departamentos: "Departamento", bens: "BemPatrimonial", movimentacoes: "MovimentacaoEstoque"
+  departamentos: "Departamento", bens: "BemPatrimonial", movimentacoes: "MovimentacaoEstoque",
+  reservas: "Reserva"
 };
 
 export async function carregarDados() {

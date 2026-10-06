@@ -4,18 +4,21 @@ import { fmtData, fmtQ, norm } from "@/lib/dmp-utils";
 import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Plaqueta, Vazio, Pill, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
-import { Check, X, LogOut, Trash2 } from "lucide-react";
+import { Check, X, LogOut, Trash2, Bookmark } from "lucide-react";
 import SaidaSelecionados from "./SaidaSelecionados";
+import FormReserva from "./FormReserva";
 import { excluirBens } from "@/lib/excluir-bem";
+import { reservadoPorItem } from "@/lib/reservas-utils";
 
 export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
-  const { catalog, contratos, departamentos, bens, movimentacoes } = data;
+  const { catalog, contratos, departamentos, bens, movimentacoes, reservas } = data;
   const b = catalog.find(x => x.id === benId);
   const [sel, setSel] = useState(null);
   const [editVal, setEditVal] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [selSaida, setSelSaida] = useState(new Set());
   const [saidaAberta, setSaidaAberta] = useState(false);
+  const [reservaAberta, setReservaAberta] = useState(false);
 
   const unidades = useMemo(() => (bens || []).filter(u => u.benId === benId).slice().sort((a, c) => norm(a.placa).localeCompare(c.placa, "pt-BR", { numeric: true })), [bens, benId]);
   const movs = useMemo(() => {
@@ -70,6 +73,10 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
   if (!b) return <Modal titulo="Bem não encontrado" onClose={onClose}><Vazio titulo="Item removido" texto="Este item não existe mais no catálogo." /></Modal>;
 
   const disp = unidades.filter(u => u.situacao === "em estoque").length;
+  const reservado = reservadoPorItem(reservas, benId);
+  const livre = Math.max(0, disp - reservado);
+  const reservasDoItem = (reservas || []).filter(r => r.benId === benId && r.situacao === "ativa")
+    .slice().sort((a, c) => String(c.data || "").localeCompare(String(a.data || "")));
 
   function toggleSaida(id) {
     setSelSaida(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -96,10 +103,32 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
           <div className="mt-4">
             <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-2">Resumo do estoque</h4>
             <div className="flex gap-2 flex-wrap">
-              <Pill tipo={disp > 0 ? "ok" : "neutro"}>{disp} em estoque</Pill>
+              <Pill tipo={livre > 0 ? "ok" : "neutro"}>{livre} livre</Pill>
+              <Pill tipo={reservado > 0 ? "aviso" : "neutro"}>{reservado} reservado{reservado === 1 ? "" : "s"}</Pill>
               <Pill tipo={unidades.length - disp > 0 ? "aviso" : "neutro"}>{unidades.length - disp} transferido{unidades.length - disp === 1 ? "" : "s"}</Pill>
               <Pill tipo="neutro">{unidades.length} total</Pill>
             </div>
+            {livre > 0 && (
+              <button onClick={() => setReservaAberta(true)} disabled={departamentos.length === 0}
+                className="mt-2 inline-flex items-center gap-1.5 border border-amber-700 bg-amber-50 text-amber-800 rounded-sm px-3 py-1.5 font-sans font-semibold text-[12px] hover:bg-amber-100 cursor-pointer disabled:opacity-50">
+                <Bookmark className="w-3.5 h-3.5" />Reservar {livre} unidade(s)
+              </button>
+            )}
+            {reservasDoItem.length > 0 && (
+              <ul className="mt-2 border border-amber-200 rounded-sm divide-y divide-amber-100 bg-amber-50/40">
+                {reservasDoItem.map(r => {
+                  const d = departamentos.find(x => x.id === r.departamentoId);
+                  return (
+                    <li key={r.id} className="px-2.5 py-1.5 flex gap-2 items-center text-[11.5px]">
+                      <Bookmark className="w-3 h-3 text-amber-700 flex-none" />
+                      <span className="font-mono font-semibold text-amber-800">{r.quantidade} un.</span>
+                      <span className="font-sans text-slate-700 truncate">→ {d ? caminhoDepartamento(d, departamentos) : "—"}</span>
+                      <span className="font-mono text-slate-500 ml-auto">{fmtData(r.data)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </div>
         <div>
@@ -221,6 +250,9 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
           refresh={async () => { limparSaida(); if (refresh) await refresh(); }}
           onClose={() => setSaidaAberta(false)}
         />
+      )}
+      {reservaAberta && (
+        <FormReserva data={data} refresh={refresh} onClose={() => setReservaAberta(false)} benIdFixo={benId} />
       )}
     </Modal>
   );

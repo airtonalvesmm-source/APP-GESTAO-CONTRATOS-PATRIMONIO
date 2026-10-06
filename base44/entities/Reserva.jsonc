@@ -1,0 +1,108 @@
+{
+  "name": "Reserva",
+  "type": "object",
+  "properties": {
+    "benId": {
+      "type": "string",
+      "title": "ID do item do cat\u00e1logo"
+    },
+    "quantidade": {
+      "type": "number",
+      "title": "Quantidade reservada"
+    },
+    "departamentoId": {
+      "type": "string",
+      "title": "ID do departamento de destino"
+    },
+    "placas": {
+      "type": "array",
+      "title": "Placas espec\u00edficas (opcional)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "situacao": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o",
+      "enum": [
+        "ativa",
+        "cancelada",
+        "atendida"
+      ],
+      "default": "ativa"
+    },
+    "observacao": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o"
+    },
+    "data": {
+      "type": "string",
+      "title": "Data da reserva",
+      "format": "date"
+    },
+    "dataConclusao": {
+      "type": "string",
+      "title": "Data da conclus\u00e3o (sa\u00edda)",
+      "format": "date"
+    },
+    "dataCancelamento": {
+      "type": "string",
+      "title": "Data do cancelamento",
+      "format": "date"
+    }
+  },
+  "required": [
+    "benId",
+    "quantidade",
+    "departamentoId"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

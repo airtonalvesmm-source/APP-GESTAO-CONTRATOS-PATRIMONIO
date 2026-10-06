@@ -13,12 +13,15 @@ import DetalheBem from "./estoque/DetalheBem";
 import FormSaida from "./estoque/FormSaida";
 import ExcluirBens from "./estoque/ExcluirBens";
 import RegistrosEntrada from "./estoque/RegistrosEntrada";
-import { Plus, LogOut, Upload, Boxes, Building2, Trash2, ListChecks } from "lucide-react";
+import { Plus, LogOut, Upload, Boxes, Building2, Trash2, ListChecks, Bookmark } from "lucide-react";
+import Reservas from "./estoque/Reservas";
+import FormReserva from "./estoque/FormReserva";
+import { reservadoPorItem } from "@/lib/reservas-utils";
 
 export default function Estoque({ data, refresh }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { catalog, contratos, pagamentos, bens, movimentacoes, departamentos, subcategorias } = data;
+  const { catalog, contratos, pagamentos, bens, movimentacoes, departamentos, subcategorias, reservas } = data;
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todas");
   const [subcatAtiva, setSubcatAtiva] = useState("");
   const [termo, setTermo] = useState("");
@@ -27,6 +30,7 @@ export default function Estoque({ data, refresh }) {
   const [entrada, setEntrada] = useState(false);
   const [saida, setSaida] = useState(false);
   const [excluir, setExcluir] = useState(false);
+  const [reserva, setReserva] = useState(false);
   const [visao, setVisao] = useState("itens");
 
   const cats = useMemo(() => {
@@ -96,7 +100,8 @@ export default function Estoque({ data, refresh }) {
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <Btn variant="risco" onClick={() => setExcluir(true)} disabled={bens.length === 0}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>
           <Btn onClick={() => setSaida(true)} disabled={totais.disp === 0 || departamentos.length === 0}><LogOut className="w-4 h-4 inline mr-1" />Dar saída</Btn>
-          <Btn variant="forte" onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>
+          <Btn variant="forte" onClick={() => setReserva(true)} disabled={totais.disp === 0 || departamentos.length === 0}><Bookmark className="w-4 h-4 inline mr-1" />Reservar</Btn>
+          <Btn onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>
         </>}
       />
 
@@ -118,12 +123,19 @@ export default function Estoque({ data, refresh }) {
             ${visao === "registros" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
           <ListChecks className="w-3.5 h-3.5" />Registros de entrada
         </button>
+        <button onClick={() => setVisao("reservas")} aria-pressed={visao === "reservas"}
+          className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+            ${visao === "reservas" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+          <Bookmark className="w-3.5 h-3.5" />Reservas
+        </button>
       </div>
 
       {bens.length === 0 ? (
         <Vazio titulo="Nenhum bem patrimoniado" texto="Registre a entrada a partir de um contrato entregue para começar a controlar o estoque." />
       ) : visao === "registros" ? (
         <RegistrosEntrada data={data} refresh={refresh} />
+      ) : visao === "reservas" ? (
+        <Reservas data={data} refresh={refresh} />
       ) : (
         <>
           <div className="sticky top-0 z-20 bg-stone-100/95 backdrop-blur-sm border-b border-slate-300 -mx-5 px-5 py-2.5 mb-5">
@@ -184,7 +196,8 @@ export default function Estoque({ data, refresh }) {
                         {g.items.map(b => {
                           const unidades = bensPorBenId.get(b.id) || [];
                           const disp = unidades.filter(u => u.situacao === "em estoque").length;
-                          return <CartaoEstoque key={b.id} b={b} disp={disp} total={unidades.length} onClick={() => setFichaBenId(b.id)} />;
+                          const res = reservadoPorItem(reservas, b.id);
+                          return <CartaoEstoque key={b.id} b={b} disp={disp} reservado={res} total={unidades.length} onClick={() => setFichaBenId(b.id)} />;
                         })}
                       </div>
                     </div>
@@ -202,16 +215,23 @@ export default function Estoque({ data, refresh }) {
       {entrada && <FormEntrada data={data} refresh={refresh} onClose={() => setEntrada(false)} />}
       {saida && <FormSaida data={data} refresh={refresh} onClose={() => setSaida(false)} />}
       {excluir && <ExcluirBens data={data} isAdmin={isAdmin} refresh={refresh} onClose={() => setExcluir(false)} />}
+      {reserva && <FormReserva data={data} refresh={refresh} onClose={() => setReserva(false)} />}
     </div>
   );
 }
 
-function CartaoEstoque({ b, disp, total, onClick }) {
+function CartaoEstoque({ b, disp, reservado, total, onClick }) {
   const transf = total - disp;
+  const livre = Math.max(0, disp - reservado);
   return (
     <div onClick={onClick} className="bg-white border border-slate-300 rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5">
       <span className="aspect-[4/3] bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] border-b border-slate-200 flex items-center justify-center text-stone-500 relative">
         {b.imagem ? <img src={b.imagem} alt={b.objeto} className="w-full h-full object-cover" /> : <Desenho arte={b.arte} />}
+        {reservado > 0 && (
+          <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 font-mono text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-sm border border-amber-600 bg-amber-100 text-amber-800">
+            <Bookmark className="w-2.5 h-2.5" />{reservado}
+          </span>
+        )}
       </span>
       <span className="p-2.5 flex flex-col gap-1.5 flex-1">
         <span className="block font-sans font-semibold text-[12.5px] leading-snug text-slate-800">{b.objeto}</span>
@@ -219,11 +239,17 @@ function CartaoEstoque({ b, disp, total, onClick }) {
         <span className="block text-[11.5px] leading-snug text-slate-500 line-clamp-2">{b.aplicacao}</span>
         <div className="mt-1 border border-slate-200 rounded-sm bg-stone-50 px-2.5 py-2 flex items-center justify-between gap-2">
           <div className="flex flex-col">
-            <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">Em estoque</span>
-            <span className={`font-mono font-bold text-lg leading-none ${disp > 0 ? "text-emerald-700" : "text-slate-400"}`}>{disp}</span>
+            <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">Livre</span>
+            <span className={`font-mono font-bold text-lg leading-none ${livre > 0 ? "text-emerald-700" : "text-slate-400"}`}>{livre}</span>
           </div>
+          {reservado > 0 && (
+            <div className="flex flex-col items-center">
+              <span className="font-mono text-[9px] tracking-widest uppercase text-amber-700">Reservado</span>
+              <span className="font-mono font-bold text-[13px] leading-none text-amber-700 mt-0.5">{reservado}</span>
+            </div>
+          )}
           <div className="flex flex-col items-end">
-            <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">{transf > 0 ? "Transferidos · Total" : "Total"}</span>
+            <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">{transf > 0 ? "Transf. · Total" : "Total"}</span>
             <span className="font-mono text-[12px] text-slate-600 leading-none mt-0.5">{transf > 0 ? `${transf} · ${total}` : total}</span>
           </div>
         </div>

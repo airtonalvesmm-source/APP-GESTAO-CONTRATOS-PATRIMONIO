@@ -29,7 +29,7 @@ export default function Home() {
   const [data, setData] = useState({
     catalog: [], pca: [], licitacoes: [], atas: [], contratos: [],
     fornecedores: [], pagamentos: [], ocorrencias: [], dfds: [], subcategorias: [], categorias: [],
-    departamentos: [], bens: [], movimentacoes: []
+    departamentos: [], bens: [], movimentacoes: [], reservas: []
   });
 
   const [erro, setErro] = useState("");
