@@ -5,7 +5,7 @@ import { saldoLivre } from "@/lib/reservas-utils";
 import { caminhoDepartamento } from "@/lib/departamentos";
 import { Modal, Btn, Campo, Vazio, Pill, inputCls } from "../ui";
 import { Desenho } from "../Desenho";
-import { Plus, Search, Bookmark, XCircle, CheckCircle2, Trash2 } from "lucide-react";
+import { Plus, Search, Bookmark, XCircle, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import FormReserva from "./FormReserva";
 
 export default function Reservas({ data, refresh }) {
@@ -15,6 +15,7 @@ export default function Reservas({ data, refresh }) {
   const [criar, setCriar] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
   const [concluindo, setConcluindo] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const lista = useMemo(() => {
     const t = norm(termo.trim());
@@ -113,6 +114,7 @@ export default function Reservas({ data, refresh }) {
                     <td className="px-3 py-2 text-right">
                       {r.situacao === "ativa" && (
                         <div className="inline-flex gap-1.5 justify-end">
+                          <Btn onClick={() => setEditando(r)} className="!px-2 !py-1 !text-[11.5px]"><Pencil className="w-3.5 h-3.5 inline mr-1" />Editar</Btn>
                           <Btn variant="forte" onClick={() => setConcluindo(r)} className="!px-2 !py-1 !text-[11.5px]"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />Concluir</Btn>
                           <Btn variant="risco" onClick={() => cancelar(r)} className="!px-2 !py-1 !text-[11.5px]"><XCircle className="w-3.5 h-3.5 inline mr-1" />Cancelar</Btn>
                         </div>
@@ -127,6 +129,7 @@ export default function Reservas({ data, refresh }) {
       )}
 
       {criar && <FormReserva data={data} refresh={refresh} onClose={() => setCriar(false)} />}
+      {editando && <FormReserva data={data} refresh={refresh} onClose={() => setEditando(null)} reserva={editando} />}
       {concluindo && <ConcluirReserva reserva={concluindo} data={data} refresh={refresh} onClose={() => setConcluindo(null)} />}
     </div>
   );

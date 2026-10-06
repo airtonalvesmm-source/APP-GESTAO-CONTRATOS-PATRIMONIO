@@ -6,22 +6,25 @@ import { Modal, Btn, Campo, Vazio, inputCls, textareaCls } from "../ui";
 import { Desenho } from "../Desenho";
 import BuscarDepartamento from "./BuscarDepartamento";
 
-export default function FormReserva({ data, refresh, onClose, benIdFixo }) {
+export default function FormReserva({ data, refresh, onClose, benIdFixo, reserva: reservaEdicao }) {
   const { catalog, departamentos, bens, reservas } = data;
+  const editando = !!reservaEdicao;
   const itensComEstoque = useMemo(
     () => (catalog || []).filter(b => !b.oculto && (bens || []).some(u => u.benId === b.id && u.situacao === "em estoque"))
       .slice().sort((a, b) => a.objeto.localeCompare(b.objeto, "pt-BR")),
     [catalog, bens]
   );
 
-  const [benId, setBenId] = useState(benIdFixo || "");
-  const [qtd, setQtd] = useState("");
-  const [depId, setDepId] = useState("");
-  const [obs, setObs] = useState("");
+  const [benId, setBenId] = useState(reservaEdicao?.benId || benIdFixo || "");
+  const [qtd, setQtd] = useState(reservaEdicao ? String(reservaEdicao.quantidade || "") : "");
+  const [depId, setDepId] = useState(reservaEdicao?.departamentoId || "");
+  const [obs, setObs] = useState(reservaEdicao?.observacao || "");
   const [salvando, setSalvando] = useState(false);
 
   const item = catalog.find(x => x.id === benId);
-  const livre = benId ? saldoLivre(bens, reservas, benId) : 0;
+  // Em edição, a quantidade já reservada deste item volta a ficar disponível.
+  const livreBase = benId ? saldoLivre(bens, reservas, benId) : 0;
+  const livre = editando && reservaEdicao?.benId === benId ? livreBase + nQtd(reservaEdicao.quantidade) : livreBase;
 
   async function salvar() {
     const q = nQtd(qtd);
@@ -30,29 +33,38 @@ export default function FormReserva({ data, refresh, onClose, benIdFixo }) {
     if (!depId) return alert("Escolha o local de destino.");
     if (q > livre) return alert(`Saldo livre insuficiente. Há apenas ${livre} unidade(s) disponível(is) para reserva deste item.`);
     const dep = departamentos.find(d => d.id === depId);
-    if (!confirm(`Reservar ${q} unidade(s) de "${item?.objeto}" para ${dep.sigla ? dep.sigla + " — " : ""}${dep.nome}?`)) return;
+    if (!confirm(`${editando ? "Atualizar" : "Reservar"} ${q} unidade(s) de "${item?.objeto}" para ${dep.sigla ? dep.sigla + " — " : ""}${dep.nome}?`)) return;
     setSalvando(true);
     try {
-      await base44.entities.Reserva.create({
-        benId,
-        quantidade: q,
-        departamentoId: depId,
-        situacao: "ativa",
-        observacao: obs.trim() || null,
-        data: isoData(hoje())
-      });
+      if (editando) {
+        await base44.entities.Reserva.update(reservaEdicao.id, {
+          benId,
+          quantidade: q,
+          departamentoId: depId,
+          observacao: obs.trim() || null
+        });
+      } else {
+        await base44.entities.Reserva.create({
+          benId,
+          quantidade: q,
+          departamentoId: depId,
+          situacao: "ativa",
+          observacao: obs.trim() || null,
+          data: isoData(hoje())
+        });
+      }
       await refresh();
       onClose();
     } catch (e) {
-      alert("Erro ao registrar reserva: " + (e?.message || e));
+      alert(`Erro ao ${editando ? "atualizar" : "registrar"} reserva: ` + (e?.message || e));
     } finally {
       setSalvando(false);
     }
   }
 
   return (
-    <Modal sobre="Estoque" titulo="Reservar item" onClose={onClose}
-      footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Reservar"}</Btn></>}>
+    <Modal sobre="Estoque" titulo={editando ? "Editar reserva" : "Reservar item"} onClose={onClose}
+      footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Reservar"}</Btn></>}>
       {departamentos.length === 0 ? (
         <Vazio titulo="Sem departamentos cadastrados" texto="Importe os departamentos antes de reservar itens — eles são o destino de cada reserva." />
       ) : itensComEstoque.length === 0 ? (
