@@ -145,13 +145,24 @@ function ConcluirReserva({ reserva, data, refresh, onClose }) {
   const disp = (bens || []).filter(u => u.benId === reserva.benId && u.situacao === "em estoque")
     .slice().sort((a, b) => norm(a.placa).localeCompare(b.placa, "pt-BR", { numeric: true }));
   const qtd = nQtd(reserva.quantidade);
+  const [sel, setSel] = useState(() => new Set(disp.slice(0, qtd).map(u => u.id)));
+
+  function toggle(id) {
+    setSel(s => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else if (n.size < qtd) n.add(id);
+      return n;
+    });
+  }
+  const alvos = disp.filter(u => sel.has(u.id));
 
   async function confirmar() {
     if (disp.length < qtd) return alert(`Há apenas ${disp.length} unidade(s) em estoque para este item. Não é possível concluir a reserva de ${qtd}.`);
+    if (alvos.length !== qtd) return alert(`Selecione exatamente ${qtd} placa(s) para transferir. Você selecionou ${alvos.length}.`);
     if (!confirm(`Concluir a reserva de ${qtd} unidade(s) de "${item?.objeto}"?\n\nSerá registrada a saída para ${dep?.nome} e as ${qtd} unidades sairão do estoque.`)) return;
     setSalvando(true);
     try {
-      const alvos = disp.slice(0, qtd);
       const hojeIso = isoData(hoje());
       await base44.entities.BemPatrimonial.bulkUpdate(
         alvos.map(u => ({ id: u.id, situacao: "transferido", departamentoId: reserva.departamentoId, dataSaida: hojeIso }))
@@ -194,12 +205,23 @@ function ConcluirReserva({ reserva, data, refresh, onClose }) {
       </div>
       {disp.length > 0 && disp.length >= qtd && (
         <div className="mb-3">
-          <p className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Placas que serão transferidas</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {disp.slice(0, qtd).map(u => (
-              <span key={u.id} className="font-mono text-[11.5px] px-2 py-0.5 rounded-sm border border-slate-300 bg-slate-50 text-slate-700">{u.placa}</span>
-            ))}
+          <div className="flex items-baseline gap-2 mb-1.5">
+            <p className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500">Placas que serão transferidas</p>
+            <span className="font-mono text-[10px] text-slate-400">{alvos.length}/{qtd} selecionada{alvos.length === 1 ? "" : "s"}</span>
           </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {disp.map(u => {
+              const on = sel.has(u.id);
+              return (
+                <button key={u.id} type="button" onClick={() => toggle(u.id)}
+                  className={`font-mono text-[11.5px] px-2 py-0.5 rounded-sm border transition-colors cursor-pointer
+                    ${on ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-500"}`}>
+                  {u.placa}
+                </button>
+              );
+            })}
+          </div>
+          <p className="font-sans text-[11px] text-slate-500 mt-1.5">Clique nas placas para escolher quais unidades transferir. Selecione exatamente {qtd}.</p>
         </div>
       )}
       <Campo label="Observação da saída (opcional)">
