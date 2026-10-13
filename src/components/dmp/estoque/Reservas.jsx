@@ -142,16 +142,27 @@ function ConcluirReserva({ reserva, data, refresh, onClose }) {
   const [obs, setObs] = useState(reserva.observacao || "");
   const [salvando, setSalvando] = useState(false);
 
-  const disp = (bens || []).filter(u => u.benId === reserva.benId && u.situacao === "em estoque")
-    .slice().sort((a, b) => norm(a.placa).localeCompare(b.placa, "pt-BR", { numeric: true }));
+  const disp = useMemo(() => (bens || []).filter(u => u.benId === reserva.benId && u.situacao === "em estoque")
+    .slice().sort((a, b) => norm(a.placa).localeCompare(b.placa, "pt-BR", { numeric: true })), [bens, reserva.benId]);
   const qtd = nQtd(reserva.quantidade);
+  const [sel, setSel] = useState(() => new Set(disp.slice(0, qtd).map(u => u.id)));
+
+  function toggle(id) {
+    setSel(s => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else if (n.size < qtd) n.add(id);
+      return n;
+    });
+  }
 
   async function confirmar() {
     if (disp.length < qtd) return alert(`Há apenas ${disp.length} unidade(s) em estoque para este item. Não é possível concluir a reserva de ${qtd}.`);
+    if (sel.size !== qtd) return alert(`Selecione exatamente ${qtd} placa(s). Você selecionou ${sel.size}.`);
     if (!confirm(`Concluir a reserva de ${qtd} unidade(s) de "${item?.objeto}"?\n\nSerá registrada a saída para ${dep?.nome} e as ${qtd} unidades sairão do estoque.`)) return;
     setSalvando(true);
     try {
-      const alvos = disp.slice(0, qtd);
+      const alvos = disp.filter(u => sel.has(u.id));
       const hojeIso = isoData(hoje());
       await base44.entities.BemPatrimonial.bulkUpdate(
         alvos.map(u => ({ id: u.id, situacao: "transferido", departamentoId: reserva.departamentoId, dataSaida: hojeIso }))
@@ -166,7 +177,7 @@ function ConcluirReserva({ reserva, data, refresh, onClose }) {
       for (let i = 0; i < movs.length; i += 100) {
         await base44.entities.MovimentacaoEstoque.bulkCreate(movs.slice(i, i + 100));
       }
-      await base44.entities.Reserva.update(reserva.id, { situacao: "atendida", dataConclusao: hojeIso, observacao: obs.trim() || reserva.observacao || null });
+      await base44.entities.Reserva.update(reserva.id, { situacao: "atendida", dataConclusao: hojeIso, observacao: obs.trim() || reserva.observacao || null, placas: alvos.map(u => u.placa) });
       await refresh();
       onClose();
       alert(`${qtd} unidade(s) transferida(s) para ${dep?.nome}. Reserva concluída.`);
@@ -194,12 +205,23 @@ function ConcluirReserva({ reserva, data, refresh, onClose }) {
       </div>
       {disp.length > 0 && disp.length >= qtd && (
         <div className="mb-3">
-          <p className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Placas que serão transferidas</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {disp.slice(0, qtd).map(u => (
-              <span key={u.id} className="font-mono text-[11.5px] px-2 py-0.5 rounded-sm border border-slate-300 bg-slate-50 text-slate-700">{u.placa}</span>
-            ))}
+          <div className="flex items-baseline gap-2 mb-1.5">
+            <p className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500">Placas que serão transferidas</p>
+            <span className="font-mono text-[10px] tracking-wider text-slate-400">{sel.size}/{qtd} selecionadas</span>
           </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {disp.map(u => {
+              const on = sel.has(u.id);
+              return (
+                <button key={u.id} type="button" onClick={() => toggle(u.id)}
+                  className={`font-mono text-[11.5px] px-2.5 py-1 rounded-sm border cursor-pointer transition-colors
+                    ${on ? "border-amber-700 bg-amber-700 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-500"}`}>
+                  {u.placa}
+                </button>
+              );
+            })}
+          </div>
+          <p className="font-sans text-[11px] text-slate-500 mt-1.5">Clique para escolher as placas. Selecione exatamente {qtd}.</p>
         </div>
       )}
       <Campo label="Observação da saída (opcional)">
