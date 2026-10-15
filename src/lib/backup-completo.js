@@ -51,11 +51,14 @@ async function listarUsers() {
   });
 }
 
+// Escapa CSV — previne injeção de fórmula em planilhas (mesma proteção que csvLinha)
+const PREFIXO_FORMULA = /^[=+\-@\t\r]/;
 function escaparCSV(val) {
   if (val === null || val === undefined) return "";
   let s;
   if (typeof val === "object") s = JSON.stringify(val);
   else s = String(val);
+  if (PREFIXO_FORMULA.test(s)) s = "'" + s;
   if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
     return '"' + s.replace(/"/g, '""') + '"';
   }

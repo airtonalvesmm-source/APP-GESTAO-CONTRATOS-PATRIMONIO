@@ -1,5 +1,13 @@
 // Utilidades de formatação e cálculo para o DMP
 
+// Escapa HTML para prevenção de XSS em relatórios gerados via document.write
+export const escHtml = (s) => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
 export const fmtM = (n) => (Number(n) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtQ = (n) => (Number(n) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 export const fmtData = (d) => { if (!d) return "—"; const p = String(d).split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d; };
@@ -142,9 +150,13 @@ export function totaisPagamento(c, pagamentos, ocorrencias) {
   return { ps, nf, pago, retido, empenhado, aPagar };
 }
 
-// CSV
+// CSV — previne injeção de fórmula em planilhas (Excel, Calc, LibreOffice)
+// Valores que começam com =, +, -, @, tab ou CR são prefixados com apóstrofo.
+// O dado original no banco não é alterado — apenas o CSV exportado recebe o prefixo.
+const PREFIXO_FORMULA = /^[=+\-@\t\r]/;
 export const csvLinha = (linhas) => "\uFEFF" + linhas.map(l => l.map(c => {
-  const t = String(c == null ? "" : c);
+  let t = String(c == null ? "" : c);
+  if (PREFIXO_FORMULA.test(t)) t = "'" + t;
   return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 }).join(";")).join("\r\n");
 

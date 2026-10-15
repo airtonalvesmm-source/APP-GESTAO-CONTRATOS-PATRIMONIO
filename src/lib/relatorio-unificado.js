@@ -1,5 +1,5 @@
 // Geração do relatório unificado de Contratos e Pagamentos
-import { fmtM, fmtData, valorEmpenhado, fimVigente, ocorrenciasDe, totaisPagamento, baixarCSV } from "./dmp-utils";
+import { fmtM, fmtData, valorEmpenhado, fimVigente, ocorrenciasDe, totaisPagamento, baixarCSV, escHtml } from "./dmp-utils";
 import { FALTAS } from "./dmp-data";
 
 // Monta as linhas do relatório no formato da planilha de referência
@@ -47,12 +47,12 @@ export function exportarRelatorioUnificado(contratos, pagamentos, ocorrencias, a
 export function htmlRelatorioUnificado(contratos, pagamentos, ocorrencias, atas) {
   const linhas = linhasRelatorioUnificado(contratos, pagamentos, ocorrencias, atas);
   const [header, ...rows] = linhas;
-  const ths = header.map(h => `<th>${h}</th>`).join("");
+  const ths = header.map(h => `<th>${escHtml(h)}</th>`).join("");
   const trs = rows.map(r => {
     const atrasoSim = r[15] === "Sim";
     return "<tr>" + r.map((c, i) => {
       const cls = (i === 15 && atrasoSim) ? ' style="background:#FF8C00;color:#fff;font-weight:bold;text-align:center;"' : (i === 14 ? ' style="text-align:center;"' : "");
-      return `<td${cls}>${c}</td>`;
+      return `<td${cls}>${escHtml(c)}</td>`;
     }).join("") + "</tr>";
   }).join("");
   const total = rows.length;

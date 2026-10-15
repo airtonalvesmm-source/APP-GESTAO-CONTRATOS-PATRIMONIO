@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ORDEM, UNIDADES_ORCAMENTARIAS, SITUACOES_OBJETO, URGENCIAS } from "@/lib/dmp-data";
-import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV, contratoAtivo } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV, contratoAtivo, escHtml } from "@/lib/dmp-utils";
 import { agruparBensPorSubcategoria } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -718,7 +718,7 @@ function VisualizarDFD({ f, data, onClose }) {
     if (!conteudo) return;
     const w = window.open("", "_blank");
     if (!w) return alert("O navegador bloqueou a nova aba. Permita pop-ups para imprimir.");
-    w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>DFD — ${f.processo}</title>
+    w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>DFD — ${escHtml(f.processo)}</title>
       <style>
         body { font-family: Georgia, serif; color: #1B2430; max-width: 900px; margin: 0 auto; padding: 14mm; }
         h2 { font-family: Arial, sans-serif; font-size: 16px; text-align: center; }

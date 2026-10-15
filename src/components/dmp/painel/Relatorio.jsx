@@ -1,4 +1,4 @@
-import { fmtM, fmtQ, fmtData } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, fmtData, escHtml } from "@/lib/dmp-utils";
 import { fmtCurto, fmtPct, fmtRs, calcPlanejado, calcContratado, calcSaldoAtasDetalhado, calcAPagar, calcPlanejamentoFunil, calcExecucaoAtas, calcEconomiaCobertura, calcTopFornecedores, calcRiscoVencidas, calcRiscoVencendo, calcPendencias } from "@/lib/painel-calc";
 
 export function gerarRelatorioPDF(data, ano) {
@@ -110,7 +110,7 @@ ${eco.cobertura >= 80 ? `<div class="secao">
   <h2>5. Concentração de Fornecedores — Top 5</h2>
   ${top5.length ? `<table>
     <tr><th>#</th><th>Fornecedor</th><th class="num">Empenhado</th><th class="num">%</th></tr>
-    ${top5.map((forn, i) => `<tr><td>${i + 1}</td><td>${forn.nome}</td><td class="num">${fmtRs(forn.valor)}</td><td class="num">${fmtPct(total ? forn.valor / total * 100 : 0)}</td></tr>`).join("")}
+    ${top5.map((forn, i) => `<tr><td>${i + 1}</td><td>${escHtml(forn.nome)}</td><td class="num">${fmtRs(forn.valor)}</td><td class="num">${fmtPct(total ? forn.valor / total * 100 : 0)}</td></tr>`).join("")}
   </table>
   <p style="font-size:11px;margin-top:6px">Os 5 maiores concentram ${fmtPct(total ? top5.reduce((t, x) => t + x.valor, 0) / total * 100 : 0)} do valor empenhado.</p>` : "<p>Nenhum contrato lançado.</p>"}
 </div>
@@ -119,7 +119,7 @@ ${eco.cobertura >= 80 ? `<div class="secao">
   <h2>6. Saldo de Ata Não Aproveitado</h2>
   ${vencidas.length ? `<table>
     <tr><th>Ata</th><th>Fornecedor</th><th class="num">Un. em saldo</th><th class="num">Saldo (R$)</th><th>Vencimento</th></tr>
-    ${vencidas.map(x => `<tr><td>${x.a.numero}</td><td>${x.a.fornecedor || "—"}</td><td class="num">${fmtQ(x.qtdSaldo)}</td><td class="num critico">${fmtRs(x.sal)}</td><td>${fmtData(x.a.fim)}</td></tr>`).join("")}
+    ${vencidas.map(x => `<tr><td>${escHtml(x.a.numero)}</td><td>${escHtml(x.a.fornecedor || "—")}</td><td class="num">${fmtQ(x.qtdSaldo)}</td><td class="num critico">${fmtRs(x.sal)}</td><td>${fmtData(x.a.fim)}</td></tr>`).join("")}
   </table>
   <p style="font-size:11px;margin-top:6px" class="critico">Total: ${fmtRs(vencidas.reduce((t, x) => t + x.sal, 0))} em ${vencidas.length} atas encerradas.</p>` : "<p class='ok'>✓ Nenhuma ata encerrada com saldo.</p>"}
 </div>
@@ -128,7 +128,7 @@ ${eco.cobertura >= 80 ? `<div class="secao">
   <h2>7. Atas em Risco (90 dias)</h2>
   ${vencendo.length ? `<table>
     <tr><th>Ata</th><th>Fornecedor</th><th class="num">Saldo (R$)</th><th>Vencimento</th><th>Dias</th></tr>
-    ${vencendo.map(x => `<tr><td>${x.a.numero}</td><td>${x.a.fornecedor || "—"}</td><td class="num aviso">${fmtRs(x.sal)}</td><td>${fmtData(x.a.fim)}</td><td class="num">${x.dias}</td></tr>`).join("")}
+    ${vencendo.map(x => `<tr><td>${escHtml(x.a.numero)}</td><td>${escHtml(x.a.fornecedor || "—")}</td><td class="num aviso">${fmtRs(x.sal)}</td><td>${fmtData(x.a.fim)}</td><td class="num">${x.dias}</td></tr>`).join("")}
   </table>` : "<p class='ok'>✓ Nenhuma ata em risco nos próximos 90 dias.</p>"}
 </div>
 
@@ -141,7 +141,7 @@ ${eco.cobertura >= 80 ? `<div class="secao">
   </table>
   ${naoPagos.length ? `<table style="margin-top:8px">
     <tr><th>Contrato</th><th>Fornecedor</th><th class="num">A pagar</th><th>Encerrado em</th></tr>
-    ${naoPagos.slice(0, 10).map(x => `<tr><td>${x.c.tipo} ${x.c.numero}</td><td>${x.c.fornecedor || "—"}</td><td class="num critico">${fmtRs(x.aPagar)}</td><td>${fmtData(x.fim)}</td></tr>`).join("")}
+    ${naoPagos.slice(0, 10).map(x => `<tr><td>${escHtml(x.c.tipo)} ${escHtml(x.c.numero)}</td><td>${escHtml(x.c.fornecedor || "—")}</td><td class="num critico">${fmtRs(x.aPagar)}</td><td>${fmtData(x.fim)}</td></tr>`).join("")}
   </table>` : "<p class='ok'>✓ Nenhum contrato com vigência encerrada e valor pendente.</p>"}
 </div>
 
