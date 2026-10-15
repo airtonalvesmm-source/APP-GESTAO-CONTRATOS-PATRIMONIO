@@ -10,6 +10,7 @@ import Fornecedores from "@/components/dmp/Fornecedores";
 import Painel from "@/components/dmp/Painel";
 import CentralAlertas from "@/components/dmp/CentralAlertas";
 import Estoque from "@/components/dmp/Estoque";
+import BackupCompleto from "@/components/dmp/BackupCompleto";
 
 const TABS = [
   { id: "painel", label: "Painel" },
@@ -76,7 +77,10 @@ export default function Home() {
             <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">MP-PI · CAA · Divisão de Material Permanente</p>
             <h1 className="text-[clamp(21px,3vw,29px)] font-bold tracking-tight leading-tight">Catálogo de bens e controle de contratações</h1>
           </div>
-          <CentralAlertas data={data} />
+          <div className="flex gap-2 items-center flex-wrap">
+            <CentralAlertas data={data} />
+            <BackupCompleto />
+          </div>
         </div>
         <nav className="max-w-[1200px] mx-auto px-5 pt-3.5 flex gap-0.5 flex-wrap">
           {TABS.map(t => (
