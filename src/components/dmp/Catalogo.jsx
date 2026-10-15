@@ -8,6 +8,7 @@ import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } fr
 import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
 import GerenciarSubcategorias from "./GerenciarSubcategorias";
+import { useAuth } from "@/lib/AuthContext";
 import GerenciarCategorias from "./GerenciarCategorias";
 import { Plus, Upload, Check, BarChart3, Tags, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,8 @@ const ORD_CATALOGO = {
 
 export default function Catalogo({ data, refresh }) {
   const { catalog } = data;
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [categoriaAtiva, setCategoriaAtiva] = useState("Todas");
   const [subcatAtiva, setSubcatAtiva] = useState("");
   const [termo, setTermo] = useState("");
@@ -80,7 +83,7 @@ export default function Catalogo({ data, refresh }) {
 
   async function restaurarOcultos() {
     if (!confirm(`Restaurar os ${ocultos.length} itens excluídos?`)) return;
-    await base44.asServiceRole.entities.CatalogItem.updateMany({ oculto: true }, { $set: { oculto: false } });
+    await base44.functions.invoke("restaurarCatalogo", {});
     await refresh();
   }
 
@@ -192,7 +195,7 @@ export default function Catalogo({ data, refresh }) {
               </select>
             </Campo>
           </div>
-          {ocultos.length > 0 && (
+          {ocultos.length > 0 && isAdmin && (
             <MiniBtn onClick={restaurarOcultos}>{ocultos.length} item(ns) excluído(s) — restaurar</MiniBtn>
           )}
           <button onClick={() => { setModoSelecao(m => !m); if (modoSelecao) limparSelecao(); }}
