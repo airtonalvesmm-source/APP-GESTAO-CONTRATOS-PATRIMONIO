@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { ORDEM } from "@/lib/dmp-data";
 import { fmtM, fmtQ, nQtd, nVal, anoAtual } from "@/lib/dmp-utils";
-import { agruparBensPorSubcategoria } from "@/lib/subcat-utils";
+import { opcoesBensTodasCategorias } from "@/lib/subcat-utils";
 import { Btn, Campo, Modal, inputCls, textareaCls } from "../ui";
 
 export default function FormPCA({ r, data, exercicio, refresh, onClose, benId }) {
@@ -30,23 +29,11 @@ export default function FormPCA({ r, data, exercicio, refresh, onClose, benId })
     alert(r ? "Item atualizado." : "Item incluído no plano de " + dados.exercicio + ".");
   }
 
-  function opcoesBens() {
-    return ORDEM.map(c => {
-      const daCat = catalog.filter(b => b.categoria === c);
-      const grupos = agruparBensPorSubcategoria(daCat);
-      return <optgroup key={c} label={c}>{grupos.map(g => (
-        <optgroup key={c + "/" + g.subcategoria} label={g.subcategoria}>
-          {g.items.map(b => <option key={b.id} value={b.id} selected={b.id === form.benId}>{b.objeto}</option>)}
-        </optgroup>
-      ))}</optgroup>;
-    });
-  }
-
   return (
     <Modal sobre="Plano Anual de Contratações" titulo={r ? "Editar item do plano" : "Incluir item no plano"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar item</Btn></>}>
       <div className="grid gap-3 md:grid-cols-2 mb-3">
-        <Campo label="Item do catálogo"><select className={inputCls} value={form.benId} onChange={e => setF("benId", e.target.value)}>{opcoesBens()}</select></Campo>
+        <Campo label="Item do catálogo"><select className={inputCls} value={form.benId} onChange={e => setF("benId", e.target.value)}>{opcoesBensTodasCategorias(catalog, form.benId)}</select></Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Exercício"><input type="number" min="2020" max="2099" className={inputCls} value={form.exercicio} onChange={e => setF("exercicio", e.target.value)} /></Campo>
