@@ -5,6 +5,7 @@ import { fmtM, fmtData, nVal, norm, totaisPagamento, ocorrenciasDe, valorEmpenha
 import { Btn, Vazio } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import { usePodeEditar } from "@/lib/permissoes";
 import { FormOcorrencia } from "./Contratos";
 import { Plus } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria } from "./Agrupar";
@@ -13,6 +14,7 @@ import CartaoContrato from "./pagamentos/CartaoContrato";
 import FormPagamento from "./pagamentos/FormPagamento";
 
 export default function Pagamentos({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { contratos, ocorrencias, pagamentos, atas, catalog } = data;
   const [nfContratoId, setNfContratoId] = useState(null);
   const [editNfId, setEditNfId] = useState(null);
@@ -135,7 +137,7 @@ export default function Pagamentos({ data, refresh }) {
               return { contratoId: c.id, nf: rec.nf, dataNF: rec.dataNF, valorNF: rec.valorNF, valorPago: rec.valorPago || 0, dataPagamento: rec.dataPagamento, motivo: rec.motivo, situacao: rec.situacao || "Pendente" };
             }}
             ajuda="O campo 'Contrato' deve conter o número do contrato/empenho já cadastrado (ex.: '45/2026'). Linhas sem contrato correspondente serão ignoradas. Datas no formato dd/mm/aaaa." />
-          <Btn variant="forte" onClick={() => setNfContratoId(contratos[0]?.id || null)} disabled={contratos.length === 0}><Plus className="w-4 h-4 inline mr-1" />Lançar nota fiscal</Btn>
+          {podeEditar && <Btn variant="forte" onClick={() => setNfContratoId(contratos[0]?.id || null)} disabled={contratos.length === 0}><Plus className="w-4 h-4 inline mr-1" />Lançar nota fiscal</Btn>}
         </>} />
 
       {contratos.length === 0 ? (

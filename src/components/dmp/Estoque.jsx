@@ -96,12 +96,12 @@ export default function Estoque({ data, refresh }) {
         titulo="Estoque e patrimônio"
         desc="Bens patrimoniados entrada de contratos e notas fiscais entregues. Navegue por categoria, consulte a placa de tombamento e dê saída para os departamentos."
         direita={<>
-          <ImportarDepartamentos data={data} refresh={refresh} />
+          {isAdmin && <ImportarDepartamentos data={data} refresh={refresh} />}
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
-          <Btn variant="risco" onClick={() => setExcluir(true)} disabled={bens.length === 0}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>
-          <Btn onClick={() => setSaida(true)} disabled={totais.disp === 0 || departamentos.length === 0}><LogOut className="w-4 h-4 inline mr-1" />Dar saída</Btn>
-          <Btn variant="forte" onClick={() => setReserva(true)} disabled={totais.disp === 0 || departamentos.length === 0}><Bookmark className="w-4 h-4 inline mr-1" />Reservar</Btn>
-          <Btn onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>
+          {isAdmin && <Btn variant="risco" onClick={() => setExcluir(true)} disabled={bens.length === 0}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>}
+          {isAdmin && <Btn onClick={() => setSaida(true)} disabled={totais.disp === 0 || departamentos.length === 0}><LogOut className="w-4 h-4 inline mr-1" />Dar saída</Btn>}
+          {isAdmin && <Btn variant="forte" onClick={() => setReserva(true)} disabled={totais.disp === 0 || departamentos.length === 0}><Bookmark className="w-4 h-4 inline mr-1" />Reservar</Btn>}
+          {isAdmin && <Btn onClick={() => setEntrada(true)}><Plus className="w-4 h-4 inline mr-1" />Registrar entrada</Btn>}
         </>}
       />
 

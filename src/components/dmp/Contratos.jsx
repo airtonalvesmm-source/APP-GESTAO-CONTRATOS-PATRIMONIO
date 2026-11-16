@@ -8,12 +8,14 @@ import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import { usePodeEditar } from "@/lib/permissoes";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 import RelatorioUnificado from "./RelatorioUnificado";
 import { BarChart3 } from "lucide-react";
 
 export default function Contratos({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { contratos, atas, catalog, pca, ocorrencias, pagamentos } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
@@ -182,7 +184,7 @@ export default function Contratos({ data, refresh }) {
                           <td className="px-3 py-2.5"><Pill tipo={FALTAS.includes(o.tipo) ? "critico" : "neutro"}>{o.tipo}</Pill></td>
                           <td className="px-3 py-2.5 text-sm text-slate-600 max-w-[34ch]">{o.descricao || "—"}{o.processo ? <><br /><span className="font-mono text-xs">{o.processo}</span></> : ""}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm">{o.tipo === "Aditivo de prazo" ? `+${fmtQ(o.dias)} dias` : (nValS(o.valor) ? `R$ ${fmtM(nValS(o.valor))}` : "—")}</td>
-                          <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => excluirOcorrencia(o)}>Excluir</MiniBtn></td>
+                          {podeEditar && <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => excluirOcorrencia(o)}>Excluir</MiniBtn></td>}
                         </tr>
                       ))}
                     </tbody>
@@ -191,9 +193,9 @@ export default function Contratos({ data, refresh }) {
               </>
             )}
             <div className="flex gap-2 flex-wrap mt-3.5">
-              <MiniBtn onClick={() => setEditId(c.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
+              {podeEditar && <><MiniBtn onClick={() => setEditId(c.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
               <MiniBtn onClick={() => setOcorrContratoId(c.id)}>Registrar aditivo ou ocorrência</MiniBtn>
-              <MiniBtn variant="risco" onClick={() => excluir(c)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
+              <MiniBtn variant="risco" onClick={() => excluir(c)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn></>}
             </div>
           </div>
         )}
@@ -227,7 +229,7 @@ export default function Contratos({ data, refresh }) {
               return { tipo: rec.tipo || "Contrato", numero: rec.numero, processo: rec.processo, notaEmpenho: rec.notaEmpenho, ataId: a.id, fornecedorId: a.fornecedorId || "", fornecedor: a.fornecedor, cnpj: a.cnpj, objeto: rec.objeto, situacao: rec.situacao || "Vigente", statusEntrega: rec.statusEntrega || "Aguardando entrega", inicio: rec.inicio, fim: rec.fim, itens: [] };
             }}
             ajuda="O número da ata deve já estar cadastrado. O fornecedor e CNPJ virão da ata vinculada. O contrato será criado sem itens — edite-o depois para lançar os itens (o saldo da ata será baixado). Datas no formato dd/mm/aaaa." />
-          <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>
+          {podeEditar && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar contrato</Btn>}
         </>} />
 
       {contratos.length === 0 ? (

@@ -11,6 +11,7 @@ import Painel from "@/components/dmp/Painel";
 import CentralAlertas from "@/components/dmp/CentralAlertas";
 import Estoque from "@/components/dmp/Estoque";
 import BackupCompleto from "@/components/dmp/BackupCompleto";
+import { usePodeEditar } from "@/lib/permissoes";
 
 const TABS = [
   { id: "painel", label: "Painel" },
@@ -25,6 +26,7 @@ const TABS = [
 ];
 
 export default function Home() {
+  const podeEditar = usePodeEditar();
   const [tab, setTab] = useState("painel");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -78,6 +80,7 @@ export default function Home() {
             <h1 className="text-[clamp(21px,3vw,29px)] font-bold tracking-tight leading-tight">Catálogo de bens e controle de contratações</h1>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
+            {!podeEditar && <span className="font-mono text-[10px] tracking-widest uppercase border border-slate-600 text-slate-300 rounded-sm px-2 py-1" title="Seu perfil permite consultar os dados e exportar relatórios, sem editar registros.">Perfil de consulta</span>}
             <CentralAlertas data={data} />
             <BackupCompleto />
           </div>

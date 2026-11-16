@@ -7,8 +7,10 @@ import { Modal, Btn, Campo, Vazio, Pill, inputCls } from "../ui";
 import { Desenho } from "../Desenho";
 import { Plus, Search, Bookmark, XCircle, CheckCircle2, Trash2, Pencil } from "lucide-react";
 import FormReserva from "./FormReserva";
+import { usePodeEditar } from "@/lib/permissoes";
 
 export default function Reservas({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { catalog, departamentos, bens, reservas } = data;
   const [termo, setTermo] = useState("");
   const [filtro, setFiltro] = useState("ativa");
@@ -65,9 +67,9 @@ export default function Reservas({ data, refresh }) {
             </button>
           ))}
         </div>
-        <Btn variant="forte" onClick={() => setCriar(true)} disabled={departamentos.length === 0}>
+        {podeEditar && <Btn variant="forte" onClick={() => setCriar(true)} disabled={departamentos.length === 0}>
           <Plus className="w-4 h-4 inline mr-1" />Reservar
-        </Btn>
+        </Btn>}
       </div>
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] mb-5">
@@ -112,7 +114,7 @@ export default function Reservas({ data, refresh }) {
                     <td className="px-3 py-2"><Pill tipo={r.situacao === "ativa" ? "aviso" : r.situacao === "atendida" ? "ok" : "neutro"}>{r.situacao}</Pill></td>
                     <td className="px-3 py-2 font-sans text-[12px] text-slate-500 max-w-[220px] truncate" title={r.observacao || ""}>{r.observacao || "—"}</td>
                     <td className="px-3 py-2 text-right">
-                      {r.situacao === "ativa" && (
+                      {r.situacao === "ativa" && podeEditar && (
                         <div className="inline-flex gap-1.5 justify-end">
                           <Btn onClick={() => setEditando(r)} className="!px-2 !py-1 !text-[11.5px]"><Pencil className="w-3.5 h-3.5 inline mr-1" />Editar</Btn>
                           <Btn variant="forte" onClick={() => setConcluindo(r)} className="!px-2 !py-1 !text-[11.5px]"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />Concluir</Btn>

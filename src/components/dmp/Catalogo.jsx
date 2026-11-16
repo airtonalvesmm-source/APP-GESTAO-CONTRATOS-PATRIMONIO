@@ -10,6 +10,7 @@ import Cadeia from "./Cadeia";
 import FormPCA from "./pca/FormPCA";
 import GerenciarSubcategorias from "./GerenciarSubcategorias";
 import { useAuth } from "@/lib/AuthContext";
+import { usePodeEditar } from "@/lib/permissoes";
 import GerenciarCategorias from "./GerenciarCategorias";
 import { Plus, Upload, Check, BarChart3, Tags, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -144,8 +145,8 @@ export default function Catalogo({ data, refresh }) {
         titulo="Catálogo de bens permanentes"
         desc="Cada item traz PDM, CATMAT, aplicação e especificação técnica. A ilustração pode ser trocada por foto real a qualquer momento."
         direita={<>
-          <Btn onClick={() => setGerenciarCats(true)}><Tags className="w-4 h-4 inline mr-1" />Categorias</Btn>
-          <Btn onClick={() => setGerenciarSubs(true)}><Tags className="w-4 h-4 inline mr-1" />Subcategorias</Btn>
+          {isAdmin && <Btn onClick={() => setGerenciarCats(true)}><Tags className="w-4 h-4 inline mr-1" />Categorias</Btn>}
+          {isAdmin && <Btn onClick={() => setGerenciarSubs(true)}><Tags className="w-4 h-4 inline mr-1" />Subcategorias</Btn>}
           <Btn onClick={exportCSV}>Baixar CSV</Btn>
           <ImportarCSV entityName="CatalogItem" refresh={refresh}
             existentes={catalog} chave={r => norm(r.catmat) + "|" + norm(r.objeto)}
@@ -162,7 +163,7 @@ export default function Catalogo({ data, refresh }) {
               { header: "Foto (URL)", campo: "imagem" }
             ]}
             ajuda="A categoria deve ser uma das: Climatização, Eletroeletrônicos, Mobiliário, Segurança. A subcategoria é livre e serve para agrupar itens dentro da categoria. A ilustração é opcional (padrão: generico)." />
-          <Btn variant="forte" onClick={() => setEditId("novo")}><Plus className="w-4 h-4 inline mr-1" />Adicionar item</Btn>
+          {isAdmin && <Btn variant="forte" onClick={() => setEditId("novo")}><Plus className="w-4 h-4 inline mr-1" />Adicionar item</Btn>}
         </>}
       />
 
@@ -200,11 +201,11 @@ export default function Catalogo({ data, refresh }) {
           {ocultos.length > 0 && isAdmin && (
             <MiniBtn onClick={restaurarOcultos}>{ocultos.length} item(ns) excluído(s) — restaurar</MiniBtn>
           )}
-          <button onClick={() => { setModoSelecao(m => !m); if (modoSelecao) limparSelecao(); }}
+          {isAdmin && <button onClick={() => { setModoSelecao(m => !m); if (modoSelecao) limparSelecao(); }}
             className={`border rounded-sm px-3 py-1.5 cursor-pointer font-sans font-semibold text-[13px] flex items-center gap-1.5 transition-colors
               ${modoSelecao ? "bg-amber-700 border-amber-700 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
             <Check className="w-3.5 h-3.5" />{modoSelecao ? "Seleção ativa" : "Selecionar itens"}
-          </button>
+          </button>}
           <span className="font-mono text-[11px] tracking-wider uppercase text-slate-500 ml-auto">
             {filtrados.length} {filtrados.length === 1 ? "item" : "itens"}
           </span>
@@ -316,6 +317,7 @@ function Cartao({ b, onClick, modoSelecao, selecionado, onToggleSelect }) {
 }
 
 function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelatorio, onAdicionarPCA }) {
+  const podeEditar = usePodeEditar();
   const [desc, setDesc] = useState(b.descricao || "");
   const [imgUrl, setImgUrl] = useState(b.imagem || "");
   const [arteSel, setArteSel] = useState(b.arte || "generico");
@@ -363,11 +365,11 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
   return (
     <Modal sobre={b.categoria} titulo={b.objeto} onClose={onClose}
       footer={<>
-        <Btn variant="risco" onClick={() => onExcluir(b)}>Excluir do catálogo</Btn>
+        {podeEditar && <Btn variant="risco" onClick={() => onExcluir(b)}>Excluir do catálogo</Btn>}
         <Btn onClick={onCadeia}>Ver cadeia</Btn>
         <Btn onClick={onRelatorio}>Relatório estatístico</Btn>
-        <Btn onClick={onAdicionarPCA}><Plus className="w-4 h-4 inline mr-1" />Adicionar ao PCA</Btn>
-        <Btn onClick={onEdit}>Editar dados</Btn>
+        {podeEditar && <Btn onClick={onAdicionarPCA}><Plus className="w-4 h-4 inline mr-1" />Adicionar ao PCA</Btn>}
+        {podeEditar && <Btn onClick={onEdit}>Editar dados</Btn>}
         <Btn variant="forte" onClick={onClose}>Fechar</Btn>
       </>}>
       <div className="grid gap-5 md:grid-cols-[290px_minmax(0,1fr)]">
@@ -375,7 +377,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
           <div className="aspect-[4/3] border border-slate-300 rounded-sm overflow-hidden bg-[repeating-linear-gradient(45deg,#F4F6F2_0_6px,#EDF0EB_6px_12px)] flex items-center justify-center text-stone-500">
             {imgUrl ? <img src={imgUrl} alt={b.objeto} className="w-full h-full object-cover" /> : <Desenho arte={arteSel} />}
           </div>
-          <div className="flex gap-2 flex-wrap mt-2">
+          {podeEditar && <div className="flex gap-2 flex-wrap mt-2">
             {imgUrl ? (
               <>
                 <MiniBtn><label className="cursor-pointer">Trocar foto<input type="file" accept="image/*" onChange={uploadFoto} className="hidden" /></label></MiniBtn>
@@ -388,7 +390,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
                 <MiniBtn onClick={() => setShowArte(true)}>Trocar ilustração</MiniBtn>
               </>
             )}
-          </div>
+          </div>}
           <p className="font-sans text-[12px] text-slate-500 mt-2">
             {imgUrl ? "Foto enviada por você." : "Ilustração padrão: " + (NOMES_ARTE[arteSel] || "genérica") + "."}
           </p>
@@ -409,11 +411,11 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
           </div>
           <div className="mb-5">
             <h4 className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500 mb-2">Especificação técnica</h4>
-            <textarea className={textareaCls} style={{ minHeight: 130 }} value={desc} onChange={e => setDesc(e.target.value)} />
-            <div className="flex gap-2 flex-wrap mt-3">
+            <textarea className={textareaCls} style={{ minHeight: 130 }} value={desc} readOnly={!podeEditar} onChange={e => setDesc(e.target.value)} />
+            {podeEditar && <div className="flex gap-2 flex-wrap mt-3">
               <Btn onClick={salvarDesc}>Salvar especificação</Btn>
               <Btn onClick={restaurarDesc}>Restaurar original</Btn>
-            </div>
+            </div>}
           </div>
           {b.nota && (
             <div className="mb-5">

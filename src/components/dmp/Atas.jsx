@@ -6,11 +6,13 @@ import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from 
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import { usePodeEditar } from "@/lib/permissoes";
 import { Plus, ChevronDown, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 import { BadgeContratos, TabelaContratosDaAta } from "./ContratosDaAta";
 
 export default function Atas({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { atas, contratos, catalog, licitacoes, fornecedores } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
@@ -144,8 +146,8 @@ export default function Atas({ data, refresh }) {
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-5 mb-2">Contratos vinculados</p>
             <TabelaContratosDaAta ata={a} contratos={contratos} ocorrencias={data.ocorrencias} />
             <div className="flex gap-2 flex-wrap mt-3.5">
-              <MiniBtn onClick={() => setEditId(a.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar ata</MiniBtn>
-              <MiniBtn variant="risco" onClick={() => excluir(a)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
+              {podeEditar && <><MiniBtn onClick={() => setEditId(a.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar ata</MiniBtn>
+              <MiniBtn variant="risco" onClick={() => excluir(a)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn></>}
             </div>
           </div>
         )}
@@ -175,7 +177,7 @@ export default function Atas({ data, refresh }) {
               return { numero: rec.numero, processo: rec.processo, gerenciador: rec.gerenciador, categoria: rec.categoria, fornecedorId: f.id, fornecedor: f.razao, cnpj: f.cnpj, inicio: rec.inicio, fim: rec.fim, itens: [] };
             }}
             ajuda="O CNPJ do fornecedor deve já estar cadastrado em Fornecedores. A ata será criada sem itens — edite-a depois para registrar os itens e quantidades. Datas no formato dd/mm/aaaa." />
-          <Btn variant="forte" onClick={() => setNovo(true)} disabled={fornecedores.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar ata</Btn>
+          {podeEditar && <Btn variant="forte" onClick={() => setNovo(true)} disabled={fornecedores.length === 0}><Plus className="w-4 h-4 inline mr-1" />Cadastrar ata</Btn>}
         </>} />
 
       {fornecedores.length === 0 && <div className="border border-amber-300 bg-amber-50 rounded-sm px-4 py-3 text-sm text-amber-900 mb-4">Cadastre um fornecedor antes de registrar atas.</div>}

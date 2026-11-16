@@ -5,8 +5,10 @@ import { ORDEM } from "@/lib/dmp-data";
 import { Modal, Btn, Vazio, Pill, inputCls } from "../ui";
 import { Search, Pencil, Download } from "lucide-react";
 import EditarRegistro from "./EditarRegistro";
+import { usePodeEditar } from "@/lib/permissoes";
 
 export default function RegistrosEntrada({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { catalog, contratos, departamentos, bens, categorias } = data;
   const [termo, setTermo] = useState("");
   const [categoria, setCategoria] = useState("Todas");
@@ -91,12 +93,12 @@ export default function RegistrosEntrada({ data, refresh }) {
                   <td className="px-3 py-2 font-mono text-[12px] text-slate-500">{fmtData(u.dataEntrada)}</td>
                   <td className="px-3 py-2"><Pill tipo={u.situacao === "em estoque" ? "ok" : "neutro"}>{u.situacao}</Pill></td>
                   <td className="px-3 py-2 font-sans text-[12.5px] text-slate-600">{d ? caminhoDepartamento(d, departamentos) : "—"}</td>
-                  <td className="px-3 py-2 text-center">
+                  {podeEditar && <td className="px-3 py-2 text-center">
                     <button onClick={() => setEditId(u.id)} title="Editar registro"
                       className="text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-sm p-1 transition-colors">
                       <Pencil className="w-4 h-4" />
                     </button>
-                  </td>
+                  </td>}
                 </tr>
               ))}
             </tbody>

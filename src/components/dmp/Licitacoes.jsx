@@ -5,11 +5,13 @@ import { fmtM, fmtQ, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/l
 import { Btn, MiniBtn, Campo, Vazio, Pill, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import { usePodeEditar } from "@/lib/permissoes";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 import { LinhaAtaExpansivel, BadgeContratos } from "./ContratosDaAta";
 
 export default function Licitacoes({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { licitacoes, atas, contratos, ocorrencias } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
@@ -119,8 +121,8 @@ export default function Licitacoes({ data, refresh }) {
               <Vazio titulo="Nenhuma ata vinculada" texto="Ao cadastrar a ata, escolha este certame em 'Licitação de origem'." />
             )}
             <div className="flex gap-2 flex-wrap mt-3.5">
-              <MiniBtn onClick={() => setEditId(l.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
-              <MiniBtn variant="risco" onClick={() => excluir(l)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn>
+              {podeEditar && <><MiniBtn onClick={() => setEditId(l.id)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>
+              <MiniBtn variant="risco" onClick={() => excluir(l)}><Trash2 className="w-3 h-3 inline mr-1" />Excluir</MiniBtn></>}
             </div>
           </div>
         )}
@@ -147,7 +149,7 @@ export default function Licitacoes({ data, refresh }) {
               { header: "Valor global", campo: "valorGlobal", tipo: "number" }
             ]}
             ajuda="Categoria deve ser: Mobiliário, Segurança, Climatização ou Eletroeletrônicos. Status e modalidade conforme listas do sistema." />
-          <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar licitação</Btn>
+          {podeEditar && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar licitação</Btn>}
         </>} />
 
       {licitacoes.length === 0 ? (

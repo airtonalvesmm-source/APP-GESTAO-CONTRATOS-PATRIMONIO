@@ -8,9 +8,11 @@ import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
 import FormPCA from "./pca/FormPCA";
 import { Plus, Pencil, Trash2, FileText, Printer, Sparkles } from "lucide-react";
+import { usePodeEditar } from "@/lib/permissoes";
 
 export default function PlanoAnual({ data, refresh }) {
   const { pca, catalog, contratos, dfds } = data;
+  const podeEditar = usePodeEditar();
   const [exercicio, setExercicio] = useState(anoAtual);
   const [modo, setModo] = useState("plan"); // plan, exec, dfd
   const [editId, setEditId] = useState(null);
@@ -122,8 +124,8 @@ export default function PlanoAnual({ data, refresh }) {
           <ModoBtn ativo={modo === "plan"} onClick={() => setModo("plan")}>Planejamento</ModoBtn>
           <ModoBtn ativo={modo === "exec"} onClick={() => setModo("exec")}>Execução</ModoBtn>
           <ModoBtn ativo={modo === "dfd"} onClick={() => setModo("dfd")}>DFDs</ModoBtn>
-          {modo === "plan" && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Incluir item</Btn>}
-          {modo === "dfd" && <Btn variant="forte" onClick={() => setDfdNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Emitir novo DFD</Btn>}
+          {modo === "plan" && podeEditar && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Incluir item</Btn>}
+          {modo === "dfd" && podeEditar && <Btn variant="forte" onClick={() => setDfdNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Emitir novo DFD</Btn>}
           {modo !== "dfd" && <Btn onClick={() => modo === "exec" ? csvExecucao() : csvPlano()}>Baixar CSV</Btn>}
           {modo === "plan" && <ImportarCSV entityName="PCAItem" refresh={refresh} data={data}
             existentes={pca} chave={r => r.benId + "|" + (+r.exercicio)}
@@ -194,7 +196,7 @@ export default function PlanoAnual({ data, refresh }) {
                                 <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(t)}</td>
                                 <td className="px-3 py-2.5">{sob.tipo === "nenhum" ? <Pill tipo="ok">Ativo</Pill> : <Pill tipo={sob.classe}>{sob.txt}</Pill>}</td>
                                 {temJust && <td className="px-3 py-2.5 text-sm text-slate-500 max-w-[34ch]">{p.justificativa || "—"}</td>}
-                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setCadeiaBenId(p.benId)}>Cadeia</MiniBtn> <MiniBtn onClick={() => setSobrestarId(p.id)}>Sobrestar</MiniBtn> <MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></td>
+                                <td className="px-3 py-2.5 whitespace-nowrap"><MiniBtn onClick={() => setCadeiaBenId(p.benId)}>Cadeia</MiniBtn> {podeEditar && <><MiniBtn onClick={() => setSobrestarId(p.id)}>Sobrestar</MiniBtn> <MiniBtn onClick={() => setEditId(p.id)}>Editar</MiniBtn> <MiniBtn variant="risco" onClick={() => excluirItem(p)}>Excluir</MiniBtn></>}</td>
                               </tr>
                             );
                           })}
@@ -408,6 +410,7 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
 }
 
 function DFDList({ dfds, pca, catalog, refresh, onEdit, onVisualizar }) {
+  const podeEditar = usePodeEditar();
   const [abertos, setAbertos] = useState(new Set());
   function bem(id) { return catalog.find(b => b.id === id) || { objeto: "(removido)", catmat: "—" }; }
   function totalDFD(itensIds) {
@@ -446,8 +449,8 @@ function DFDList({ dfds, pca, catalog, refresh, onEdit, onVisualizar }) {
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   <Btn variant="forte" onClick={() => onVisualizar(f.id)}><Printer className="w-4 h-4 inline mr-1" />Pré-visualizar e imprimir</Btn>
-                  <Btn onClick={() => onEdit(f.id)}><Pencil className="w-4 h-4 inline mr-1" />Editar</Btn>
-                  <Btn variant="risco" onClick={() => excluir(f)}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>
+                  {podeEditar && <Btn onClick={() => onEdit(f.id)}><Pencil className="w-4 h-4 inline mr-1" />Editar</Btn>}
+                  {podeEditar && <Btn variant="risco" onClick={() => excluir(f)}><Trash2 className="w-4 h-4 inline mr-1" />Excluir</Btn>}
                 </div>
               </div>
             )}

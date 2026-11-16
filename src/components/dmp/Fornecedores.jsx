@@ -5,10 +5,12 @@ import { CAT_ARP } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, inputCls, Modal } from "./ui";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
+import { usePodeEditar } from "@/lib/permissoes";
 import { valorEmpenhado } from "@/lib/dmp-utils";
 import { Plus } from "lucide-react";
 
 export default function Fornecedores({ data, refresh }) {
+  const podeEditar = usePodeEditar();
   const { fornecedores, atas, contratos, ocorrencias } = data;
   const [editId, setEditId] = useState(null);
   const [novo, setNovo] = useState(false);
@@ -51,7 +53,7 @@ export default function Fornecedores({ data, refresh }) {
               { header: "Categoria", campo: "categoria" }
             ]}
             ajuda="Cadastre fornecedores em lote. A razão social é obrigatória; o CNPJ e a categoria são opcionais. Categoria deve ser: Mobiliário, Segurança, Climatização ou Eletroeletrônicos." />
-          <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar fornecedor</Btn>
+          {podeEditar && <Btn variant="forte" onClick={() => setNovo(true)}><Plus className="w-4 h-4 inline mr-1" />Cadastrar fornecedor</Btn>}
         </>} />
 
       {fornecedores.length === 0 ? (
@@ -92,8 +94,8 @@ export default function Fornecedores({ data, refresh }) {
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{cts.length}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(valor)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <MiniBtn onClick={() => setEditId(f.id)}>Editar</MiniBtn>{" "}
-                      <MiniBtn variant="risco" onClick={() => excluir(f)}>Excluir</MiniBtn>
+                      {podeEditar && <><MiniBtn onClick={() => setEditId(f.id)}>Editar</MiniBtn>{" "}
+                      <MiniBtn variant="risco" onClick={() => excluir(f)}>Excluir</MiniBtn></>}
                     </td>
                   </tr>
                 );

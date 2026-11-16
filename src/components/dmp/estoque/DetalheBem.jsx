@@ -206,7 +206,7 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
                           <td className="px-3 py-2"><Pill tipo={emEstoque ? "ok" : "neutro"}>{u.situacao}</Pill></td>
                           <td className="px-3 py-2 font-sans text-[12.5px]">{d ? caminhoDepartamento(d, departamentos) : "—"}</td>
                           <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
-                            {(isAdmin || emEstoque) && sel !== u.id ? (
+                            {isAdmin && sel !== u.id ? (
                               <button onClick={() => excluirUnidade(u)} disabled={salvando}
                                 title={emEstoque ? "Excluir unidade" : "Excluir unidade (já transferida)"}
                                 className="text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-sm p-1 transition-colors disabled:opacity-40">

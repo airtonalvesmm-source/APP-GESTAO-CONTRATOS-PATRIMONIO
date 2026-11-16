@@ -4,6 +4,7 @@ import { parsearCSV } from "@/lib/dmp-utils";
 import { mapearLinhas, separarDuplicados, semVazios } from "@/lib/csv-import";
 import { Modal, Btn, Campo } from "./ui";
 import { Upload, FileSpreadsheet } from "lucide-react";
+import { usePodeEditar } from "@/lib/permissoes";
 
 /**
  * Botão que abre um modal de importação CSV.
@@ -17,6 +18,9 @@ export default function ImportarCSV({ entityName, colunas, refresh, label = "Imp
   const [preview, setPreview] = useState(null);
   const [pendente, setPendente] = useState(null);
   const fileRef = useRef(null);
+  // Importação cria/altera registros: disponível apenas para administradores.
+  const podeEditar = usePodeEditar();
+  if (!podeEditar) return null;
 
   function reset() {
     setStatus(""); setErro(""); setPreview(null); setPendente(null);

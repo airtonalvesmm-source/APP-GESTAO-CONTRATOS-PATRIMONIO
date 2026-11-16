@@ -38,8 +38,8 @@ export default function NotasFiscais({ t, onEditar, onExcluir }) {
                 <td className="px-3 py-2.5 font-mono text-xs">{fmtData(p.dataPagamento)}</td>
                 <td className="px-3 py-2.5"><Pill tipo={PILL[p.situacao] || "neutro"}>{p.situacao || "Pendente"}</Pill></td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <MiniBtn onClick={() => onEditar(p.id)}>Editar</MiniBtn>{" "}
-                  <MiniBtn variant="risco" onClick={() => onExcluir(p)}>Excluir</MiniBtn>
+                  {onEditar && <><MiniBtn onClick={() => onEditar(p.id)}>Editar</MiniBtn>{" "}
+                  <MiniBtn variant="risco" onClick={() => onExcluir(p)}>Excluir</MiniBtn></>}
                 </td>
               </tr>
             );

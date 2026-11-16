@@ -28,7 +28,7 @@ export default function OcorrenciasContrato({ ocs, onExcluir }) {
               <td className="px-3 py-2.5 text-right font-mono text-sm">
                 {o.tipo === "Aditivo de prazo" ? `+${o.dias} dias` : (nVal(o.valor) ? `R$ ${fmtM(nVal(o.valor))}` : "—")}
               </td>
-              <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => onExcluir(o)}>Excluir</MiniBtn></td>
+              {onExcluir && <td className="px-3 py-2.5"><MiniBtn variant="risco" onClick={() => onExcluir(o)}>Excluir</MiniBtn></td>}
             </tr>
           ))}
         </tbody>

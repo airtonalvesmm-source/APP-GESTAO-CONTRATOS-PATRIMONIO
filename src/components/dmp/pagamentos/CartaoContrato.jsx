@@ -5,6 +5,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import ResumoFinanceiro from "./ResumoFinanceiro";
 import NotasFiscais from "./NotasFiscais";
 import OcorrenciasContrato from "./OcorrenciasContrato";
+import { usePodeEditar } from "@/lib/permissoes";
 
 // Classificação única do contrato: uma situação financeira por contrato,
 // derivada dos mesmos critérios usados pelos filtros.
@@ -31,6 +32,7 @@ function Secao({ titulo, desc, acao, children }) {
 }
 
 export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNota, onExcluirNota, onExcluirOcorrencia, onNovaNota, onNovaOcorrencia }) {
+  const podeEditar = usePodeEditar();
   const pct = t.empenhado ? Math.max(0, Math.min(100, (t.pago / t.empenhado) * 100)) : 0;
   const st = situacaoFinanceira(t);
   const aditivos = ocs.filter(o => o.tipo.startsWith("Aditivo") || o.tipo === "Apostilamento");
@@ -70,9 +72,9 @@ export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNo
           <Secao
             titulo="Notas fiscais"
             desc="Cada nota tem seus próprios valores; a situação é o estágio do pagamento dela."
-            acao={<Btn variant="forte" onClick={onNovaNota} className="!px-2.5 !py-1.5 !text-[11.5px]"><Plus className="w-3.5 h-3.5 inline mr-1" />Lançar nota fiscal</Btn>}
+            acao={podeEditar ? <Btn variant="forte" onClick={onNovaNota} className="!px-2.5 !py-1.5 !text-[11.5px]"><Plus className="w-3.5 h-3.5 inline mr-1" />Lançar nota fiscal</Btn> : null}
           >
-            <NotasFiscais t={t} onEditar={onEditarNota} onExcluir={onExcluirNota} />
+            <NotasFiscais t={t} onEditar={podeEditar ? onEditarNota : null} onExcluir={podeEditar ? onExcluirNota : null} />
           </Secao>
 
           <Secao
@@ -82,12 +84,12 @@ export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNo
                 ? `${faltas.length} ocorrência(s) de descumprimento registrada(s).`
                 : "Alterações de prazo, valor e apostilamentos — não afetam o lançamento das notas."
             }
-            acao={<Btn onClick={onNovaOcorrencia} className="!px-2.5 !py-1.5 !text-[11.5px]">Registrar aditivo ou ocorrência</Btn>}
+            acao={podeEditar ? <Btn onClick={onNovaOcorrencia} className="!px-2.5 !py-1.5 !text-[11.5px]">Registrar aditivo ou ocorrência</Btn> : null}
           >
             {aditivos.length > 0 && (
               <p className="font-mono text-[10.5px] text-slate-500 mb-2">{aditivos.length} aditivo(s) ou apostilamento(s) no contrato</p>
             )}
-            <OcorrenciasContrato ocs={ocs} onExcluir={onExcluirOcorrencia} />
+            <OcorrenciasContrato ocs={ocs} onExcluir={podeEditar ? onExcluirOcorrencia : null} />
           </Secao>
         </div>
       )}
