@@ -39,6 +39,10 @@ export function Plaqueta({ pdm, catmat }) {
   );
 }
 
+export function Th({ children, className = "" }) {
+  return <th className={`font-sans text-[9.5px] tracking-widest uppercase text-slate-500 text-left border-b border-slate-300 px-3 py-2.5 bg-stone-50 whitespace-nowrap ${className}`}>{children}</th>;
+}
+
 export function Vazio({ titulo, texto }) {
   return (
     <div className="border border-dashed border-slate-300 rounded-sm py-10 px-6 text-center text-slate-500 font-sans text-sm">
