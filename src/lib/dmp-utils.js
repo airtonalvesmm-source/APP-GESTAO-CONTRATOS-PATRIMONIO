@@ -142,11 +142,14 @@ export const pagamentosDe = (id, pagamentos) => pagamentos.filter(p => p.contrat
 export function totaisPagamento(c, pagamentos, ocorrencias) {
   const ps = pagamentosDe(c.id, pagamentos);
   const validas = ps.filter(p => p.situacao !== "Cancelado");
-  const nf = validas.reduce((t, p) => t + nVal(p.valorNF), 0);
-  const pago = validas.reduce((t, p) => t + nVal(p.valorPago), 0);
-  const retido = validas.filter(p => p.situacao === "Retido").reduce((t, p) => t + Math.max(0, nVal(p.valorNF) - nVal(p.valorPago)), 0);
-  const empenhado = valorEmpenhado(c, ocorrencias);
-  const aPagar = contratoAtivo(c) ? Math.max(0, empenhado - pago) : 0;
+  // Arredonda em centavos: sem isso, somas de ponto flutuante deixam resíduos
+  // (ex.: 16.354,919999...) e um contrato quitado aparece "com saldo a pagar R$ 0,00".
+  const cent = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  const nf = cent(validas.reduce((t, p) => t + nVal(p.valorNF), 0));
+  const pago = cent(validas.reduce((t, p) => t + nVal(p.valorPago), 0));
+  const retido = cent(validas.filter(p => p.situacao === "Retido").reduce((t, p) => t + Math.max(0, nVal(p.valorNF) - nVal(p.valorPago)), 0));
+  const empenhado = cent(valorEmpenhado(c, ocorrencias));
+  const aPagar = contratoAtivo(c) ? cent(Math.max(0, empenhado - pago)) : 0;
   return { ps, nf, pago, retido, empenhado, aPagar };
 }
 
