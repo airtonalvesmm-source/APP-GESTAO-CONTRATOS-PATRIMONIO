@@ -2,11 +2,12 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ORDEM, NOMES_ARTE, TRACOS } from "@/lib/dmp-data";
 import { Desenho } from "@/components/dmp/Desenho";
-import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV } from "@/lib/dmp-utils";
+import { fmtQ, nVal, norm, cmpTexto, cmpNum, uid, baixarCSV, anoAtual } from "@/lib/dmp-utils";
 import { agruparBensPorSubcategoria, sugestoesSubcategoria } from "@/lib/subcat-utils";
 import { Modal, Btn, MiniBtn, Campo, Plaqueta, Vazio, inputCls, textareaCls } from "./ui";
 import ImportarCSV from "./ImportarCSV";
 import Cadeia from "./Cadeia";
+import FormPCA from "./pca/FormPCA";
 import GerenciarSubcategorias from "./GerenciarSubcategorias";
 import { useAuth } from "@/lib/AuthContext";
 import GerenciarCategorias from "./GerenciarCategorias";
@@ -32,6 +33,7 @@ export default function Catalogo({ data, refresh }) {
   const [editId, setEditId] = useState(null);
   const [showOcultos, setShowOcultos] = useState(false);
   const [cadeiaBenId, setCadeiaBenId] = useState(null);
+  const [pcaBenId, setPcaBenId] = useState(null);
   const [modoSelecao, setModoSelecao] = useState(false);
   const [selecionados, setSelecionados] = useState(new Set());
   const [gerenciarSubs, setGerenciarSubs] = useState(false);
@@ -244,7 +246,8 @@ export default function Catalogo({ data, refresh }) {
       {fichaId && <Ficha b={data.catalog.find(x => x.id === fichaId)} data={data} refresh={refresh}
         onClose={() => setFichaId(null)} onEdit={() => { setFichaId(null); setEditId(fichaId); }}
         onExcluir={excluirItem} onCadeia={() => { setFichaId(null); setCadeiaBenId(fichaId); }}
-        onRelatorio={() => relatorioItemUnico(fichaId)} />}
+        onRelatorio={() => relatorioItemUnico(fichaId)} onAdicionarPCA={() => setPcaBenId(fichaId)} />}
+      {pcaBenId && <FormPCA benId={pcaBenId} data={data} exercicio={anoAtual} refresh={refresh} onClose={() => setPcaBenId(null)} />}
 
       {modoSelecao && selecionados.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-[60] bg-slate-800 text-white px-5 py-3 pr-52 flex gap-3 items-center flex-wrap shadow-lg">
@@ -312,7 +315,7 @@ function Cartao({ b, onClick, modoSelecao, selecionado, onToggleSelect }) {
   );
 }
 
-function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelatorio }) {
+function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelatorio, onAdicionarPCA }) {
   const [desc, setDesc] = useState(b.descricao || "");
   const [imgUrl, setImgUrl] = useState(b.imagem || "");
   const [arteSel, setArteSel] = useState(b.arte || "generico");
@@ -363,6 +366,7 @@ function Ficha({ b, data, refresh, onClose, onEdit, onExcluir, onCadeia, onRelat
         <Btn variant="risco" onClick={() => onExcluir(b)}>Excluir do catálogo</Btn>
         <Btn onClick={onCadeia}>Ver cadeia</Btn>
         <Btn onClick={onRelatorio}>Relatório estatístico</Btn>
+        <Btn onClick={onAdicionarPCA}><Plus className="w-4 h-4 inline mr-1" />Adicionar ao PCA</Btn>
         <Btn onClick={onEdit}>Editar dados</Btn>
         <Btn variant="forte" onClick={onClose}>Fechar</Btn>
       </>}>
