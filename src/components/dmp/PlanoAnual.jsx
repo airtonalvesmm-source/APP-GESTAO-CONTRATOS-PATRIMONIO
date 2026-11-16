@@ -397,13 +397,13 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                   const sob = nQtd(p.qtdSobrestada);
                   const planV = qE * nVal(p.valor);
                   plQ += qE; plV += planV; exQ += e.qtd; exV += e.valor;
-                  const pct = qE ? e.qtd / qE * 100 : 0;
+                  const pct = qE ? Math.min(100, e.qtd / qE * 100) : 0;
                   const falta = qE - e.qtd;
-                  const sit = sob >= nQtd(p.qtd) && nQtd(p.qtd) > 0 ? { c: "critico", t: "Sobrestado (total)" }
-                    : sob > 0 ? { c: "aviso", t: `Sobrestado (${sob}/${nQtd(p.qtd)})` }
+                  const sobTotal = nQtd(p.qtd) > 0 && sob >= nQtd(p.qtd);
+                  const sit = sobTotal ? { c: "neutro", t: "Sobrestado (total)" }
                     : e.qtd === 0 ? { c: "neutro", t: "Não iniciado" }
-                    : (falta > 0 ? { c: "aviso", t: "Parcial" }
-                    : (falta === 0 ? { c: "neutro", t: "Concluído" } : { c: "critico", t: "Acima do plano" }));
+                    : falta > 0 ? { c: "aviso", t: "Parcial" }
+                    : { c: "neutro", t: "Concluído" };
                   return (
                     <tr key={p.id} className={`border-b border-slate-100 hover:bg-stone-50 ${sob > 0 ? "bg-amber-50/40" : ""}`}>
                       <td className="px-3 py-2.5 font-mono text-xs">{p.codigo || "—"}</td>
@@ -413,7 +413,11 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                       <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(Math.round(pct))}%<Barra pct={pct} classe={sit.c === "ok" ? "" : (sit.c === "critico" ? "critico" : "aviso")} /></td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(Math.max(0, falta))}</td>
                       <td className="px-3 py-2.5 text-sm text-slate-500 max-w-[34ch]">{e.lanc.length ? e.lanc.join("; ") : "—"}</td>
-                      <td className="px-3 py-2.5"><Pill tipo={sit.c}>{sit.t}</Pill></td>
+                      <td className="px-3 py-2.5">
+                        <Pill tipo={sit.c}>{sit.t}</Pill>
+                        {sob > 0 && !sobTotal && <div className="mt-1"><Pill tipo="aviso">Sobrestado: {fmtQ(sob)} de {fmtQ(nQtd(p.qtd))}</Pill></div>}
+                        {e.qtd > qE && !sobTotal && <div className="mt-1"><Pill tipo="critico">Acima do plano</Pill></div>}
+                      </td>
                     </tr>
                   );
                 })}
@@ -422,7 +426,7 @@ function ExecucaoView({ itens, bem, execucaoDoItem, itensSemVinculo, exercicio }
                 <td className="px-3 py-2.5 font-sans font-semibold text-[12.5px]" colSpan={2}>Exercício {exercicio} — {filtrados.length} {filtrados.length === 1 ? "item" : "itens"} do plano</td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtQ(plQ)}<br /><span className="font-mono text-xs">R$ {fmtM(plV)}</span></td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtQ(exQ)}<br /><span className="font-mono text-xs">R$ {fmtM(exV)}</span></td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{plQ ? fmtQ(Math.round(exQ / plQ * 100)) : "0"}%</td>
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{plQ ? fmtQ(Math.min(100, Math.round(exQ / plQ * 100))) : "0"}%</td>
                 <td colSpan={3}></td>
               </tr></tfoot>
             </table>

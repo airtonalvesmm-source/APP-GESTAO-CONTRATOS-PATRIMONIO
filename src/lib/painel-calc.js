@@ -207,23 +207,31 @@ export function calcPCANaoContratado(pca, contratos, catalog, ano) {
   }).filter(x => x.qtd > 0);
 }
 
-// Execução do PCA — percentual de itens do exercício com ao menos um contrato/empenho vinculado
+// Execução do PCA — item executado quando a quantidade contratada cobre a quantidade
+// efetiva (autorizada − sobrestada). Itens totalmente sobrestados saem do cálculo:
+// não há quantidade a contratar, então não podem reduzir a taxa de execução.
 export function calcExecucaoPCA(pca, contratos, ano) {
   const pcaAno = pca.filter(p => +p.exercicio === +ano);
-  const total = pcaAno.length;
   const qtdPorPca = {};
   ativos(contratos).forEach(c => (c.itens || []).forEach(i => {
     if (!i.pcaId) return;
     qtdPorPca[i.pcaId] = (qtdPorPca[i.pcaId] || 0) + nQtd(i.qtd);
   }));
-  let executados = 0, naoIniciados = 0, sobrestados = 0;
-  pcaAno.forEach(p => {
-    if (nQtd(p.qtdSobrestada) >= nQtd(p.qtd) && nQtd(p.qtd) > 0) { sobrestados++; return; }
-    if ((qtdPorPca[p.id] || 0) === 0) naoIniciados++;
-    else executados++;
+  const ehSobrestadoTotal = (p) => nQtd(p.qtd) > 0 && nQtd(p.qtdSobrestada) >= nQtd(p.qtd);
+  const ativosItens = pcaAno.filter(p => !ehSobrestadoTotal(p));
+  const sobrestados = pcaAno.length - ativosItens.length;
+  let executados = 0, parciais = 0, naoIniciados = 0, sobrestadosParciais = 0;
+  ativosItens.forEach(p => {
+    const efetiva = Math.max(0, nQtd(p.qtd) - nQtd(p.qtdSobrestada));
+    const contratado = qtdPorPca[p.id] || 0;
+    if (nQtd(p.qtdSobrestada) > 0) sobrestadosParciais++;
+    if (contratado <= 0) naoIniciados++;
+    else if (contratado >= efetiva) executados++;
+    else parciais++;
   });
+  const total = ativosItens.length;
   const pct = total ? executados / total * 100 : 0;
-  return { total, executados, naoIniciados, sobrestados, pct };
+  return { total, executados, parciais, naoIniciados, sobrestados, sobrestadosParciais, pct };
 }
 
 // Previsto vs gasto — planejado PCA vs efetivamente pago no exercício

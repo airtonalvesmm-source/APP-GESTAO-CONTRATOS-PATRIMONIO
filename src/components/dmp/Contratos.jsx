@@ -397,7 +397,15 @@ function FormContrato({ c, data, refresh, onClose }) {
     return (<>
       <option value="">Sem vínculo com o plano</option>
       {selFora && <option value={selFora.id}>{(selFora.codigo ? selFora.codigo + " · " : "") + selFora.exercicio} — {catalog.find(b => b.id === selFora.benId)?.objeto || "(removido)"} (vínculo atual — exercício divergente)</option>}
-      {iguais.length > 0 && <optgroup label={`Mesmo bem — exercício ${anoContrato}`}>{iguais.map(p => <option key={p.id} value={p.id}>{(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(p.qtd)} un.)</option>)}</optgroup>}
+      {iguais.length > 0 && <optgroup label={`Mesmo bem — exercício ${anoContrato}`}>{iguais.map(p => {
+        const sob = nQtd(p.qtdSobrestada);
+        const efetiva = Math.max(0, nQtd(p.qtd) - sob);
+        return (
+          <option key={p.id} value={p.id}>
+            {(p.codigo ? p.codigo + " · " : "") + p.exercicio} — {catalog.find(b => b.id === p.benId)?.objeto || "(removido)"} ({fmtQ(efetiva)} un. efetivas{sob > 0 ? ` · ${fmtQ(sob)} sobrestadas de ${fmtQ(p.qtd)} autorizadas` : ""})
+          </option>
+        );
+      })}</optgroup>}
     </>);
   }
 
