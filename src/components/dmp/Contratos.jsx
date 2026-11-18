@@ -376,31 +376,48 @@ function FormContrato({ c, data, refresh, onClose }) {
     if (!form.numero.trim()) return alert("Informe o número do contrato ou empenho.");
     const a = form.ataId ? atas.find(x => x.id === form.ataId) : null;
     if (!a && !form.fornecedorId) return alert("Selecione a ata vinculada ou o fornecedor (para contratação direta).");
-    const itensVal = [];
+    // Consolida linhas repetidas do mesmo item antes de validar o saldo
+    const porChave = new Map();
     for (const it of itens) {
       const q = nQtd(it.qtd); if (!q) continue;
       if (a) {
         const x = (a.itens || []).find(y => y.id === it.itemAtaId);
         if (!x) continue;
-        const disp = saldoItem(a, x, contratos, ctEmEdicao);
-        if (q > disp) return alert(`Quantidade acima do saldo em ${catalog.find(b => b.id === x.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
-        itensVal.push({ itemAtaId: x.id, benId: x.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+        const atual = porChave.get(x.id);
+        if (atual) atual.qtd += q;
+        else porChave.set(x.id, { itemAtaId: x.id, benId: x.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
       } else {
-        itensVal.push({ itemAtaId: "", benId: it.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+        const chave = "bem:" + it.benId;
+        const atual = porChave.get(chave);
+        if (atual) atual.qtd += q;
+        else porChave.set(chave, { itemAtaId: "", benId: it.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
       }
     }
+    const itensVal = Array.from(porChave.values());
     if (!itensVal.length) return alert("Informe ao menos um item com quantidade.");
+    if (a) {
+      for (const it of itensVal) {
+        const x = (a.itens || []).find(y => y.id === it.itemAtaId);
+        const disp = saldoItem(a, x, contratos, ctEmEdicao);
+        if (it.qtd > disp) return alert(`Quantidade acima do saldo em ${catalog.find(b => b.id === it.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
+      }
+    }
     let fornecedorId = "", fornecedor = "", cnpj = "";
     if (a) { fornecedorId = a.fornecedorId || ""; fornecedor = a.fornecedor; cnpj = a.cnpj; }
     else { const f = fornecedores.find(x => x.id === form.fornecedorId); fornecedorId = f?.id || ""; fornecedor = f?.razao || ""; cnpj = f?.cnpj || ""; }
     const dados = { ...form, numero: form.numero.trim(), processo: form.processo.trim(), notaEmpenho: form.notaEmpenho.trim(),
       ataId: form.ataId, fornecedorId, fornecedor, cnpj,
       objeto: form.objeto.trim(), inicio: form.inicio, fim: form.fim, itens: itensVal };
-    if (c) await base44.entities.Contrato.update(c.id, dados);
-    else await base44.entities.Contrato.create(dados);
-    await refresh();
-    onClose();
-    alert(c ? "Lançamento atualizado." : "Lançamento registrado e saldo baixado.");
+    try {
+      // A gravação e a conferência do saldo são feitas no servidor
+      const resp = await base44.functions.invoke("salvarContrato", { contratoId: c?.id || null, dados });
+      if (resp?.data?.error) return alert(resp.data.error);
+      await refresh();
+      onClose();
+      alert(c ? "Lançamento atualizado." : "Lançamento registrado e saldo baixado.");
+    } catch (e) {
+      alert(e?.response?.data?.error || e?.message || String(e));
+    }
   }
 
   function opcoesPCA(benId, sel) {
@@ -541,14 +558,51 @@ export function FormOcorrencia({ contratoId, data, refresh, onClose, ocorr }) {
   const c = contratos.find(x => x.id === contratoId);
   const [form, setForm] = useState({
     tipo: ocorr?.tipo || TIPOS_OCORRENCIA[0], data: ocorr?.data || new Date().toISOString().slice(0, 10),
-    processo: ocorr?.processo || "", dias: ocorr?.dias || 0, valor: ocorr?.valor || "", descricao: ocorr?.descricao || ""
+    processo: ocorr?.processo || "", dias: ocorr?.dias ?? "", valor: ocorr?.valor || "", descricao: ocorr?.descricao || ""
   });
-  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  const [erro, setErro] = useState("");
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); setErro(""); }
+
+  const ehAditivo = form.tipo.startsWith("Aditivo");
+  const ehDocumento = ehAditivo || form.tipo === "Apostilamento";
+  const ehPrazo = form.tipo === "Aditivo de prazo";
+  const ehValor = form.tipo === "Aditivo de valor";
+
+  function valorNumerico(txt) {
+    const t = String(txt ?? "").trim();
+    if (!t) return null;
+    if (!/^-?[\d.,]+$/.test(t)) return NaN;
+    const n = nValS(t);
+    return isFinite(n) ? n : NaN;
+  }
+
+  function validar() {
+    if (!form.data) return "Informe a data do registro.";
+    if (ehDocumento && !form.processo.trim()) return "Informe o processo administrativo que formaliza o aditivo ou apostilamento.";
+    if (!form.descricao.trim()) return ehDocumento ? "Descreva a fundamentação e o objeto do aditivo." : "Descreva a ocorrência.";
+    if (ehPrazo) {
+      const bruto = String(form.dias).trim();
+      const d = Number(bruto);
+      if (!bruto || !Number.isInteger(d) || d <= 0) return "Informe a prorrogação em dias: número inteiro maior que zero.";
+    }
+    if (ehValor) {
+      const v = valorNumerico(form.valor);
+      if (v === null) return "Informe o valor do aditivo. Use sinal negativo para supressão.";
+      if (Number.isNaN(v)) return "Valor inválido: use apenas números, com vírgula para os centavos.";
+      if (v === 0) return "O valor do aditivo não pode ser zero.";
+    }
+    return "";
+  }
 
   async function salvar() {
-    if (form.tipo === "Aditivo de prazo" && !form.dias) return alert("Informe a quantidade de dias da prorrogação.");
-    if (form.tipo === "Aditivo de valor" && !nValS(form.valor)) return alert("Informe o valor do aditivo.");
-    const dados = { contratoId, ...form, dias: Number(form.dias) || 0, valor: String(form.valor), processo: form.processo.trim(), descricao: form.descricao.trim() };
+    const msg = validar();
+    if (msg) { setErro(msg); return; }
+    const dados = {
+      contratoId, ...form,
+      dias: ehPrazo ? Number(form.dias) : 0,
+      valor: ehValor ? String(form.valor).trim() : "",
+      processo: form.processo.trim(), descricao: form.descricao.trim()
+    };
     if (ocorr) await base44.entities.Ocorrencia.update(ocorr.id, dados);
     else await base44.entities.Ocorrencia.create(dados);
     await refresh();
@@ -561,16 +615,21 @@ export function FormOcorrencia({ contratoId, data, refresh, onClose, ocorr }) {
   return (
     <Modal sobre={`${c.tipo} ${c.numero}`} titulo={ocorr ? "Editar ocorrência" : "Registrar aditivo ou ocorrência"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar</Btn></>}>
+      {erro && <div className="mb-3 border border-red-300 bg-red-50 rounded-sm px-3 py-2 font-sans text-[12.5px] text-red-800">{erro}</div>}
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Tipo"><select className={inputCls} value={form.tipo} onChange={e => setF("tipo", e.target.value)}>{TIPOS_OCORRENCIA.map(t => <option key={t}>{t}</option>)}</select></Campo>
-        <Campo label="Data"><input type="date" className={inputCls} value={form.data} onChange={e => setF("data", e.target.value)} /></Campo>
-        <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
+        <Campo label="Data" ajuda="Data do aditivo, do apostilamento ou da ocorrência."><input type="date" className={inputCls} value={form.data} onChange={e => setF("data", e.target.value)} /></Campo>
+        <Campo label={ehDocumento ? "Processo (obrigatório)" : "Processo"}><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
       </div>
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
-        <Campo label="Prorrogação (dias)" ajuda="Só para aditivo de prazo."><input type="number" className={inputCls} value={form.dias} onChange={e => setF("dias", e.target.value)} /></Campo>
-        <Campo label="Acréscimo ou supressão (R$)" ajuda="Use sinal negativo para supressão."><input inputMode="decimal" className={inputCls} value={form.valor} onChange={e => setF("valor", e.target.value)} /></Campo>
-      </div>
-      <Campo label="Descrição"><textarea className={textareaCls} value={form.descricao} onChange={e => setF("descricao", e.target.value)} placeholder="ex.: entrega 45 dias após o prazo; aplicada multa de 2% sobre o valor do empenho." /></Campo>
+      {(ehPrazo || ehValor) && (
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
+          {ehPrazo && <Campo label="Prorrogação (dias)" ajuda="Número inteiro de dias, somado à vigência do contrato."><input type="number" min="1" step="1" className={inputCls} value={form.dias} onChange={e => setF("dias", e.target.value)} /></Campo>}
+          {ehValor && <Campo label="Acréscimo ou supressão (R$)" ajuda="Use sinal negativo para supressão. O valor entra no total empenhado."><input inputMode="decimal" className={inputCls} value={form.valor} onChange={e => setF("valor", e.target.value)} /></Campo>}
+        </div>
+      )}
+      <Campo label={ehDocumento ? "Descrição e fundamentação (obrigatória)" : "Descrição (obrigatória)"} ajuda="Registre o motivo do registro e os efeitos administrativos aplicados.">
+        <textarea className={textareaCls} value={form.descricao} onChange={e => setF("descricao", e.target.value)} placeholder="ex.: prorrogação de 60 dias motivada por atraso na entrega, conforme processo 19.21.0000.0000000/2026-00." />
+      </Campo>
     </Modal>
   );
 }

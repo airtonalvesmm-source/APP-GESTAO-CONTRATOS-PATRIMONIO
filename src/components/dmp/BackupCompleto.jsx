@@ -1,19 +1,19 @@
 import React, { useState } from "react";
 import { gerarBackupCompleto } from "@/lib/backup-completo";
+import { usePodeEditar } from "@/lib/permissoes";
 import { Modal, Btn } from "./ui";
 import { Download, CheckCircle2, XCircle, Loader2, Database } from "lucide-react";
 
 export default function BackupCompleto() {
+  const podeEditar = usePodeEditar();
   const [aberto, setAberto] = useState(false);
   const [rodando, setRodando] = useState(false);
-  const [progresso, setProgresso] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [log, setLog] = useState([]);
 
   function abrir() {
     setAberto(true);
     setResultado(null);
-    setProgresso(null);
     setLog([]);
     setRodando(false);
   }
@@ -22,21 +22,25 @@ export default function BackupCompleto() {
     setRodando(true);
     setResultado(null);
     setLog([]);
-    setProgresso({ atual: 0, total: 16, tabela: "", status: "inicio" });
     try {
-      const res = await gerarBackupCompleto((p) => {
-        setProgresso(p);
-        setLog(l => [...l, p]);
-      });
+      const res = await gerarBackupCompleto();
       setResultado(res);
+      setLog((res.detalhes || []).map(d => ({
+        tabela: d.tabela,
+        count: d.registros,
+        status: d.ok ? "ok" : "erro",
+        erro: d.erro
+      })));
     } catch (e) {
-      setResultado({ erro: e?.message || String(e), tabelas: 0, registros: 0, falhas: [{ tabela: "geral", erro: e?.message || String(e) }] });
+      const msg = e?.response?.data?.error || e?.message || String(e);
+      setResultado({ erro: msg, tabelas: 0, registros: 0, falhas: [{ tabela: "geral", erro: msg }] });
     } finally {
       setRodando(false);
     }
   }
 
-  const pct = progresso ? Math.round((progresso.atual / progresso.total) * 100) : 0;
+  // Backup integral do banco: exclusivo para administradores
+  if (!podeEditar) return null;
 
   return (
     <>
@@ -62,26 +66,17 @@ export default function BackupCompleto() {
           }>
           <div className="mb-4 border-l-[3px] border-slate-700 bg-slate-50 px-3 py-2.5 rounded-r-sm">
             <p className="font-sans text-[13px] text-slate-700">
-              Exporta todas as <b>16 tabelas</b> do banco de dados para um único arquivo <b>ZIP</b> contendo um CSV por tabela.
+              Exporta todas as <b>tabelas</b> do banco de dados para um único arquivo <b>ZIP</b> contendo um CSV por tabela. A exportação é gerada no servidor e exige perfil de administrador.
             </p>
             <p className="font-sans text-[11.5px] text-slate-500 mt-1">
               Preserva IDs originais, campos de relacionamento e todos os registros. A entidade User é exportada apenas com campos seguros (id, nome, e-mail, papel) — sem segredos. Nenhum registro é alterado ou excluído.
             </p>
           </div>
 
-          {(rodando || progresso) && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-sans text-[10.5px] font-bold tracking-widest uppercase text-slate-500">
-                  {rodando ? "Progresso" : "Concluído"}
-                </span>
-                <span className="font-mono text-[11px] text-slate-600">
-                  {progresso?.atual || 0}/{progresso?.total || 16} tabelas · {pct}%
-                </span>
-              </div>
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-slate-800 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
-              </div>
+          {rodando && (
+            <div className="mb-4 flex items-center gap-2 border border-slate-200 rounded-sm px-3 py-2.5">
+              <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+              <span className="font-sans text-[12.5px] text-slate-600">Gerando o backup no servidor. Pode levar alguns instantes…</span>
             </div>
           )}
 
