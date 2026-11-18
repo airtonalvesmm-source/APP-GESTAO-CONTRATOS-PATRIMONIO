@@ -297,7 +297,7 @@ function FormContrato({ c, data, refresh, onClose }) {
     fornecedorId: c?.fornecedorId || "", situacao: c?.situacao || "Vigente",
     statusEntrega: c?.statusEntrega || "Aguardando entrega",
     inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || "",
-    fiscalNome: c?.fiscalNome || "Airton Alves Mendes de Moura",
+    fiscalNome: c?.fiscalNome || "Airton Alves Mendes de Moura", fiscalCpf: c?.fiscalCpf || "",
     portariaFiscalizacao: c?.portariaFiscalizacao || "", pgeaFiscalizacao: c?.pgeaFiscalizacao || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
@@ -467,6 +467,7 @@ function FormContrato({ c, data, refresh, onClose }) {
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Fiscal do contrato"><input className={inputCls} value={form.fiscalNome} onChange={e => setF("fiscalNome", e.target.value)} /></Campo>
+        <Campo label="CPF do fiscal" ajuda="Pode ser mascarado, ex.: ***.599.773-**."><input className={inputCls} value={form.fiscalCpf} onChange={e => setF("fiscalCpf", e.target.value)} /></Campo>
         <Campo label="Portaria de fiscalização" ajuda="Portaria que designa o fiscal — consta na ordem de fornecimento e no termo de recebimento.">
           <input className={inputCls} value={form.portariaFiscalizacao} onChange={e => setF("portariaFiscalizacao", e.target.value)} placeholder="ex.: 1.381/2024" />
         </Campo>

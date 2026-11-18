@@ -45,12 +45,11 @@ export default function TermosContrato({ c, data, refresh }) {
         <div className="overflow-x-auto border border-slate-300 rounded-sm">
           <table className="w-full border-collapse text-[13.5px] min-w-[560px]">
             <thead><tr className="bg-stone-50">
-              <Th>Termo</Th><Th>Notas fiscais</Th><Th>Provisório</Th><Th>Definitivo</Th><Th></Th>
+              <Th>Notas fiscais</Th><Th>Provisório</Th><Th>Definitivo</Th><Th></Th>
             </tr></thead>
             <tbody>
               {termos.map(t => (
                 <tr key={t.id} className="border-b border-slate-100 hover:bg-stone-50">
-                  <td className="px-3 py-2.5 font-mono text-xs">{t.numero || "—"}</td>
                   <td className="px-3 py-2.5 font-mono text-xs">{resumoNotas(t)}</td>
                   <td className="px-3 py-2.5 font-mono text-xs">{fmtData(t.dataRecebimentoProvisorio)}</td>
                   <td className="px-3 py-2.5 font-mono text-xs">{fmtData(t.dataRecebimentoDefinitivo)}</td>

@@ -78,6 +78,10 @@
       "type": "string",
       "title": "Fiscal do contrato"
     },
+    "fiscalCpf": {
+      "type": "string",
+      "title": "CPF do fiscal"
+    },
     "portariaFiscalizacao": {
       "type": "string",
       "title": "Portaria de fiscaliza\u00e7\u00e3o"
