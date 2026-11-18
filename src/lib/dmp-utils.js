@@ -217,7 +217,7 @@ export function qtdSolicitada(contratoId, benId, ordens, ignorarOrdem) {
 }
 
 // Saldo por item: contratado − solicitado em ordens de fornecimento
-export function saldoContrato(c, ordens) {
+export function saldoContrato(c, ordens, ignorarOrdem) {
   const mapa = new Map();
   (c.itens || []).forEach(i => {
     const atual = mapa.get(i.benId) || { benId: i.benId, contratado: 0, valor: nVal(i.valor) };
@@ -226,7 +226,7 @@ export function saldoContrato(c, ordens) {
     mapa.set(i.benId, atual);
   });
   return Array.from(mapa.values()).map(l => {
-    const solicitado = qtdSolicitada(c.id, l.benId, ordens);
+    const solicitado = qtdSolicitada(c.id, l.benId, ordens, ignorarOrdem);
     return { ...l, solicitado, saldo: Math.max(0, l.contratado - solicitado) };
   });
 }

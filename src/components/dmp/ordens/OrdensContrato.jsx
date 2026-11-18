@@ -4,7 +4,7 @@ import { Btn, MiniBtn, Th } from "../ui";
 import { fmtM, fmtQ, fmtData, saldoContrato, ordensDe, valorOrdem } from "@/lib/dmp-utils";
 import { textoEmailOrdem } from "@/lib/email-ordem";
 import { usePodeEditar } from "@/lib/permissoes";
-import { Plus, Printer, Mail, ClipboardCheck } from "lucide-react";
+import { Plus, Printer, Mail, ClipboardCheck, Pencil } from "lucide-react";
 import FormOrdem from "./FormOrdem";
 import OrdemDocumento from "./OrdemDocumento";
 import AcompanhamentoOrdem from "./AcompanhamentoOrdem";
@@ -12,6 +12,7 @@ import AcompanhamentoOrdem from "./AcompanhamentoOrdem";
 export default function OrdensContrato({ c, data, refresh }) {
   const podeEditar = usePodeEditar();
   const [nova, setNova] = useState(false);
+  const [editar, setEditar] = useState(null);
   const [ver, setVer] = useState(null);
   const [acomp, setAcomp] = useState(null);
   const linhas = saldoContrato(c, data.ordens);
@@ -101,6 +102,7 @@ export default function OrdensContrato({ c, data, refresh }) {
                       <MiniBtn onClick={() => setVer(o)}><Printer className="w-3 h-3 inline mr-1" />Documento</MiniBtn>{" "}
                       <MiniBtn onClick={() => setAcomp(o)}><ClipboardCheck className="w-3 h-3 inline mr-1" />Acompanhamento</MiniBtn>{" "}
                       <MiniBtn onClick={() => copiarEmail(o)}><Mail className="w-3 h-3 inline mr-1" />Texto de e-mail</MiniBtn>{" "}
+                      {podeEditar && <MiniBtn onClick={() => setEditar(o)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>}{" "}
                       {podeEditar && <MiniBtn variant="risco" onClick={() => excluir(o)}>Excluir</MiniBtn>}
                     </td>
                   </tr>
@@ -112,6 +114,7 @@ export default function OrdensContrato({ c, data, refresh }) {
       )}
 
       {nova && <FormOrdem c={c} data={data} refresh={refresh} onClose={() => setNova(false)} onSalvo={(o) => { setNova(false); setVer(o); }} />}
+      {editar && <FormOrdem c={c} data={data} refresh={refresh} ordem={editar} onClose={() => setEditar(null)} onSalvo={(o) => { setEditar(null); setVer(o); }} />}
       {ver && <OrdemDocumento o={data.ordens.find(x => x.id === ver.id) || ver} c={c} data={data} onClose={() => setVer(null)} />}
       {acomp && <AcompanhamentoOrdem o={data.ordens.find(x => x.id === acomp.id) || acomp} c={c} refresh={refresh} onClose={() => setAcomp(null)} />}
     </div>
