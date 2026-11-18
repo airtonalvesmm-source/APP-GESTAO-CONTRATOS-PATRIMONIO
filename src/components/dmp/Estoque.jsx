@@ -13,6 +13,7 @@ import DetalheBem from "./estoque/DetalheBem";
 import FormSaida from "./estoque/FormSaida";
 import ExcluirBens from "./estoque/ExcluirBens";
 import RegistrosEntrada from "./estoque/RegistrosEntrada";
+import RegistrosSaida from "./estoque/RegistrosSaida";
 import { Plus, LogOut, Upload, Boxes, Building2, Trash2, ListChecks, Bookmark } from "lucide-react";
 import Reservas from "./estoque/Reservas";
 import FormReserva from "./estoque/FormReserva";
@@ -123,6 +124,11 @@ export default function Estoque({ data, refresh }) {
             ${visao === "registros" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
           <ListChecks className="w-3.5 h-3.5" />Registros de entrada
         </button>
+        <button onClick={() => setVisao("saidas")} aria-pressed={visao === "saidas"}
+          className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
+            ${visao === "saidas" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
+          <LogOut className="w-3.5 h-3.5" />Registros de saída
+        </button>
         <button onClick={() => setVisao("reservas")} aria-pressed={visao === "reservas"}
           className={`inline-flex items-center gap-1.5 border rounded-sm px-3 py-1.5 font-sans font-semibold text-[12.5px] cursor-pointer transition-colors
             ${visao === "reservas" ? "bg-slate-800 border-slate-800 text-white" : "bg-white border-slate-300 text-slate-600 hover:border-slate-500"}`}>
@@ -134,6 +140,8 @@ export default function Estoque({ data, refresh }) {
         <Vazio titulo="Nenhum bem patrimoniado" texto="Registre a entrada a partir de um contrato entregue para começar a controlar o estoque." />
       ) : visao === "registros" ? (
         <RegistrosEntrada data={data} refresh={refresh} />
+      ) : visao === "saidas" ? (
+        <RegistrosSaida data={data} />
       ) : visao === "reservas" ? (
         <Reservas data={data} refresh={refresh} />
       ) : (
@@ -197,7 +205,7 @@ export default function Estoque({ data, refresh }) {
                           const unidades = bensPorBenId.get(b.id) || [];
                           const disp = unidades.filter(u => u.situacao === "em estoque").length;
                           const res = reservadoPorItem(reservas, b.id);
-                          return <CartaoEstoque key={b.id} b={b} disp={disp} reservado={res} total={unidades.length} onClick={() => setFichaBenId(b.id)} />;
+                          return <CartaoEstoque key={b.id} b={b} disp={disp} reservado={res} onClick={() => setFichaBenId(b.id)} />;
                         })}
                       </div>
                     </div>
@@ -220,8 +228,7 @@ export default function Estoque({ data, refresh }) {
   );
 }
 
-function CartaoEstoque({ b, disp, reservado, total, onClick }) {
-  const transf = total - disp;
+function CartaoEstoque({ b, disp, reservado, onClick }) {
   const livre = Math.max(0, disp - reservado);
   return (
     <div onClick={onClick} className="bg-white border border-slate-300 rounded-sm overflow-hidden text-left cursor-pointer flex flex-col transition-all hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5">
@@ -242,15 +249,9 @@ function CartaoEstoque({ b, disp, reservado, total, onClick }) {
             <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">Livre</span>
             <span className={`font-mono font-bold text-lg leading-none ${livre > 0 ? "text-emerald-700" : "text-slate-400"}`}>{livre}</span>
           </div>
-          {reservado > 0 && (
-            <div className="flex flex-col items-center">
-              <span className="font-mono text-[9px] tracking-widest uppercase text-amber-700">Reservado</span>
-              <span className="font-mono font-bold text-[13px] leading-none text-amber-700 mt-0.5">{reservado}</span>
-            </div>
-          )}
           <div className="flex flex-col items-end">
-            <span className="font-mono text-[9px] tracking-widest uppercase text-slate-500">{transf > 0 ? "Transf. · Total" : "Total"}</span>
-            <span className="font-mono text-[12px] text-slate-600 leading-none mt-0.5">{transf > 0 ? `${transf} · ${total}` : total}</span>
+            <span className="font-mono text-[9px] tracking-widest uppercase text-amber-700">Reservado</span>
+            <span className={`font-mono font-bold text-lg leading-none ${reservado > 0 ? "text-amber-700" : "text-slate-400"}`}>{reservado}</span>
           </div>
         </div>
       </span>

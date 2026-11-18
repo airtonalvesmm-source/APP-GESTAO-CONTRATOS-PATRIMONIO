@@ -9,6 +9,7 @@ import SaidaSelecionados from "./SaidaSelecionados";
 import FormReserva from "./FormReserva";
 import { excluirBens } from "@/lib/excluir-bem";
 import { reservadoPorItem } from "@/lib/reservas-utils";
+import DetalheReserva from "./DetalheReserva";
 
 export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
   const { catalog, contratos, departamentos, bens, movimentacoes, reservas } = data;
@@ -19,8 +20,10 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
   const [selSaida, setSelSaida] = useState(new Set());
   const [saidaAberta, setSaidaAberta] = useState(false);
   const [reservaAberta, setReservaAberta] = useState(false);
+  const [reservaDetalhe, setReservaDetalhe] = useState(null);
 
   const unidades = useMemo(() => (bens || []).filter(u => u.benId === benId).slice().sort((a, c) => norm(a.placa).localeCompare(c.placa, "pt-BR", { numeric: true })), [bens, benId]);
+  const unidadesEstoque = useMemo(() => unidades.filter(u => u.situacao === "em estoque"), [unidades]);
   const movs = useMemo(() => {
     const ids = new Set(unidades.map(u => u.placa));
     return (movimentacoes || []).filter(m => ids.has(m.bemId)).slice().sort((a, c) => String(c.data || "").localeCompare(String(a.data || "")));
@@ -119,11 +122,14 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
                 {reservasDoItem.map(r => {
                   const d = departamentos.find(x => x.id === r.departamentoId);
                   return (
-                    <li key={r.id} className="px-2.5 py-1.5 flex gap-2 items-center text-[11.5px]">
-                      <Bookmark className="w-3 h-3 text-amber-700 flex-none" />
-                      <span className="font-mono font-semibold text-amber-800">{r.quantidade} un.</span>
-                      <span className="font-sans text-slate-700 truncate">→ {d ? caminhoDepartamento(d, departamentos) : "—"}</span>
-                      <span className="font-mono text-slate-500 ml-auto">{fmtData(r.data)}</span>
+                    <li key={r.id}>
+                      <button type="button" onClick={() => setReservaDetalhe(r)} title="Ver dados da reserva"
+                        className="w-full px-2.5 py-1.5 flex gap-2 items-center text-[11.5px] text-left hover:bg-amber-100/70 transition-colors cursor-pointer">
+                        <Bookmark className="w-3 h-3 text-amber-700 flex-none" />
+                        <span className="font-mono font-semibold text-amber-800">{r.quantidade} un.</span>
+                        <span className="font-sans text-slate-700 truncate">→ {d ? caminhoDepartamento(d, departamentos) : "—"}</span>
+                        <span className="font-mono text-slate-500 ml-auto">{fmtData(r.data)}</span>
+                      </button>
                     </li>
                   );
                 })}
@@ -155,9 +161,9 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
                 </div>
               )}
             </div>
-            {unidades.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Marque as unidades em estoque para dar saída, ou clique na placa para editá-la.</p>}
-            {unidades.length === 0 ? (
-              <Vazio titulo="Sem unidades" texto="Nenhum bem patrimoniado deste tipo." />
+            {unidadesEstoque.length > 0 && <p className="font-sans text-[11.5px] text-slate-500 mb-2">Somente as unidades em estoque são listadas. Marque-as para dar saída, ou clique na placa para editá-la.</p>}
+            {unidadesEstoque.length === 0 ? (
+              <Vazio titulo="Sem unidades em estoque" texto="Todas as unidades deste tipo já foram transferidas aos departamentos." />
             ) : (
               <div className="overflow-x-auto border border-slate-300 rounded-sm">
                 <table className="w-full border-collapse text-[13px] min-w-[760px]">
@@ -172,7 +178,7 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
                     <th className="text-left font-sans text-[9.5px] tracking-widest uppercase text-slate-500 px-3 py-2 w-10">Excluir</th>
                   </tr></thead>
                   <tbody>
-                    {unidades.map(u => {
+                    {unidadesEstoque.map(u => {
                       const c = contratos.find(x => x.id === u.contratoId) || {};
                       const d = departamentos.find(x => x.id === u.departamentoId);
                       const emEstoque = u.situacao === "em estoque";
@@ -253,6 +259,9 @@ export default function DetalheBem({ benId, data, isAdmin, refresh, onClose }) {
       )}
       {reservaAberta && (
         <FormReserva data={data} refresh={refresh} onClose={() => setReservaAberta(false)} benIdFixo={benId} />
+      )}
+      {reservaDetalhe && (
+        <DetalheReserva reserva={reservaDetalhe} data={data} onClose={() => setReservaDetalhe(null)} />
       )}
     </Modal>
   );
