@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Modal, Btn, Campo, Th, inputCls, textareaCls } from "../ui";
-import { fmtM, fmtQ, nQtd, nVal, saldoContrato, entregaDaAta, diasDoPrazo, somaDias, prazoTexto } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, nQtd, nVal, saldoContrato, entregaDaAta, prazoTexto } from "@/lib/dmp-utils";
 
 export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
   const { catalog, atas } = data;
@@ -10,20 +10,12 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
   const [form, setForm] = useState({
     data: new Date().toISOString().slice(0, 10),
     prazoEntrega: prazoTexto(entrega.prazoEntrega),
-    dataConfirmacao: "",
-    dataLimiteEntrega: "",
     localEntrega: entrega.localEntrega,
     observacao: entrega.observacao
   });
   const [qtds, setQtds] = useState(() => Object.fromEntries(linhas.map(l => [l.benId, ""])));
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
-  function setConfirmacao(v) {
-    setForm(f => {
-      const dias = diasDoPrazo(f.prazoEntrega);
-      return { ...f, dataConfirmacao: v, dataLimiteEntrega: v && dias ? somaDias(v, dias) : f.dataLimiteEntrega };
-    });
-  }
   const total = linhas.reduce((t, l) => t + nQtd(qtds[l.benId]) * nVal(l.valor), 0);
 
   async function salvar() {
@@ -40,8 +32,8 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
       contratoId: c.id,
       data: form.data,
       prazoEntrega: prazoTexto(form.prazoEntrega),
-      dataConfirmacao: form.dataConfirmacao,
-      dataLimiteEntrega: form.dataLimiteEntrega,
+      dataConfirmacao: "",
+      dataLimiteEntrega: "",
       localEntrega: form.localEntrega.trim(),
       observacao: form.observacao.trim(),
       itens,
@@ -59,13 +51,10 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
         <Campo label="Prazo de entrega" ajuda="Herdado da ata — pode ajustar nesta ordem.">
           <input className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} placeholder="ex.: 30 dias" />
         </Campo>
-        <Campo label="Confirmação do recebimento da ordem" ajuda="Data em que a contratada confirmou o recebimento. A data limite é calculada com o prazo acima.">
-          <input type="date" className={inputCls} value={form.dataConfirmacao} onChange={e => setConfirmacao(e.target.value)} />
-        </Campo>
-        <Campo label="Data limite para entrega" ajuda="Calculada automaticamente — ajuste se necessário.">
-          <input type="date" className={inputCls} value={form.dataLimiteEntrega} onChange={e => setF("dataLimiteEntrega", e.target.value)} />
-        </Campo>
       </div>
+      <p className="font-sans text-[12px] text-slate-500 -mt-2 mb-4">
+        A confirmação do recebimento da ordem e a data limite de entrega são registradas depois da emissão, na lista de ordens do contrato.
+      </p>
       <div className="mb-4">
         <Campo label="Local de entrega" ajuda="Herdado da ata — pode ajustar nesta ordem.">
           <input className={inputCls} value={form.localEntrega} onChange={e => setF("localEntrega", e.target.value)} />

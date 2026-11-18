@@ -4,14 +4,16 @@ import { Btn, MiniBtn, Th } from "../ui";
 import { fmtM, fmtQ, fmtData, saldoContrato, ordensDe, valorOrdem } from "@/lib/dmp-utils";
 import { textoEmailOrdem } from "@/lib/email-ordem";
 import { usePodeEditar } from "@/lib/permissoes";
-import { Plus, Printer, Mail } from "lucide-react";
+import { Plus, Printer, Mail, Check } from "lucide-react";
 import FormOrdem from "./FormOrdem";
 import OrdemDocumento from "./OrdemDocumento";
+import ConfirmarOrdem from "./ConfirmarOrdem";
 
 export default function OrdensContrato({ c, data, refresh }) {
   const podeEditar = usePodeEditar();
   const [nova, setNova] = useState(false);
   const [ver, setVer] = useState(null);
+  const [confirmar, setConfirmar] = useState(null);
   const linhas = saldoContrato(c, data.ordens);
   const ordens = ordensDe(c.id, data.ordens).slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
@@ -91,11 +93,12 @@ export default function OrdensContrato({ c, data, refresh }) {
                 {ordens.map(o => (
                   <tr key={o.id} className="border-b border-slate-100 hover:bg-stone-50">
                     <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.data)}</td>
-                    <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.dataConfirmacao)}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs">{o.dataConfirmacao ? fmtData(o.dataConfirmacao) : <span className="text-amber-700">Pendente</span>}</td>
                     <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.dataLimiteEntrega)}</td>
                     <td className="px-3 py-2.5 font-mono text-xs">{o.prazoEntrega || "—"}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">R$ {fmtM(valorOrdem(o))}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
+                      {podeEditar && <MiniBtn onClick={() => setConfirmar(o)}><Check className="w-3 h-3 inline mr-1" />Confirmação</MiniBtn>}{" "}
                       <MiniBtn onClick={() => setVer(o)}><Printer className="w-3 h-3 inline mr-1" />Documento</MiniBtn>{" "}
                       <MiniBtn onClick={() => copiarEmail(o)}><Mail className="w-3 h-3 inline mr-1" />Texto de e-mail</MiniBtn>{" "}
                       {podeEditar && <MiniBtn variant="risco" onClick={() => excluir(o)}>Excluir</MiniBtn>}
@@ -110,6 +113,7 @@ export default function OrdensContrato({ c, data, refresh }) {
 
       {nova && <FormOrdem c={c} data={data} refresh={refresh} onClose={() => setNova(false)} onSalvo={(o) => { setNova(false); setVer(o); }} />}
       {ver && <OrdemDocumento o={data.ordens.find(x => x.id === ver.id) || ver} c={c} data={data} onClose={() => setVer(null)} />}
+      {confirmar && <ConfirmarOrdem o={data.ordens.find(x => x.id === confirmar.id) || confirmar} c={c} refresh={refresh} onClose={() => setConfirmar(null)} />}
     </div>
   );
 }
