@@ -28,6 +28,17 @@ export function htmlTermo(t, c, data) {
   const atraso = !!(t.dataRecebimentoProvisorio && t.dataLimiteEntrega && t.dataRecebimentoProvisorio > t.dataLimiteEntrega);
   const dias = atraso ? diasEntre(t.dataLimiteEntrega, t.dataRecebimentoProvisorio) : 0;
   const notasTxt = notas.map(p => `Nota Fiscal N° ${escHtml(p.nf)}, recebida em ${escHtml(fmtData(t.dataRecebimentoProvisorio || p.dataNF))}`).join("; ");
+  const ocorrencias = (data.ocorrencias || []).filter(o => o.contratoId === c.id)
+    .slice().sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
+
+  const linhasOc = ocorrencias.map(o => `<tr>
+      <td>${escHtml(fmtData(o.data))}</td>
+      <td>${escHtml(o.tipo || "—")}</td>
+      <td>${escHtml(o.processo || "—")}</td>
+      <td>${o.dias ? `${Number(o.dias)} dia(s)` : "—"}</td>
+      <td class="num">${o.valor ? `R$ ${escHtml(o.valor)}` : "—"}</td>
+      <td>${escHtml(o.descricao || "—")}</td>
+    </tr>`).join("");
 
   const linhas = itens.map((i, idx) => {
     const b = (data.catalog || []).find(x => x.id === i.benId) || { objeto: "(item removido)" };
@@ -75,6 +86,12 @@ export function htmlTermo(t, c, data) {
       <tfoot><tr><td colspan="6" class="total">TOTAL</td><td class="num total">R$ ${fmtM(totalItens)}</td></tr></tfoot>
     </table>
 
+    ${ocorrencias.length ? `<div class="t-tit">8. Aditivos e ocorrências contratuais registrados:</div>
+    <table>
+      <thead><tr><th>Data</th><th>Tipo</th><th>Processo</th><th>Prorrogação</th><th>Acréscimo/supressão</th><th>Descrição</th></tr></thead>
+      <tbody>${linhasOc}</tbody>
+    </table>` : ""}
+
     <div class="t-box">
       <p style="text-align:center"><b><u>PARECER FINAL DO FISCAL OU COMISSÃO DE FISCALIZAÇÃO</u></b>:</p>
       <p><b><u>Recebi o objeto deste contrato, conforme art. 140, da lei 14.133/2021:</u></b></p>
@@ -82,7 +99,7 @@ export function htmlTermo(t, c, data) {
       <p class="t-rec"><b>( ${t.dataRecebimentoDefinitivo ? "X" : "&nbsp;&nbsp;"} ) COMPRAS</b>: recebi <b>DEFINITIVAMENTE</b> o objeto deste contrato, mediante detalhamento, conforme quadro acima, comprovando o atendimento das exigências contratuais, na data de: ${escHtml(fmtData(t.dataRecebimentoDefinitivo))}</p>
     </div>
 
-    <div class="t-tit">8. Anotações complementares:</div>
+    <div class="t-tit">${ocorrencias.length ? 9 : 8}. Anotações complementares:</div>
     <div class="t-box" style="margin-top:0">
       ${t.observacoes ? `<p>${escHtml(t.observacoes)}</p>` : ""}
       <p>Material novo, entregue <b>${atraso ? "FORA do prazo" : "DENTRO do prazo"}</b>, conforme as regras contratuais.</p>
