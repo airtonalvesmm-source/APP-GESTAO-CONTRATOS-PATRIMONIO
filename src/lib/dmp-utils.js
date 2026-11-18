@@ -233,6 +233,23 @@ export function saldoContrato(c, ordens) {
 
 export const termosDe = (contratoId, termos) => (termos || []).filter(t => t.contratoId === contratoId);
 
+// Prazo de entrega em texto (ex.: "30 dias", "15 dias úteis")
+export const prazoTexto = (v) => (v == null ? "" : String(v).trim());
+
+// Extrai os dias do prazo textual; 0 quando não há número no texto
+export function diasDoPrazo(v) {
+  const m = String(v == null ? "" : v).match(/\d+/);
+  return m ? Number(m[0]) : 0;
+}
+
+// Situação da nota fiscal: retenção tem prioridade; sem retenção, Pago quando o pago iguala a nota
+export function situacaoNota(valorNF, valorPago, valorRetido) {
+  if (nVal(valorRetido) > 0) return "Retido";
+  const nf = nVal(valorNF), pg = nVal(valorPago);
+  if (nf > 0 && Math.abs(nf - pg) < 0.005) return "Pago";
+  return "Pendente";
+}
+
 // Dados de entrega herdados da ata vinculada ao contrato
 export function entregaDaAta(c, atas) {
   const a = (atas || []).find(x => x.id === c?.ataId);

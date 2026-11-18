@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Modal, Btn, Campo, Pill, inputCls, textareaCls } from "../ui";
-import { fmtM, fmtData, nVal, somaDias, pagamentosDe, entregaDaAta, termosDe, anoAtual } from "@/lib/dmp-utils";
+import { fmtM, fmtData, nVal, somaDias, diasDoPrazo, pagamentosDe, entregaDaAta, ordensDe } from "@/lib/dmp-utils";
 
 export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
   const { atas, pagamentos, termos } = data;
   const notas = pagamentosDe(c.id, pagamentos).filter(p => p.situacao !== "Cancelado");
   const entrega = entregaDaAta(c, atas);
-  const ano = (c.inicio || "").slice(0, 4) || String(anoAtual);
+  const ordem = ordensDe(c.id, data.ordens).slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")))[0];
   const [form, setForm] = useState({
-    dataConfirmacaoOrdem: "",
-    dataLimiteEntrega: "",
+    dataConfirmacaoOrdem: ordem?.dataConfirmacao || "",
+    dataLimiteEntrega: ordem?.dataLimiteEntrega || "",
     dataRecebimentoProvisorio: "",
     dataRecebimentoDefinitivo: "",
     observacoes: ""
@@ -22,7 +22,7 @@ export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
   function marcarConfirmacao(v) {
     setForm(f => {
       const novo = { ...f, dataConfirmacaoOrdem: v };
-      if (v && entrega.prazoEntrega) novo.dataLimiteEntrega = somaDias(v, entrega.prazoEntrega);
+      if (v && diasDoPrazo(entrega.prazoEntrega)) novo.dataLimiteEntrega = somaDias(v, diasDoPrazo(entrega.prazoEntrega));
       return novo;
     });
   }
@@ -70,10 +70,10 @@ export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
       )}
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))] mb-3">
-        <Campo label="Confirmação do recebimento da ordem" ajuda="Data em que a ordem de fornecimento foi confirmada pela contratada.">
+        <Campo label="Confirmação do recebimento da ordem" ajuda="Preenchida com a data registrada na ordem de fornecimento.">
           <input type="date" className={inputCls} value={form.dataConfirmacaoOrdem} onChange={e => marcarConfirmacao(e.target.value)} />
         </Campo>
-        <Campo label="Data limite para entrega" ajuda={entrega.prazoEntrega ? `Sugerida com o prazo da ata (${entrega.prazoEntrega} dias).` : "Informe o prazo previsto para a entrega."}>
+        <Campo label="Data limite para entrega" ajuda={entrega.prazoEntrega ? `Sugerida com o prazo da ata (${entrega.prazoEntrega}).` : "Informe o prazo previsto para a entrega."}>
           <input type="date" className={inputCls} value={form.dataLimiteEntrega} onChange={e => setF("dataLimiteEntrega", e.target.value)} />
         </Campo>
         <Campo label="Recebimento provisório"><input type="date" className={inputCls} value={form.dataRecebimentoProvisorio} onChange={e => setF("dataRecebimentoProvisorio", e.target.value)} /></Campo>

@@ -22,7 +22,7 @@ export function htmlOrdem(o, c, data) {
 
   return `<div class="doc">
     <h1>Ordem de Fornecimento — Contrato nº ${escHtml(c.numero)}</h1>
-    <p class="doc-sub">${o.numero ? "Ordem nº " + escHtml(o.numero) + " · " : ""}Emitida em ${escHtml(fmtData(o.data))}</p>
+    <p class="doc-sub">Emitida em ${escHtml(fmtData(o.data))}</p>
 
     <div class="doc-sec">
       <div class="doc-tit">Dados da contratada</div>
@@ -68,7 +68,9 @@ export function htmlOrdem(o, c, data) {
     <div class="doc-sec">
       <div class="doc-tit">Informações de entrega</div>
       <div class="doc-body">
-        <p><span class="rot">Prazo</span>${o.prazoEntrega ? fmtQ(o.prazoEntrega) + " dias." : "—"}</p>
+        <p><span class="rot">Prazo</span>${escHtml(o.prazoEntrega || "—")}</p>
+        <p><span class="rot">Confirmação do recebimento da ordem</span>${escHtml(fmtData(o.dataConfirmacao))}</p>
+        <p><span class="rot">Data limite para entrega</span>${escHtml(fmtData(o.dataLimiteEntrega))}</p>
         <p><span class="rot">Endereço</span>${escHtml(o.localEntrega || "—")}</p>
         <p><span class="rot">Observação</span>${escHtml(o.observacao || "—")}</p>
       </div>
@@ -86,10 +88,10 @@ export function htmlOrdem(o, c, data) {
 export default function OrdemDocumento({ o, c, data, onClose }) {
   const html = htmlOrdem(o, c, data);
   return (
-    <Modal sobre="Documento auxiliar" titulo={`Ordem de fornecimento ${o.numero}`} onClose={onClose}
+    <Modal sobre="Documento auxiliar" titulo={`Ordem de fornecimento — ${c.numero}`} onClose={onClose}
       footer={<>
         <Btn onClick={onClose}>Fechar</Btn>
-        <Btn variant="forte" onClick={() => imprimirDocumento(`Ordem de fornecimento ${o.numero}`, html)}>
+        <Btn variant="forte" onClick={() => imprimirDocumento(`Ordem de fornecimento — ${c.numero}`, html)}>
           <Printer className="w-4 h-4 inline mr-1" />Imprimir / salvar como PDF
         </Btn>
       </>}>

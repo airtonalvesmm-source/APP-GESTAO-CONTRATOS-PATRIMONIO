@@ -109,7 +109,7 @@ export default function Atas({ data, refresh }) {
               Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {a.gerenciador || "—"} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
             </p>
             <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-              Prazo de entrega: {a.prazoEntrega ? `${fmtQ(a.prazoEntrega)} dias` : "—"} · Local de entrega: {a.localEntrega || "—"}
+              Prazo de entrega: {a.prazoEntrega || "—"} · Local de entrega: {a.localEntrega || "—"}
               {a.observacaoEntrega ? ` · Observação: ${a.observacaoEntrega}` : ""}
             </p>
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens e saldos</p>
@@ -407,7 +407,7 @@ function FormAta({ a, data, refresh, onClose }) {
     const f = fornecedorId === form.fornecedorId ? (fornecedores.find(x => x.id === fornecedorId) || {}) : { razao: fornNovo.razao, cnpj: fornNovo.cnpj };
     const dados = {
       ...form, fornecedorId, numero: form.numero.trim(), processo: form.processo.trim(),
-      prazoEntrega: Number(form.prazoEntrega) || 0,
+      prazoEntrega: String(form.prazoEntrega || "").trim(),
       localEntrega: form.localEntrega.trim(), observacaoEntrega: form.observacaoEntrega.trim(),
       fornecedor: f.razao || "", cnpj: f.cnpj || "", itens: itensVal
     };
@@ -486,8 +486,8 @@ function FormAta({ a, data, refresh, onClose }) {
       </div>
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Informações de entrega</p>
       <div className="grid gap-3 [grid-template-columns:minmax(140px,180px)_minmax(0,1fr)] mb-3">
-        <Campo label="Prazo de entrega (dias)" ajuda="Os contratos desta ata herdam este prazo.">
-          <input type="number" min="0" className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} placeholder="ex.: 30" />
+        <Campo label="Prazo de entrega" ajuda="Texto livre, ex.: '30 dias' ou '15 dias úteis'. Os contratos desta ata herdam este prazo.">
+          <input className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} placeholder="ex.: 30 dias" />
         </Campo>
         <Campo label="Local de entrega" ajuda="Endereço que constará nas ordens de fornecimento dos contratos.">
           <input className={inputCls} value={form.localEntrega} onChange={e => setF("localEntrega", e.target.value)} placeholder="ex.: Sede do MP-PI — Rua Desembargador Freitas, Teresina/PI" />

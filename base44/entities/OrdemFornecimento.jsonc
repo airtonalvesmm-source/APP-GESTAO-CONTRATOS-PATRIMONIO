@@ -16,8 +16,18 @@
       "format": "date"
     },
     "prazoEntrega": {
-      "type": "number",
-      "title": "Prazo de entrega (dias)"
+      "type": "string",
+      "title": "Prazo de entrega"
+    },
+    "dataConfirmacao": {
+      "type": "string",
+      "title": "Confirma\u00e7\u00e3o do recebimento da ordem",
+      "format": "date"
+    },
+    "dataLimiteEntrega": {
+      "type": "string",
+      "title": "Data limite para entrega",
+      "format": "date"
     },
     "localEntrega": {
       "type": "string",
@@ -56,8 +66,7 @@
     }
   },
   "required": [
-    "contratoId",
-    "numero"
+    "contratoId"
   ],
   "rls": {
     "read": {

@@ -51,8 +51,8 @@
       "format": "date"
     },
     "prazoEntrega": {
-      "type": "number",
-      "title": "Prazo de entrega (dias)"
+      "type": "string",
+      "title": "Prazo de entrega"
     },
     "localEntrega": {
       "type": "string",

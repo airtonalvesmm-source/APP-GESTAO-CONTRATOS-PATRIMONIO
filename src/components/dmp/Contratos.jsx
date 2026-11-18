@@ -478,7 +478,7 @@ function FormContrato({ c, data, refresh, onClose }) {
         if (!aAta) return null;
         return (
           <p className="font-sans text-[12px] text-slate-500 -mt-1 mb-3">
-            Entrega herdada da ata {aAta.numero}: prazo {aAta.prazoEntrega ? `${fmtQ(aAta.prazoEntrega)} dias` : "não informado"} · local {aAta.localEntrega || "não informado"}
+            Entrega herdada da ata {aAta.numero}: prazo {aAta.prazoEntrega || "não informado"} · local {aAta.localEntrega || "não informado"}
             {aAta.observacaoEntrega ? ` · ${aAta.observacaoEntrega}` : ""}
           </p>
         );

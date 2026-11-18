@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Btn, MiniBtn, Th } from "../ui";
 import { fmtM, fmtQ, fmtData, saldoContrato, ordensDe, valorOrdem } from "@/lib/dmp-utils";
+import { textoEmailOrdem } from "@/lib/email-ordem";
 import { usePodeEditar } from "@/lib/permissoes";
-import { Plus, Printer } from "lucide-react";
+import { Plus, Printer, Mail } from "lucide-react";
 import FormOrdem from "./FormOrdem";
 import OrdemDocumento from "./OrdemDocumento";
 
@@ -15,9 +16,19 @@ export default function OrdensContrato({ c, data, refresh }) {
   const ordens = ordensDe(c.id, data.ordens).slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
   async function excluir(o) {
-    if (!confirm(`Excluir a ordem de fornecimento ${o.numero}? As quantidades voltam para o saldo do contrato.`)) return;
+    if (!confirm(`Excluir esta ordem de fornecimento de ${fmtData(o.data)}? As quantidades voltam para o saldo do contrato.`)) return;
     await base44.entities.OrdemFornecimento.delete(o.id);
     await refresh();
+  }
+
+  async function copiarEmail(o) {
+    const texto = textoEmailOrdem(o, c, data);
+    try {
+      await navigator.clipboard.writeText(texto);
+      alert("Texto de e-mail copiado. Cole na mensagem do seu e-mail.");
+    } catch {
+      alert(texto);
+    }
   }
 
   return (
@@ -71,20 +82,22 @@ export default function OrdensContrato({ c, data, refresh }) {
         <>
           <p className="font-mono text-[10.5px] text-slate-500 mt-3 mb-2">{ordens.length} ordem(ns) de fornecimento emitida(s)</p>
           <div className="overflow-x-auto border border-slate-300 rounded-sm">
-            <table className="w-full border-collapse text-[13.5px] min-w-[560px]">
+            <table className="w-full border-collapse text-[13.5px] min-w-[680px]">
               <thead><tr className="bg-stone-50">
-                <Th>Ordem</Th><Th>Emissão</Th><Th>Prazo</Th>
+                <Th>Emissão</Th><Th>Confirmação</Th><Th>Limite de entrega</Th><Th>Prazo</Th>
                 <Th className="text-right">Valor</Th><Th></Th>
               </tr></thead>
               <tbody>
                 {ordens.map(o => (
                   <tr key={o.id} className="border-b border-slate-100 hover:bg-stone-50">
-                    <td className="px-3 py-2.5 font-mono text-xs">{o.numero}</td>
                     <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.data)}</td>
-                    <td className="px-3 py-2.5 font-mono text-xs">{o.prazoEntrega ? `${fmtQ(o.prazoEntrega)} dias` : "—"}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.dataConfirmacao)}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs">{fmtData(o.dataLimiteEntrega)}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs">{o.prazoEntrega || "—"}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">R$ {fmtM(valorOrdem(o))}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <MiniBtn onClick={() => setVer(o)}><Printer className="w-3 h-3 inline mr-1" />Documento</MiniBtn>{" "}
+                      <MiniBtn onClick={() => copiarEmail(o)}><Mail className="w-3 h-3 inline mr-1" />Texto de e-mail</MiniBtn>{" "}
                       {podeEditar && <MiniBtn variant="risco" onClick={() => excluir(o)}>Excluir</MiniBtn>}
                     </td>
                   </tr>

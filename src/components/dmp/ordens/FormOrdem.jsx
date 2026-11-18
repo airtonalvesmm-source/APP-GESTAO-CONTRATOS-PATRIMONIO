@@ -1,27 +1,32 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Modal, Btn, Campo, Th, inputCls, textareaCls } from "../ui";
-import { fmtM, fmtQ, nQtd, nVal, saldoContrato, ordensDe, entregaDaAta, anoAtual } from "@/lib/dmp-utils";
+import { fmtM, fmtQ, nQtd, nVal, saldoContrato, entregaDaAta, diasDoPrazo, somaDias, prazoTexto } from "@/lib/dmp-utils";
 
 export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
-  const { catalog, atas, ordens } = data;
-  const linhas = saldoContrato(c, ordens);
+  const { catalog, atas } = data;
+  const linhas = saldoContrato(c, data.ordens);
   const entrega = entregaDaAta(c, atas);
-  const ano = (c.inicio || "").slice(0, 4) || String(anoAtual);
   const [form, setForm] = useState({
-    numero: `${ordensDe(c.id, ordens).length + 1}/${ano}`,
     data: new Date().toISOString().slice(0, 10),
-    prazoEntrega: entrega.prazoEntrega,
+    prazoEntrega: prazoTexto(entrega.prazoEntrega),
+    dataConfirmacao: "",
+    dataLimiteEntrega: "",
     localEntrega: entrega.localEntrega,
     observacao: entrega.observacao
   });
   const [qtds, setQtds] = useState(() => Object.fromEntries(linhas.map(l => [l.benId, ""])));
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  function setConfirmacao(v) {
+    setForm(f => {
+      const dias = diasDoPrazo(f.prazoEntrega);
+      return { ...f, dataConfirmacao: v, dataLimiteEntrega: v && dias ? somaDias(v, dias) : f.dataLimiteEntrega };
+    });
+  }
   const total = linhas.reduce((t, l) => t + nQtd(qtds[l.benId]) * nVal(l.valor), 0);
 
   async function salvar() {
-    if (!form.numero.trim()) return alert("Informe o número da ordem de fornecimento.");
     const itens = [];
     for (const l of linhas) {
       const q = nQtd(qtds[l.benId]);
@@ -33,9 +38,10 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
     if (!itens.length) return alert("Informe a quantidade de ao menos um item.");
     const criado = await base44.entities.OrdemFornecimento.create({
       contratoId: c.id,
-      numero: form.numero.trim(),
       data: form.data,
-      prazoEntrega: Number(form.prazoEntrega) || 0,
+      prazoEntrega: prazoTexto(form.prazoEntrega),
+      dataConfirmacao: form.dataConfirmacao,
+      dataLimiteEntrega: form.dataLimiteEntrega,
       localEntrega: form.localEntrega.trim(),
       observacao: form.observacao.trim(),
       itens,
@@ -49,10 +55,15 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo }) {
     <Modal sobre={`${c.tipo} ${c.numero}`} titulo="Emitir ordem de fornecimento" onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar e emitir</Btn></>}>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-4">
-        <Campo label="Número da ordem"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} /></Campo>
         <Campo label="Data de emissão"><input type="date" className={inputCls} value={form.data} onChange={e => setF("data", e.target.value)} /></Campo>
-        <Campo label="Prazo de entrega (dias)" ajuda="Herdado da ata — pode ajustar nesta ordem.">
-          <input type="number" min="0" className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} />
+        <Campo label="Prazo de entrega" ajuda="Herdado da ata — pode ajustar nesta ordem.">
+          <input className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} placeholder="ex.: 30 dias" />
+        </Campo>
+        <Campo label="Confirmação do recebimento da ordem" ajuda="Data em que a contratada confirmou o recebimento. A data limite é calculada com o prazo acima.">
+          <input type="date" className={inputCls} value={form.dataConfirmacao} onChange={e => setConfirmacao(e.target.value)} />
+        </Campo>
+        <Campo label="Data limite para entrega" ajuda="Calculada automaticamente — ajuste se necessário.">
+          <input type="date" className={inputCls} value={form.dataLimiteEntrega} onChange={e => setF("dataLimiteEntrega", e.target.value)} />
         </Campo>
       </div>
       <div className="mb-4">

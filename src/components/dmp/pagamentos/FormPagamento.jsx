@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { SITUACOES_PAGAMENTO } from "@/lib/dmp-data";
-import { fmtM, nVal, totaisPagamento } from "@/lib/dmp-utils";
+import { fmtM, nVal, totaisPagamento, situacaoNota } from "@/lib/dmp-utils";
 import { opcoesAgrupadas } from "@/lib/subcat-utils";
 import { Modal, Btn, Campo, inputCls, textareaCls } from "../ui";
 
@@ -23,9 +22,9 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
     valorNF: p ? p.valorNF : empenhadoInicial,
     valorRetido: p ? Math.max(0, nVal(p.valorNF) - nVal(p.valorPago)) : 0,
     valorPago: p ? p.valorPago : empenhadoInicial,
-    dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || (p ? "" : "Atraso na entrega"),
-    situacao: p?.situacao || "Pago"
+    dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || (p ? "" : "Atraso na entrega")
   });
+  const situacao = situacaoNota(form.valorNF, form.valorPago, form.valorRetido);
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
   function setRetido(v) {
     const r = Math.max(0, nVal(v));
@@ -45,7 +44,7 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
     if (!nVal(form.valorNF)) return alert("Informe o valor da nota fiscal.");
     const ret = nVal(form.valorRetido);
     if (ret > 0 && !form.motivo.trim()) return alert(`Há R$ ${fmtM(ret)} retidos: informe o motivo da retenção.`);
-    const dados = { contratoId: form.contratoId, nf: form.nf.trim(), dataNF: form.dataNF, valorNF: nVal(form.valorNF), valorPago: nVal(form.valorPago), dataPagamento: form.dataPagamento, motivo: form.motivo.trim(), situacao: form.situacao };
+    const dados = { contratoId: form.contratoId, nf: form.nf.trim(), dataNF: form.dataNF, valorNF: nVal(form.valorNF), valorPago: nVal(form.valorPago), dataPagamento: form.dataPagamento, motivo: form.motivo.trim(), situacao };
     if (p) await base44.entities.Pagamento.update(p.id, dados);
     else await base44.entities.Pagamento.create(dados);
     await refresh();
@@ -78,7 +77,9 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
         <Campo label="Valor retido (R$)" ajuda="Digite o valor retido. O valor pago é recalculado automaticamente."><input type="number" min="0" step="0.01" className={inputCls} value={form.valorRetido} onChange={e => setRetido(e.target.value)} /></Campo>
         <Campo label="Data do pagamento"><input type="date" className={inputCls} value={form.dataPagamento} onChange={e => setF("dataPagamento", e.target.value)} /></Campo>
         <Campo label="Valor pago (R$)" ajuda="Calculado: valor da nota − retido."><input readOnly className={inputCls + " bg-slate-50"} value={fmtM(form.valorPago)} /></Campo>
-        <Campo label="Situação da nota"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_PAGAMENTO.map(s => <option key={s}>{s}</option>)}</select></Campo>
+        <Campo label="Situação da nota" ajuda="Automática: Retido quando há valor retido; senão Pago, se o valor pago igualar a nota; senão Pendente.">
+          <input readOnly className={inputCls + " bg-slate-50"} value={situacao} />
+        </Campo>
       </div>
       <Campo label="Motivo da retenção"><textarea className={textareaCls} value={form.motivo} onChange={e => setF("motivo", e.target.value)} placeholder="ex.: retenção de 2% a título de multa por atraso na entrega, conforme processo de penalidade." /></Campo>
     </Modal>
