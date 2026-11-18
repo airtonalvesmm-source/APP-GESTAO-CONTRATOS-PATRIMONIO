@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { CAT_ARP, ORDEM } from "@/lib/dmp-data";
+import { CAT_ARP, ORDEM, UNIDADES_ORCAMENTARIAS } from "@/lib/dmp-data";
+import { uoPor, rotuloUO } from "@/lib/unidade-orcamentaria";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV, parsearCSV } from "@/lib/dmp-utils";
 import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
@@ -106,7 +107,7 @@ export default function Atas({ data, refresh }) {
           <div className="px-4 pb-4 border-t border-slate-100">
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados da ata</p>
             <p className="font-sans text-[13.5px] text-slate-600 mb-3">
-              Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {a.gerenciador || "—"} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
+              Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {rotuloUO(a.gerenciador)} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
             </p>
             <p className="font-sans text-[13.5px] text-slate-600 mb-3">
               Prazo de entrega: {a.prazoEntrega || "—"} · Local de entrega: {a.localEntrega || "—"}
@@ -237,7 +238,7 @@ function FormAta({ a, data, refresh, onClose }) {
   // Fornecedor sugerido pela IA — só é cadastrado quando a ata for salva
   const [fornNovo, setFornNovo] = useState(null);
   const [form, setForm] = useState({
-    numero: a?.numero || "", processo: a?.processo || "", gerenciador: a?.gerenciador || "Ministério Público do Estado do Piauí",
+    numero: a?.numero || "", processo: a?.processo || "", gerenciador: a?.gerenciador || "PGJ",
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
     inicio: a?.inicio || "", fim: a?.fim || "",
     prazoEntrega: a?.prazoEntrega ?? "", localEntrega: a?.localEntrega || "", observacaoEntrega: a?.observacaoEntrega || ""
@@ -451,7 +452,12 @@ function FormAta({ a, data, refresh, onClose }) {
         <Campo label="Número da ata"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 12/2026" /></Campo>
         <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>
         <Campo label="Categoria"><select className={inputCls} value={form.categoria} onChange={e => { setF("categoria", e.target.value); setF("fornecedorId", ""); }}>{CAT_ARP.map(c => <option key={c}>{c}</option>)}</select></Campo>
-        <Campo label="Órgão gerenciador"><input className={inputCls} value={form.gerenciador} onChange={e => setF("gerenciador", e.target.value)} /></Campo>
+        <Campo label="Órgão gerenciador" ajuda="Unidade orçamentária responsável pela ata.">
+          <select className={inputCls} value={form.gerenciador} onChange={e => setF("gerenciador", e.target.value)}>
+            {form.gerenciador && !uoPor(form.gerenciador) && <option value={form.gerenciador}>{form.gerenciador} (valor atual)</option>}
+            {UNIDADES_ORCAMENTARIAS.map(u => <option key={u.sigla} value={u.sigla}>{u.sigla} — {u.nome}</option>)}
+          </select>
+        </Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Licitação de origem" ajuda={licitacoes.length ? "Certame que gerou esta ata." : "Nenhuma licitação cadastrada."}>

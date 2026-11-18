@@ -3,13 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { Btn, MiniBtn, Th } from "../ui";
 import { fmtData, termosDe } from "@/lib/dmp-utils";
 import { usePodeEditar } from "@/lib/permissoes";
-import { Plus, Printer } from "lucide-react";
+import { Plus, Printer, Pencil } from "lucide-react";
 import FormTermo from "./FormTermo";
 import TermoDocumento from "./TermoDocumento";
 
 export default function TermosContrato({ c, data, refresh }) {
   const podeEditar = usePodeEditar();
   const [novo, setNovo] = useState(false);
+  const [editar, setEditar] = useState(null);
   const [ver, setVer] = useState(null);
   const termos = termosDe(c.id, data.termos).slice().sort((a, b) => String(b.created_date || "").localeCompare(String(a.created_date || "")));
 
@@ -55,6 +56,7 @@ export default function TermosContrato({ c, data, refresh }) {
                   <td className="px-3 py-2.5 font-mono text-xs">{fmtData(t.dataRecebimentoDefinitivo)}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <MiniBtn onClick={() => setVer(t)}><Printer className="w-3 h-3 inline mr-1" />Documento</MiniBtn>{" "}
+                    {podeEditar && <MiniBtn onClick={() => setEditar(t)}><Pencil className="w-3 h-3 inline mr-1" />Editar</MiniBtn>}{" "}
                     {podeEditar && <MiniBtn variant="risco" onClick={() => excluir(t)}>Excluir</MiniBtn>}
                   </td>
                 </tr>
@@ -65,6 +67,7 @@ export default function TermosContrato({ c, data, refresh }) {
       )}
 
       {novo && <FormTermo c={c} data={data} refresh={refresh} onClose={() => setNovo(false)} onSalvo={(t) => { setNovo(false); setVer(t); }} />}
+      {editar && <FormTermo c={c} data={data} refresh={refresh} termo={editar} onClose={() => setEditar(null)} onSalvo={(t) => { setEditar(null); setVer(t); }} />}
       {ver && <TermoDocumento t={data.termos.find(x => x.id === ver.id) || ver} c={c} data={data} onClose={() => setVer(null)} />}
     </div>
   );

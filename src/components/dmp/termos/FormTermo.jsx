@@ -3,19 +3,19 @@ import { base44 } from "@/api/base44Client";
 import { Modal, Btn, Campo, Pill, inputCls, textareaCls } from "../ui";
 import { fmtM, fmtData, nVal, somaDias, diasDoPrazo, pagamentosDe, entregaDaAta, ordensDe } from "@/lib/dmp-utils";
 
-export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
-  const { atas, pagamentos, termos } = data;
+export default function FormTermo({ c, data, refresh, onClose, onSalvo, termo }) {
+  const { atas, pagamentos } = data;
   const notas = pagamentosDe(c.id, pagamentos).filter(p => p.situacao !== "Cancelado");
   const entrega = entregaDaAta(c, atas);
   const ordem = ordensDe(c.id, data.ordens).slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")))[0];
   const [form, setForm] = useState({
-    dataConfirmacaoOrdem: ordem?.dataConfirmacao || "",
-    dataLimiteEntrega: ordem?.dataLimiteEntrega || "",
-    dataRecebimentoProvisorio: "",
-    dataRecebimentoDefinitivo: "",
-    observacoes: ""
+    dataConfirmacaoOrdem: termo ? (termo.dataConfirmacaoOrdem || "") : (ordem?.dataConfirmacao || ""),
+    dataLimiteEntrega: termo ? (termo.dataLimiteEntrega || "") : (ordem?.dataLimiteEntrega || ""),
+    dataRecebimentoProvisorio: termo?.dataRecebimentoProvisorio || "",
+    dataRecebimentoDefinitivo: termo?.dataRecebimentoDefinitivo || "",
+    observacoes: termo?.observacoes || ""
   });
-  const [selecionadas, setSelecionadas] = useState([]);
+  const [selecionadas, setSelecionadas] = useState(termo?.pagamentoIds || []);
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -34,7 +34,7 @@ export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
   async function salvar() {
     if (!selecionadas.length) return alert("Selecione ao menos uma nota fiscal.");
     if (!form.dataRecebimentoProvisorio) return alert("Informe a data do recebimento provisório.");
-    const criado = await base44.entities.TermoRecebimento.create({
+    const dados = {
       contratoId: c.id,
       pagamentoIds: selecionadas,
       dataConfirmacaoOrdem: form.dataConfirmacaoOrdem,
@@ -42,16 +42,19 @@ export default function FormTermo({ c, data, refresh, onClose, onSalvo }) {
       dataRecebimentoProvisorio: form.dataRecebimentoProvisorio,
       dataRecebimentoDefinitivo: form.dataRecebimentoDefinitivo,
       observacoes: form.observacoes.trim()
-    });
+    };
+    const salvo = termo
+      ? await base44.entities.TermoRecebimento.update(termo.id, dados)
+      : await base44.entities.TermoRecebimento.create(dados);
     await refresh();
-    onSalvo?.(criado);
+    onSalvo?.(salvo || { ...termo, ...dados });
   }
 
   const atraso = form.dataRecebimentoProvisorio && form.dataLimiteEntrega && form.dataRecebimentoProvisorio > form.dataLimiteEntrega;
 
   return (
-    <Modal sobre={`${c.tipo} ${c.numero}`} titulo="Emitir termo circunstanciado de recebimento" onClose={onClose}
-      footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar e emitir</Btn></>}>
+    <Modal sobre={`${c.tipo} ${c.numero}`} titulo={termo ? "Editar termo de recebimento" : "Emitir termo circunstanciado de recebimento"} onClose={onClose}
+      footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>{termo ? "Salvar alterações" : "Salvar e emitir"}</Btn></>}>
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mb-2">Notas fiscais deste termo</p>
       {notas.length === 0 ? (
         <p className="font-sans text-sm text-slate-500 mb-4">Este contrato não tem notas fiscais lançadas.</p>

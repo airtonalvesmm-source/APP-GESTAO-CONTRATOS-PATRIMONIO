@@ -4,6 +4,7 @@ import { CAT_ARP, ORDEM, SITUACOES_CONTRATO } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, uid, baixarCSV,
   ocorrenciasDe, aditivoValor, diasAditivados, valorItensContrato, valorEmpenhado, fimVigente, nValS } from "@/lib/dmp-utils";
 import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
+import { rotuloUO } from "@/lib/unidade-orcamentaria";
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
 import { TelaCab } from "./Catalogo";
@@ -458,6 +459,9 @@ function FormContrato({ c, data, refresh, onClose }) {
             </select>
           </Campo>
         )}
+        <Campo label="Unidade orçamentária" ajuda="Definida pelo órgão gerenciador da ata vinculada.">
+          <input className={inputCls + " disabled:bg-slate-50"} value={rotuloUO(a?.gerenciador || "PGJ")} disabled />
+        </Campo>
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => handleInicio(e.target.value)} /></Campo>

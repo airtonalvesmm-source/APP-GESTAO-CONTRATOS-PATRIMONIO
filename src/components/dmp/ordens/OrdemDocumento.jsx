@@ -1,12 +1,13 @@
 import React from "react";
 import { Modal, Btn } from "../ui";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, escHtml, valorOrdem } from "@/lib/dmp-utils";
-import { CONTRATANTE } from "@/lib/dmp-data";
+import { contratanteDoContrato } from "@/lib/unidade-orcamentaria";
 import { CSS_DOC, imprimirDocumento } from "@/lib/imprimir";
 import { Printer } from "lucide-react";
 
 export function htmlOrdem(o, c, data) {
   const ata = (data.atas || []).find(a => a.id === c.ataId);
+  const contratante = contratanteDoContrato(c, data.atas);
   const linhas = (o.itens || []).map((i, idx) => {
     const b = (data.catalog || []).find(x => x.id === i.benId) || { objeto: "(item removido)", unidade: "—" };
     return `<tr>
@@ -35,8 +36,9 @@ export function htmlOrdem(o, c, data) {
     <div class="doc-sec">
       <div class="doc-tit">Dados da contratante</div>
       <div class="doc-body grade">
-        <div><span class="rot">Contratante</span>${escHtml(CONTRATANTE.nome)}</div>
-        <div><span class="rot">CNPJ</span>${escHtml(CONTRATANTE.cnpj)}</div>
+        <div><span class="rot">Contratante</span>${escHtml(contratante.nome)}</div>
+        <div><span class="rot">CNPJ</span>${escHtml(contratante.cnpj)}</div>
+        <div><span class="rot">Unidade orçamentária</span>${escHtml(contratante.sigla)}</div>
       </div>
     </div>
 
