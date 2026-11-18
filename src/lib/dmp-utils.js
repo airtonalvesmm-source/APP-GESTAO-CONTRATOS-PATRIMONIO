@@ -200,3 +200,45 @@ export function parsearCSV(texto) {
     return obj;
   });
 }
+
+// Ordens de fornecimento — saldo do contrato por item
+export const ordensDe = (contratoId, ordens) =>
+  (ordens || []).filter(o => o.contratoId === contratoId && o.situacao !== "cancelada");
+
+export const valorOrdem = (o) => (o.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
+
+export function qtdSolicitada(contratoId, benId, ordens, ignorarOrdem) {
+  let q = 0;
+  ordensDe(contratoId, ordens).forEach(o => {
+    if (o.id === ignorarOrdem) return;
+    (o.itens || []).forEach(i => { if (i.benId === benId) q += nQtd(i.qtd); });
+  });
+  return q;
+}
+
+// Saldo por item: contratado − solicitado em ordens de fornecimento
+export function saldoContrato(c, ordens) {
+  const mapa = new Map();
+  (c.itens || []).forEach(i => {
+    const atual = mapa.get(i.benId) || { benId: i.benId, contratado: 0, valor: nVal(i.valor) };
+    atual.contratado += nQtd(i.qtd);
+    if (!atual.valor) atual.valor = nVal(i.valor);
+    mapa.set(i.benId, atual);
+  });
+  return Array.from(mapa.values()).map(l => {
+    const solicitado = qtdSolicitada(c.id, l.benId, ordens);
+    return { ...l, solicitado, saldo: Math.max(0, l.contratado - solicitado) };
+  });
+}
+
+export const termosDe = (contratoId, termos) => (termos || []).filter(t => t.contratoId === contratoId);
+
+// Dados de entrega herdados da ata vinculada ao contrato
+export function entregaDaAta(c, atas) {
+  const a = (atas || []).find(x => x.id === c?.ataId);
+  return {
+    prazoEntrega: a?.prazoEntrega || "",
+    localEntrega: a?.localEntrega || "",
+    observacao: a?.observacaoEntrega || ""
+  };
+}

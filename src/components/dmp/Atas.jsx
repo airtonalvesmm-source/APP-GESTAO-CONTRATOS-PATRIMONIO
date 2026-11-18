@@ -77,9 +77,9 @@ export default function Atas({ data, refresh }) {
 
   function exportCSV() {
     if (!atas.length) return alert("Não há atas cadastradas.");
-    const l = [["Número da ata", "Processo", "Órgão gerenciador", "Categoria", "CNPJ do fornecedor", "Início da vigência", "Fim da vigência"]];
+    const l = [["Número da ata", "Processo", "Órgão gerenciador", "Categoria", "CNPJ do fornecedor", "Início da vigência", "Fim da vigência", "Prazo de entrega (dias)", "Local de entrega", "Observação da entrega"]];
     atas.forEach(a => {
-      l.push([a.numero, a.processo || "", a.gerenciador || "", a.categoria || "", a.cnpj || "", fmtData(a.inicio), fmtData(a.fim)]);
+      l.push([a.numero, a.processo || "", a.gerenciador || "", a.categoria || "", a.cnpj || "", fmtData(a.inicio), fmtData(a.fim), a.prazoEntrega || "", a.localEntrega || "", a.observacaoEntrega || ""]);
     });
     baixarCSV("atas.csv", l);
   }
@@ -107,6 +107,10 @@ export default function Atas({ data, refresh }) {
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Dados da ata</p>
             <p className="font-sans text-[13.5px] text-slate-600 mb-3">
               Processo: {a.processo || "—"} · CNPJ: {a.cnpj || "—"} · Gerenciador: {a.gerenciador || "—"} · Vigência: {fmtData(a.inicio)} a {fmtData(a.fim)}
+            </p>
+            <p className="font-sans text-[13.5px] text-slate-600 mb-3">
+              Prazo de entrega: {a.prazoEntrega ? `${fmtQ(a.prazoEntrega)} dias` : "—"} · Local de entrega: {a.localEntrega || "—"}
+              {a.observacaoEntrega ? ` · Observação: ${a.observacaoEntrega}` : ""}
             </p>
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens e saldos</p>
             {(a.itens || []).length ? (
@@ -235,7 +239,8 @@ function FormAta({ a, data, refresh, onClose }) {
   const [form, setForm] = useState({
     numero: a?.numero || "", processo: a?.processo || "", gerenciador: a?.gerenciador || "Ministério Público do Estado do Piauí",
     categoria: a?.categoria || CAT_ARP[0], licitacaoId: a?.licitacaoId || "", fornecedorId: a?.fornecedorId || "",
-    inicio: a?.inicio || "", fim: a?.fim || ""
+    inicio: a?.inicio || "", fim: a?.fim || "",
+    prazoEntrega: a?.prazoEntrega ?? "", localEntrega: a?.localEntrega || "", observacaoEntrega: a?.observacaoEntrega || ""
   });
   const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => !b.oculto && b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog.filter(b => !b.oculto)[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
   const [iaLoading, setIaLoading] = useState(false);
@@ -400,7 +405,12 @@ function FormAta({ a, data, refresh, onClose }) {
       fornecedorId = criado.id;
     }
     const f = fornecedorId === form.fornecedorId ? (fornecedores.find(x => x.id === fornecedorId) || {}) : { razao: fornNovo.razao, cnpj: fornNovo.cnpj };
-    const dados = { ...form, fornecedorId, numero: form.numero.trim(), processo: form.processo.trim(), fornecedor: f.razao || "", cnpj: f.cnpj || "", itens: itensVal };
+    const dados = {
+      ...form, fornecedorId, numero: form.numero.trim(), processo: form.processo.trim(),
+      prazoEntrega: Number(form.prazoEntrega) || 0,
+      localEntrega: form.localEntrega.trim(), observacaoEntrega: form.observacaoEntrega.trim(),
+      fornecedor: f.razao || "", cnpj: f.cnpj || "", itens: itensVal
+    };
     if (a) {
       await base44.entities.Ata.update(a.id, dados);
     } else {
@@ -473,6 +483,20 @@ function FormAta({ a, data, refresh, onClose }) {
         </Campo>
         <Campo label="Início da vigência"><input type="date" className={inputCls} value={form.inicio} onChange={e => handleInicio(e.target.value)} /></Campo>
         <Campo label="Fim da vigência" ajuda="Preenchido automaticamente com 12 meses após o início — edite se necessário."><input type="date" className={inputCls} value={form.fim} onChange={e => setF("fim", e.target.value)} /></Campo>
+      </div>
+      <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Informações de entrega</p>
+      <div className="grid gap-3 [grid-template-columns:minmax(140px,180px)_minmax(0,1fr)] mb-3">
+        <Campo label="Prazo de entrega (dias)" ajuda="Os contratos desta ata herdam este prazo.">
+          <input type="number" min="0" className={inputCls} value={form.prazoEntrega} onChange={e => setF("prazoEntrega", e.target.value)} placeholder="ex.: 30" />
+        </Campo>
+        <Campo label="Local de entrega" ajuda="Endereço que constará nas ordens de fornecimento dos contratos.">
+          <input className={inputCls} value={form.localEntrega} onChange={e => setF("localEntrega", e.target.value)} placeholder="ex.: Sede do MP-PI — Rua Desembargador Freitas, Teresina/PI" />
+        </Campo>
+      </div>
+      <div className="mb-3">
+        <Campo label="Observação sobre a entrega" ajuda="Texto herdado pelas ordens de fornecimento (ex.: horário, agendamento, condições de recebimento).">
+          <textarea className={textareaCls} value={form.observacaoEntrega} onChange={e => setF("observacaoEntrega", e.target.value)} />
+        </Campo>
       </div>
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens registrados</p>
       <div className="border border-slate-300 rounded-sm overflow-hidden">

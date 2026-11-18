@@ -1,0 +1,79 @@
+{
+  "name": "TermoRecebimento",
+  "type": "object",
+  "properties": {
+    "contratoId": {
+      "type": "string",
+      "title": "ID do contrato"
+    },
+    "numero": {
+      "type": "string",
+      "title": "N\u00famero do termo"
+    },
+    "pagamentoIds": {
+      "type": "array",
+      "title": "IDs das notas fiscais",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dataConfirmacaoOrdem": {
+      "type": "string",
+      "title": "Data da confirma\u00e7\u00e3o do recebimento da ordem de fornecimento",
+      "format": "date"
+    },
+    "dataLimiteEntrega": {
+      "type": "string",
+      "title": "Data limite para entrega",
+      "format": "date"
+    },
+    "dataRecebimentoProvisorio": {
+      "type": "string",
+      "title": "Data do recebimento provis\u00f3rio",
+      "format": "date"
+    },
+    "dataRecebimentoDefinitivo": {
+      "type": "string",
+      "title": "Data do recebimento definitivo",
+      "format": "date"
+    },
+    "observacoes": {
+      "type": "string",
+      "title": "Anota\u00e7\u00f5es complementares"
+    }
+  },
+  "required": [
+    "contratoId"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

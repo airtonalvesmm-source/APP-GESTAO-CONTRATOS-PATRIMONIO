@@ -110,6 +110,8 @@ export default function Pagamentos({ data, refresh }) {
         onExcluirOcorrencia={excluirOcorrencia}
         onNovaNota={() => setNfContratoId(c.id)}
         onNovaOcorrencia={() => setOcorrContratoId(c.id)}
+        data={data}
+        refresh={refresh}
       />
     );
   }

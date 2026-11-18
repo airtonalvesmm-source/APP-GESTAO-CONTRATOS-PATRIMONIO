@@ -22,23 +22,29 @@ export default async function(req) {
       return Response.json({ error: `Exclusão bloqueada: ${pagos.length} nota(s) fiscal(is) com pagamento registrado. Altere a situação do lançamento para "Cancelado" para preservar o histórico financeiro.` }, { status: 409 });
     }
     const ocorrencias = await db.Ocorrencia.filter({ contratoId }, '-created_date', 1000);
+    const ordens = await db.OrdemFornecimento.filter({ contratoId }, '-created_date', 1000);
+    const termos = await db.TermoRecebimento.filter({ contratoId }, '-created_date', 1000);
 
     const limpar = (r) => {
       const { id, created_date, updated_date, created_by_id, created_by, ...resto } = r;
       return resto;
     };
-    let ocRemovidas = false, pgRemovidos = false;
+    let ocRemovidas = false, pgRemovidos = false, ordRemovidas = false, terRemovidos = false;
     try {
       if (ocorrencias.length) { await db.Ocorrencia.deleteMany({ contratoId }); ocRemovidas = true; }
       if (pagamentos.length) { await db.Pagamento.deleteMany({ contratoId }); pgRemovidos = true; }
+      if (ordens.length) { await db.OrdemFornecimento.deleteMany({ contratoId }); ordRemovidas = true; }
+      if (termos.length) { await db.TermoRecebimento.deleteMany({ contratoId }); terRemovidos = true; }
       await db.Contrato.delete(contratoId);
     } catch (e) {
       if (ocRemovidas) await db.Ocorrencia.bulkCreate(ocorrencias.map(limpar));
       if (pgRemovidos) await db.Pagamento.bulkCreate(pagamentos.map(limpar));
+      if (ordRemovidas) await db.OrdemFornecimento.bulkCreate(ordens.map(limpar));
+      if (terRemovidos) await db.TermoRecebimento.bulkCreate(termos.map(limpar));
       return Response.json({ error: 'Falha na exclusão; nenhum registro foi perdido. ' + e.message }, { status: 500 });
     }
 
-    return Response.json({ ok: true, ocorrencias: ocorrencias.length, pagamentos: pagamentos.length });
+    return Response.json({ ok: true, ocorrencias: ocorrencias.length, pagamentos: pagamentos.length, ordens: ordens.length, termos: termos.length });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

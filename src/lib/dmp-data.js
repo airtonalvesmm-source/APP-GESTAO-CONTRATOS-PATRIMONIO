@@ -32,6 +32,12 @@ export const UNIDADES_ORCAMENTARIAS = [
   { sigla: "FEPDC", nome: "Fundo Estadual de Proteção e Defesa do Consumidor - FPDC", cnpj: "24.291.901/0001-48" }
 ];
 
+// Contratante que figura nas ordens de fornecimento e termos de recebimento
+export const CONTRATANTE = {
+  nome: "Ministério Público do Estado do Piauí — Procuradoria Geral da Justiça",
+  cnpj: "05.805.924/0001-89"
+};
+
 export const SITUACOES_OBJETO = [
   "Não existem os materiais/serviços",
   "Existem os materiais/serviços com estoque baixo",

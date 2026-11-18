@@ -17,7 +17,7 @@ export const ENTIDADES = {
   fornecedores: "Fornecedor", pagamentos: "Pagamento", ocorrencias: "Ocorrencia", dfds: "DFD",
   subcategorias: "Subcategoria", categorias: "Categoria",
   departamentos: "Departamento", bens: "BemPatrimonial", movimentacoes: "MovimentacaoEstoque",
-  reservas: "Reserva"
+  reservas: "Reserva", ordens: "OrdemFornecimento", termos: "TermoRecebimento"
 };
 
 export async function carregarDados() {

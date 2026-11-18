@@ -5,6 +5,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import ResumoFinanceiro from "./ResumoFinanceiro";
 import NotasFiscais from "./NotasFiscais";
 import OcorrenciasContrato from "./OcorrenciasContrato";
+import TermosContrato from "../termos/TermosContrato";
 import { usePodeEditar } from "@/lib/permissoes";
 
 // Classificação única do contrato: uma situação financeira por contrato,
@@ -31,7 +32,7 @@ function Secao({ titulo, desc, acao, children }) {
   );
 }
 
-export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNota, onExcluirNota, onExcluirOcorrencia, onNovaNota, onNovaOcorrencia }) {
+export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNota, onExcluirNota, onExcluirOcorrencia, onNovaNota, onNovaOcorrencia, data, refresh }) {
   const podeEditar = usePodeEditar();
   const pct = t.empenhado ? Math.max(0, Math.min(100, (t.pago / t.empenhado) * 100)) : 0;
   const st = situacaoFinanceira(t);
@@ -91,6 +92,10 @@ export default function CartaoContrato({ c, t, ocs, aberto, onToggle, onEditarNo
             )}
             <OcorrenciasContrato ocs={ocs} onExcluir={podeEditar ? onExcluirOcorrencia : null} />
           </Secao>
+
+          <div className="mt-5">
+            <TermosContrato c={c} data={data} refresh={refresh} />
+          </div>
         </div>
       )}
     </div>

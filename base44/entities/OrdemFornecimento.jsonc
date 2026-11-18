@@ -1,0 +1,93 @@
+{
+  "name": "OrdemFornecimento",
+  "type": "object",
+  "properties": {
+    "contratoId": {
+      "type": "string",
+      "title": "ID do contrato"
+    },
+    "numero": {
+      "type": "string",
+      "title": "N\u00famero da ordem"
+    },
+    "data": {
+      "type": "string",
+      "title": "Data de emiss\u00e3o",
+      "format": "date"
+    },
+    "prazoEntrega": {
+      "type": "number",
+      "title": "Prazo de entrega (dias)"
+    },
+    "localEntrega": {
+      "type": "string",
+      "title": "Local de entrega"
+    },
+    "observacao": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o"
+    },
+    "itens": {
+      "type": "array",
+      "title": "Itens solicitados",
+      "items": {
+        "type": "object",
+        "properties": {
+          "benId": {
+            "type": "string"
+          },
+          "qtd": {
+            "type": "number"
+          },
+          "valor": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "situacao": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o",
+      "enum": [
+        "emitida",
+        "cancelada"
+      ],
+      "default": "emitida"
+    }
+  },
+  "required": [
+    "contratoId",
+    "numero"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

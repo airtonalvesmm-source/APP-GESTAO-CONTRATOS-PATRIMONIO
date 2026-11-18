@@ -20,6 +20,8 @@ const ENTIDADES_BACKUP = [
   { nome: "BemPatrimonial", arquivo: "bens_patrimoniais" },
   { nome: "MovimentacaoEstoque", arquivo: "movimentacoes_estoque" },
   { nome: "Reserva", arquivo: "reservas" },
+  { nome: "OrdemFornecimento", arquivo: "ordens_fornecimento" },
+  { nome: "TermoRecebimento", arquivo: "termos_recebimento" },
   { nome: "User", arquivo: "users", especial: true }
 ];
 

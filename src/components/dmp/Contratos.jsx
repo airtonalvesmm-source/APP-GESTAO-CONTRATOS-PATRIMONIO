@@ -12,6 +12,7 @@ import { usePodeEditar } from "@/lib/permissoes";
 import { Plus, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { GrupoAnoCategoria, agruparPorAnoCategoria, BotaoAgrupar } from "./Agrupar";
 import RelatorioUnificado from "./RelatorioUnificado";
+import OrdensContrato from "./ordens/OrdensContrato";
 import { BarChart3 } from "lucide-react";
 
 export default function Contratos({ data, refresh }) {
@@ -103,11 +104,11 @@ export default function Contratos({ data, refresh }) {
 
   function exportCSV() {
     if (!contratos.length) return alert("Não há contratos lançados.");
-    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Número da ata", "Fornecedor", "CNPJ", "Objeto", "Situação", "Status de entrega", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
+    const l = [["Tipo", "Número", "Processo", "Nota de empenho", "Número da ata", "Fornecedor", "CNPJ", "Objeto", "Situação", "Status de entrega", "Fiscal do contrato", "Portaria de fiscalização", "PGEA de fiscalização", "Início da vigência", "Fim da vigência", "Qtd. de itens", "Valor dos itens"]];
     contratos.forEach(c => {
       const a = atas.find(x => x.id === c.ataId);
       const val = (c.itens || []).reduce((t, i) => t + nQtd(i.qtd) * nVal(i.valor), 0);
-      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", c.situacao || "", c.statusEntrega || "Aguardando entrega", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
+      l.push([c.tipo, c.numero, c.processo || "", c.notaEmpenho || "", a?.numero || "", c.fornecedor || "", c.cnpj || "", c.objeto || "", c.situacao || "", c.statusEntrega || "Aguardando entrega", c.fiscalNome || "", c.portariaFiscalizacao || "", c.pgeaFiscalizacao || "", fmtData(c.inicio), fmtData(fimVigente(c, ocorrencias)), (c.itens || []).length, fmtM(val)]);
     });
     baixarCSV("contratos.csv", l);
   }
@@ -142,6 +143,10 @@ export default function Contratos({ data, refresh }) {
               Processo: {c.processo || "—"} · Nota de empenho: {c.notaEmpenho || "—"} · Vigência: {fmtData(c.inicio)} a {fmtData(fimVigente(c, ocorrencias))}
               {diasAditivados(c.id, ocorrencias) ? ` (+${diasAditivados(c.id, ocorrencias)} dias por aditivo)` : ""}
               {c.objeto ? <br /> : ""}{c.objeto ? "Objeto: " + c.objeto : ""}
+              {(c.fiscalNome || c.portariaFiscalizacao || c.pgeaFiscalizacao) ? <br /> : ""}
+              {c.fiscalNome ? "Fiscal: " + c.fiscalNome : ""}
+              {c.portariaFiscalizacao ? " · Portaria " + c.portariaFiscalizacao : ""}
+              {c.pgeaFiscalizacao ? " · PGEA " + c.pgeaFiscalizacao : ""}
             </p>
             <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens</p>
             <div className="overflow-x-auto border border-slate-300 rounded-sm">
@@ -170,6 +175,9 @@ export default function Contratos({ data, refresh }) {
                   <td className="px-3 py-2.5 text-right font-mono font-semibold text-sm">{fmtM(total)}</td>
                 </tr></tfoot>
               </table>
+            </div>
+            <div className="mt-5">
+              <OrdensContrato c={c} data={data} refresh={refresh} />
             </div>
             {ocs.length > 0 && (
               <>
@@ -288,7 +296,9 @@ function FormContrato({ c, data, refresh, onClose }) {
     notaEmpenho: c?.notaEmpenho || "", ataId: c?.ataId || "",
     fornecedorId: c?.fornecedorId || "", situacao: c?.situacao || "Vigente",
     statusEntrega: c?.statusEntrega || "Aguardando entrega",
-    inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || ""
+    inicio: c?.inicio || "", fim: c?.fim || "", objeto: c?.objeto || "",
+    fiscalNome: c?.fiscalNome || "Airton Alves Mendes de Moura",
+    portariaFiscalizacao: c?.portariaFiscalizacao || "", pgeaFiscalizacao: c?.pgeaFiscalizacao || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
 
@@ -455,6 +465,23 @@ function FormContrato({ c, data, refresh, onClose }) {
         <Campo label="Situação"><select className={inputCls} value={form.situacao} onChange={e => setF("situacao", e.target.value)}>{SITUACOES_CONTRATO.map(s => <option key={s}>{s}</option>)}</select></Campo>
         <Campo label="Status de entrega" ajuda="Contratos marcados como Entregue não aparecem na tela inicial."><select className={inputCls} value={form.statusEntrega} onChange={e => setF("statusEntrega", e.target.value)}><option>Aguardando entrega</option><option>Entregue</option></select></Campo>
       </div>
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
+        <Campo label="Fiscal do contrato"><input className={inputCls} value={form.fiscalNome} onChange={e => setF("fiscalNome", e.target.value)} /></Campo>
+        <Campo label="Portaria de fiscalização" ajuda="Portaria que designa o fiscal — consta na ordem de fornecimento e no termo de recebimento.">
+          <input className={inputCls} value={form.portariaFiscalizacao} onChange={e => setF("portariaFiscalizacao", e.target.value)} placeholder="ex.: 1.381/2024" />
+        </Campo>
+        <Campo label="PGEA de fiscalização"><input className={inputCls} value={form.pgeaFiscalizacao} onChange={e => setF("pgeaFiscalizacao", e.target.value)} placeholder="ex.: PGEA nº 12/2026" /></Campo>
+      </div>
+      {form.ataId && (() => {
+        const aAta = atas.find(x => x.id === form.ataId);
+        if (!aAta) return null;
+        return (
+          <p className="font-sans text-[12px] text-slate-500 -mt-1 mb-3">
+            Entrega herdada da ata {aAta.numero}: prazo {aAta.prazoEntrega ? `${fmtQ(aAta.prazoEntrega)} dias` : "não informado"} · local {aAta.localEntrega || "não informado"}
+            {aAta.observacaoEntrega ? ` · ${aAta.observacaoEntrega}` : ""}
+          </p>
+        );
+      })()}
       <Campo label="Objeto"><textarea className={textareaCls} value={form.objeto} onChange={e => setF("objeto", e.target.value)} placeholder="ex.: aquisição de equipamentos de videomonitoramento para as promotorias de justiça do interior." /></Campo>
 
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens contratados</p>
