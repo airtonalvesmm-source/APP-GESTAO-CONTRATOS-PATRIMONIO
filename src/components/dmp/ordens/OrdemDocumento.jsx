@@ -69,8 +69,6 @@ export function htmlOrdem(o, c, data) {
       <div class="doc-tit">Informações de entrega</div>
       <div class="doc-body">
         <p><span class="rot">Prazo</span>${escHtml(o.prazoEntrega || "—")}</p>
-        <p><span class="rot">Confirmação do recebimento da ordem</span>${escHtml(fmtData(o.dataConfirmacao))}</p>
-        <p><span class="rot">Data limite para entrega</span>${escHtml(fmtData(o.dataLimiteEntrega))}</p>
         <p><span class="rot">Endereço</span>${escHtml(o.localEntrega || "—")}</p>
         <p><span class="rot">Observação</span>${escHtml(o.observacao || "—")}</p>
       </div>

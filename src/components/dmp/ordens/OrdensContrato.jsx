@@ -4,14 +4,16 @@ import { Btn, MiniBtn, Th } from "../ui";
 import { fmtM, fmtQ, fmtData, saldoContrato, ordensDe, valorOrdem } from "@/lib/dmp-utils";
 import { textoEmailOrdem } from "@/lib/email-ordem";
 import { usePodeEditar } from "@/lib/permissoes";
-import { Plus, Printer, Mail } from "lucide-react";
+import { Plus, Printer, Mail, ClipboardCheck } from "lucide-react";
 import FormOrdem from "./FormOrdem";
 import OrdemDocumento from "./OrdemDocumento";
+import AcompanhamentoOrdem from "./AcompanhamentoOrdem";
 
 export default function OrdensContrato({ c, data, refresh }) {
   const podeEditar = usePodeEditar();
   const [nova, setNova] = useState(false);
   const [ver, setVer] = useState(null);
+  const [acomp, setAcomp] = useState(null);
   const linhas = saldoContrato(c, data.ordens);
   const ordens = ordensDe(c.id, data.ordens).slice().sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
 
@@ -97,6 +99,7 @@ export default function OrdensContrato({ c, data, refresh }) {
                     <td className="px-3 py-2.5 text-right font-mono text-sm">R$ {fmtM(valorOrdem(o))}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <MiniBtn onClick={() => setVer(o)}><Printer className="w-3 h-3 inline mr-1" />Documento</MiniBtn>{" "}
+                      <MiniBtn onClick={() => setAcomp(o)}><ClipboardCheck className="w-3 h-3 inline mr-1" />Acompanhamento</MiniBtn>{" "}
                       <MiniBtn onClick={() => copiarEmail(o)}><Mail className="w-3 h-3 inline mr-1" />Texto de e-mail</MiniBtn>{" "}
                       {podeEditar && <MiniBtn variant="risco" onClick={() => excluir(o)}>Excluir</MiniBtn>}
                     </td>
@@ -110,6 +113,7 @@ export default function OrdensContrato({ c, data, refresh }) {
 
       {nova && <FormOrdem c={c} data={data} refresh={refresh} onClose={() => setNova(false)} onSalvo={(o) => { setNova(false); setVer(o); }} />}
       {ver && <OrdemDocumento o={data.ordens.find(x => x.id === ver.id) || ver} c={c} data={data} onClose={() => setVer(null)} />}
+      {acomp && <AcompanhamentoOrdem o={data.ordens.find(x => x.id === acomp.id) || acomp} c={c} refresh={refresh} onClose={() => setAcomp(null)} />}
     </div>
   );
 }
