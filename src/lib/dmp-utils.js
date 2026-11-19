@@ -244,9 +244,10 @@ export function qtdSolicitada(contratoId, benId, ordens, ignorarOrdem) {
 export function saldoContrato(c, ordens, ignorarOrdem) {
   const mapa = new Map();
   (c.itens || []).forEach(i => {
-    const atual = mapa.get(i.benId) || { benId: i.benId, contratado: 0, valor: nVal(i.valor) };
+    const atual = mapa.get(i.benId) || { benId: i.benId, contratado: 0, valor: nVal(i.valor), marca: "" };
     atual.contratado += nQtd(i.qtd);
     if (!atual.valor) atual.valor = nVal(i.valor);
+    if (!atual.marca) atual.marca = i.marca || "";
     mapa.set(i.benId, atual);
   });
   return Array.from(mapa.values()).map(l => {

@@ -10,9 +10,14 @@ export function htmlOrdem(o, c, data) {
   const contratante = contratanteDoContrato(c, data.atas);
   const linhas = (o.itens || []).map((i, idx) => {
     const b = (data.catalog || []).find(x => x.id === i.benId) || { objeto: "(item removido)", unidade: "—" };
+    const marca = i.marca
+      || (c.itens || []).find(x => x.benId === i.benId)?.marca
+      || (ata?.itens || []).find(x => x.benId === i.benId)?.marca
+      || "";
+    const sub = [b.catmat ? `CATMAT ${escHtml(b.catmat)}` : "", marca ? `Marca/Modelo: ${escHtml(marca)}` : ""].filter(Boolean).join(" · ");
     return `<tr>
       <td class="num">${idx + 1}</td>
-      <td>${escHtml(b.objeto)}</td>
+      <td>${escHtml(b.objeto)}${sub ? `<div class="sub">${sub}</div>` : ""}</td>
       <td>${escHtml(b.unidade || "—")}</td>
       <td class="num">${fmtQ(i.qtd)}</td>
       <td class="num">R$ ${fmtM(i.valor)}</td>

@@ -77,6 +77,10 @@
           "numItem": {
             "type": "string"
           },
+          "marca": {
+            "type": "string",
+            "title": "Marca/Modelo"
+          },
           "qtd": {
             "type": "number"
           },

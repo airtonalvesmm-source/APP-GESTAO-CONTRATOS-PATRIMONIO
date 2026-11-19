@@ -162,7 +162,7 @@ export default function Contratos({ data, refresh }) {
                     const t = nQtd(i.qtd) * nVal(i.valor); total += t;
                     return (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-stone-50">
-                        <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat}</span></td>
+                        <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat}{i.marca ? ` · Marca/Modelo: ${i.marca}` : ""}</span></td>
                         <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(i.qtd)}</td>
                         <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(i.valor)}</td>
                         <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtM(t)}</td>
@@ -335,6 +335,7 @@ function FormContrato({ c, data, refresh, onClose }) {
         if (x) {
           novo[i].benId = x.benId;
           novo[i].valor = x.valor;
+          novo[i].marca = x.marca || "";
           const iguais = pca.filter(p => p.benId === x.benId);
           novo[i].pcaId = iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "";
         }
@@ -354,7 +355,7 @@ function FormContrato({ c, data, refresh, onClose }) {
     if (!a || !(a.itens || []).length) { setItens([]); return; }
     setItens((a.itens || []).map(x => {
       const iguais = pca.filter(p => p.benId === x.benId);
-      return { itemAtaId: x.id, benId: x.benId, qtd: "", valor: x.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" };
+      return { itemAtaId: x.id, benId: x.benId, marca: x.marca || "", qtd: "", valor: x.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" };
     }));
   }
 
@@ -364,12 +365,12 @@ function FormContrato({ c, data, refresh, onClose }) {
       if (!a || !(a.itens || []).length) return alert("A ata selecionada não tem itens.");
       const primeiro = a.itens[0];
       const iguais = pca.filter(p => p.benId === primeiro.benId);
-      setItens(arr => [...arr, { itemAtaId: primeiro.id, benId: primeiro.benId, qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
+      setItens(arr => [...arr, { itemAtaId: primeiro.id, benId: primeiro.benId, marca: primeiro.marca || "", qtd: "", valor: primeiro.valor, pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
     } else {
       if (!catalog.length) return alert("Catálogo vazio.");
       const b = catalog[0];
       const iguais = pca.filter(p => p.benId === b.id);
-      setItens(arr => [...arr, { itemAtaId: "", benId: b.id, qtd: "", valor: "", pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
+      setItens(arr => [...arr, { itemAtaId: "", benId: b.id, marca: "", qtd: "", valor: "", pcaId: iguais.length ? (iguais.find(p => +p.exercicio === +anoContrato) || iguais[0]).id : "" }]);
     }
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
@@ -395,12 +396,12 @@ function FormContrato({ c, data, refresh, onClose }) {
         if (!x) continue;
         const atual = porChave.get(x.id);
         if (atual) atual.qtd += q;
-        else porChave.set(x.id, { itemAtaId: x.id, benId: x.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+        else porChave.set(x.id, { itemAtaId: x.id, benId: x.benId, marca: String(x.marca || "").trim(), qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
       } else {
         const chave = "bem:" + it.benId;
         const atual = porChave.get(chave);
         if (atual) atual.qtd += q;
-        else porChave.set(chave, { itemAtaId: "", benId: it.benId, qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
+        else porChave.set(chave, { itemAtaId: "", benId: it.benId, marca: String(it.marca || "").trim(), qtd: q, valor: nVal(it.valor), pcaId: it.pcaId || "" });
       }
     }
     const itensVal = Array.from(porChave.values());

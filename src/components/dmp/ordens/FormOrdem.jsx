@@ -29,7 +29,7 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo, ordem })
       if (!q) continue;
       const nome = catalog.find(b => b.id === l.benId)?.objeto || "item";
       if (q > l.saldo) return alert(`Quantidade acima do saldo de "${nome}": disponível ${fmtQ(l.saldo)}.`);
-      itens.push({ benId: l.benId, qtd: q, valor: nVal(l.valor) });
+      itens.push({ benId: l.benId, marca: l.marca || "", qtd: q, valor: nVal(l.valor) });
     }
     if (!itens.length) return alert("Informe a quantidade de ao menos um item.");
     const dados = {
@@ -87,7 +87,8 @@ export default function FormOrdem({ c, data, refresh, onClose, onSalvo, ordem })
                   <tr key={l.benId} className="border-b border-slate-100">
                     <td className="px-3 py-2.5">
                       <span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br />
-                      <span className="font-mono text-xs text-slate-600">{b.unidade} · R$ {fmtM(l.valor)}</span>
+                      <span className="font-mono text-xs text-slate-600">CATMAT {b.catmat || "—"} · {b.unidade} · R$ {fmtM(l.valor)}</span>
+                      {l.marca && <><br /><span className="font-mono text-xs text-slate-600">Marca/Modelo: {l.marca}</span></>}
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(l.contratado)}</td>
                     <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(l.solicitado)}</td>

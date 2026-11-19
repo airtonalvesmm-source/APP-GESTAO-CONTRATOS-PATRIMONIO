@@ -131,7 +131,7 @@ export default function Atas({ data, refresh }) {
                       return (
                         <tr key={it.id} className="border-b border-slate-100 hover:bg-stone-50">
                           <td className="px-3 py-2.5 font-mono text-xs">{it.numItem || "—"}</td>
-                          <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat} · {b.unidade}</span></td>
+                          <td className="px-3 py-2.5"><span className="font-sans font-semibold text-[12.8px] text-slate-800">{b.objeto}</span><br /><span className="font-mono text-xs text-slate-600">CATMAT {b.catmat} · {b.unidade}{it.marca ? ` · Marca/Modelo: ${it.marca}` : ""}</span></td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(it.qtd)}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm">{fmtQ(c)}</td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm"><b>{fmtQ(sal)}</b><Barra pct={pct} classe={cl} /></td>
@@ -243,7 +243,7 @@ function FormAta({ a, data, refresh, onClose }) {
     inicio: a?.inicio || "", fim: a?.fim || "",
     prazoEntrega: a?.prazoEntrega ?? "", localEntrega: a?.localEntrega || "", observacaoEntrega: a?.observacaoEntrega || ""
   });
-  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => !b.oculto && b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog.filter(b => !b.oculto)[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => !b.oculto && b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog.filter(b => !b.oculto)[0]?.id || catalog[0]?.id || "", numItem: "1", marca: "", qtd: "", valor: "" }]);
   const [erros, setErros] = useState([]);
 
 
@@ -266,7 +266,7 @@ function FormAta({ a, data, refresh, onClose }) {
     let daCat = catalog.filter(b => !b.oculto && b.categoria === catCatalog(form.categoria));
     if (!daCat.length) daCat = catalog.filter(b => !b.oculto);
     if (!daCat.length) daCat = catalog;
-    setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || "", numItem: String(arr.length + 1), qtd: "", valor: "" }]);
+    setItens(arr => [...arr, { id: uid(), benId: daCat[0]?.id || "", numItem: String(arr.length + 1), marca: "", qtd: "", valor: "" }]);
   }
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
   const [csvStatus, setCsvStatus] = useState("");
@@ -283,7 +283,7 @@ function FormAta({ a, data, refresh, onClose }) {
         const bem = catmat ? catalog.find(b => String(b.catmat || "").trim() === catmat) : null;
         if (!bem) { unmatched++; return; }
         matched++;
-        novos.push({ id: uid(), benId: bem.id, numItem: String(row["Nº na ata"] || row["Item"] || idx + 1).trim(), qtd: row["Qtd."] || row["Quantidade"] || "", valor: row["Vlr. unit."] || row["Valor unitário"] || "" });
+        novos.push({ id: uid(), benId: bem.id, numItem: String(row["Nº na ata"] || row["Item"] || idx + 1).trim(), marca: row["Marca/Modelo"] || row["Marca"] || "", qtd: row["Qtd."] || row["Quantidade"] || "", valor: row["Vlr. unit."] || row["Valor unitário"] || "" });
       });
       if (novos.length) setItens(arr => [...arr, ...novos]);
       setCsvStatus(`${matched} itens importados${unmatched > 0 ? `, ${unmatched} sem CATMAT correspondente ignorados` : ""}.`);
@@ -308,7 +308,7 @@ function FormAta({ a, data, refresh, onClose }) {
       const q = inteiroDe(bruto);
       if (Number.isNaN(q) || q <= 0) { lista.push(`"${nome}": quantidade deve ser um número inteiro maior que zero.`); return; }
       if (String(it.valor ?? "").trim() !== "" && (Number.isNaN(numeroDe(it.valor)) || numeroDe(it.valor) < 0)) { lista.push(`"${nome}": valor unitário inválido — use apenas números.`); return; }
-      itensVal.push({ id: it.id || uid(), benId: it.benId, numItem: String(it.numItem || "").trim(), qtd: q, valor: nVal(it.valor) });
+      itensVal.push({ id: it.id || uid(), benId: it.benId, numItem: String(it.numItem || "").trim(), marca: String(it.marca || "").trim(), qtd: q, valor: nVal(it.valor) });
     });
     if (!itensVal.length && !lista.length) lista.push("Registre ao menos um item com quantidade.");
     if (lista.length) { setErros(lista); return; }
@@ -413,12 +413,16 @@ function FormAta({ a, data, refresh, onClose }) {
       <p className="font-sans text-[10px] tracking-widest uppercase text-slate-500 mt-4 mb-2">Itens registrados</p>
       <div className="border border-slate-300 rounded-sm overflow-hidden">
         {itens.map((it, i) => (
-          <div key={i} className={`grid gap-2.5 px-3 py-2.5 border-b border-slate-100 last:border-0 [grid-template-columns:minmax(0,2.4fr)_90px_110px_120px_36px] items-end ${!it.benId ? "bg-red-50" : ""}`}>
+          <div key={i} className={`grid gap-2.5 px-3 py-2.5 border-b border-slate-100 last:border-0 [grid-template-columns:minmax(0,2.1fr)_minmax(0,1.2fr)_90px_110px_120px_36px] items-end ${!it.benId ? "bg-red-50" : ""}`}>
             <Campo label={`Item ${i + 1}`} ajuda={!it.benId ? `Sem CATMAT correspondente${it._descricao ? `: "${it._descricao.slice(0, 80)}"` : ""} — escolha o item do catálogo.` : ""}>
               <select className={`${inputCls} ${!it.benId ? "border-red-400" : ""}`} value={it.benId} onChange={e => setItem(i, "benId", e.target.value)}>
                 {!it.benId && <option value="">— Selecione o item do catálogo —</option>}
                 {opcoesBens(it.benId)}
               </select>
+              <span className="font-mono text-[11px] text-slate-500">CATMAT {catalog.find(b => b.id === it.benId)?.catmat || "—"}</span>
+            </Campo>
+            <Campo label="Marca/Modelo" ajuda="Opcional — consta no contrato e na ordem de fornecimento.">
+              <input className={inputCls} value={it.marca || ""} onChange={e => setItem(i, "marca", e.target.value)} placeholder="ex.: Tramontina 2290" />
             </Campo>
             <Campo label="Nº na ata"><input className={inputCls} value={it.numItem} onChange={e => setItem(i, "numItem", e.target.value)} /></Campo>
             <Campo label="Qtd."><input type="number" min="0" className={inputCls} value={it.qtd} onChange={e => setItem(i, "qtd", e.target.value)} /></Campo>

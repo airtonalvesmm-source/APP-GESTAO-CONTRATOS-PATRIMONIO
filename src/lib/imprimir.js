@@ -15,6 +15,7 @@ export const CSS_DOC = `
 .doc .num { text-align: right; white-space: nowrap; font-family: "Courier New", monospace; }
 .doc .rot { font-family: Arial, sans-serif; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: #5A6270; display: block; margin-bottom: 2px; }
 .doc .destaque { border-left: 3px solid #B45309; background: #FFFBEB; padding: 6px 9px; }
+.doc .sub { font-family: Arial, sans-serif; font-size: 9.5px; color: #5A6270; margin-top: 1px; }
 .doc .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
 .doc .total { font-family: Arial, sans-serif; font-weight: bold; }
 .doc .assin { margin-top: 30px; text-align: center; page-break-inside: avoid; }
