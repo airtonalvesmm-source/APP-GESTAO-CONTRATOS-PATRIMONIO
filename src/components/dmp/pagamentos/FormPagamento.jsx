@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { fmtM, nVal, totaisPagamento, situacaoNota } from "@/lib/dmp-utils";
 import { opcoesAgrupadas } from "@/lib/subcat-utils";
-import { Modal, Btn, Campo, inputCls, textareaCls } from "../ui";
+import { Modal, Btn, Campo, ErrosForm, inputCls, textareaCls } from "../ui";
 
 export default function FormPagamento({ p, contratoId, data, refresh, onClose }) {
   const { contratos, pagamentos, ocorrencias, atas, catalog } = data;
@@ -25,7 +25,8 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
     dataPagamento: p?.dataPagamento || "", motivo: p?.motivo || (p ? "" : "Atraso na entrega")
   });
   const situacao = situacaoNota(form.valorNF, form.valorPago, form.valorRetido);
-  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  const [erros, setErros] = useState([]);
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); setErros([]); }
   function setRetido(v) {
     const r = Math.max(0, nVal(v));
     const pago = Math.max(0, nVal(form.valorNF) - r);
@@ -40,11 +41,18 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
   const t = c ? totaisPagamento(c, pagamentos, ocorrencias) : null;
 
   async function salvar() {
-    if (!form.nf.trim()) return alert("Informe o número da nota fiscal.");
-    if (!nVal(form.valorNF)) return alert("Informe o valor da nota fiscal.");
+    const lista = [];
+    if (!form.contratoId) lista.push("Contrato ou empenho: campo obrigatório.");
+    if (!form.nf.trim()) lista.push("Número da nota fiscal: campo obrigatório.");
+    const vnf = nVal(form.valorNF);
+    if (!vnf) lista.push("Valor da nota: informe um valor maior que zero.");
     const ret = nVal(form.valorRetido);
-    if (ret > 0 && !form.motivo.trim()) return alert(`Há R$ ${fmtM(ret)} retidos: informe o motivo da retenção.`);
-    const dados = { contratoId: form.contratoId, nf: form.nf.trim(), dataNF: form.dataNF, valorNF: nVal(form.valorNF), valorPago: nVal(form.valorPago), dataPagamento: form.dataPagamento, motivo: form.motivo.trim(), situacao };
+    if (ret > vnf) lista.push("Valor retido: não pode ser maior que o valor da nota fiscal.");
+    if (ret > 0 && !form.motivo.trim()) lista.push(`Há R$ ${fmtM(ret)} retidos: informe o motivo da retenção.`);
+    if (form.dataNF && form.dataPagamento && form.dataPagamento < form.dataNF) lista.push("Data do pagamento: não pode ser anterior à emissão da nota.");
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
+    const dados = { contratoId: form.contratoId, nf: form.nf.trim(), dataNF: form.dataNF, valorNF: vnf, valorPago: nVal(form.valorPago), dataPagamento: form.dataPagamento, motivo: form.motivo.trim(), situacao };
     if (p) await base44.entities.Pagamento.update(p.id, dados);
     else await base44.entities.Pagamento.create(dados);
     await refresh();
@@ -55,6 +63,7 @@ export default function FormPagamento({ p, contratoId, data, refresh, onClose })
   return (
     <Modal sobre="Pagamentos" titulo={p ? "Editar nota fiscal" : "Lançar nota fiscal"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar lançamento</Btn></>}>
+      <ErrosForm itens={erros} />
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Contrato ou empenho" ajuda={t ? `Empenhado R$ ${fmtM(t.empenhado)} · já pago R$ ${fmtM(t.pago)} · saldo a pagar R$ ${fmtM(t.aPagar)}` : ""}>
           <select className={inputCls} value={form.contratoId} onChange={e => setF("contratoId", e.target.value)}>

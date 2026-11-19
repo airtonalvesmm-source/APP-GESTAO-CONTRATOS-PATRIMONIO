@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { ADITIVOS, FALTAS } from "@/lib/dmp-data";
 import { fmtM, fmtData, nVal, norm, totaisPagamento, ocorrenciasDe, valorEmpenhado, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, Vazio } from "./ui";
@@ -72,13 +73,15 @@ export default function Pagamentos({ data, refresh }) {
 
   async function excluirNF(p) {
     if (!confirm("Excluir esta nota fiscal?")) return;
-    await base44.entities.Pagamento.delete(p.id);
+    const r = await excluirComDependencias("Pagamento", p.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 
   async function excluirOcorrencia(o) {
     if (!confirm("Excluir esta ocorrência?")) return;
-    await base44.entities.Ocorrencia.delete(o.id);
+    const r = await excluirComDependencias("Ocorrencia", o.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

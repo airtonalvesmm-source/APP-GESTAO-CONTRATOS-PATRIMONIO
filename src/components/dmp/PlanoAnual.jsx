@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { ORDEM, UNIDADES_ORCAMENTARIAS, SITUACOES_OBJETO, URGENCIAS } from "@/lib/dmp-data";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV, contratoAtivo, escHtml } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
@@ -81,11 +82,9 @@ export default function PlanoAnual({ data, refresh }) {
   const temJust = filtrados.some(p => p.justificativa && p.justificativa.trim());
 
   async function excluirItem(p) {
-    const cts = contratos.filter(c => (c.itens || []).some(i => i.pcaId === p.id)).map(c => `${c.tipo} ${c.numero}`);
-    const dfdsV = dfds.filter(d => (d.itensIds || []).includes(p.id)).map(d => `DFD ${d.processo || "(sem processo)"}`);
-    if (cts.length || dfdsV.length) return alert(`Este item não pode ser excluído porque está vinculado a:\n\n${[...cts, ...dfdsV].join("\n")}\n\nRemova o vínculo nesses lançamentos/DFDs antes, ou use "Sobrestar" para retirá-lo do plano.`);
     if (!confirm("Excluir este item do Plano Anual?")) return;
-    await base44.entities.PCAItem.delete(p.id);
+    const r = await excluirComDependencias("PCAItem", p.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
     alert("Item excluído do plano.");
   }
@@ -423,7 +422,8 @@ function DFDList({ dfds, pca, catalog, refresh, onEdit, onVisualizar }) {
 
   async function excluir(f) {
     if (!confirm("Excluir este DFD?")) return;
-    await base44.entities.DFD.delete(f.id);
+    const r = await excluirComDependencias("DFD", f.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

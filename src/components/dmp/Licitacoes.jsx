@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { CAT_ARP, MODALIDADES, STATUS_LIC } from "@/lib/dmp-data";
 import { fmtM, fmtQ, nQtd, nVal, norm, cmpTexto, anoAtual, baixarCSV } from "@/lib/dmp-utils";
 import { Btn, MiniBtn, Campo, Vazio, Pill, Modal, inputCls, textareaCls } from "./ui";
@@ -53,9 +54,9 @@ export default function Licitacoes({ data, refresh }) {
   }
 
   async function excluir(l) {
-    if (atas.some(a => a.licitacaoId === l.id)) return alert("Há atas vinculadas a esta licitação.");
     if (!confirm("Excluir esta licitação?")) return;
-    await base44.entities.Licitacao.delete(l.id);
+    const r = await excluirComDependencias("Licitacao", l.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { CAT_ARP, ORDEM, UNIDADES_ORCAMENTARIAS } from "@/lib/dmp-data";
 import { uoPor, rotuloUO } from "@/lib/unidade-orcamentaria";
 import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, consumido, saldoItem, resumoAta, situacaoAta, uid, baixarCSV, parsearCSV } from "@/lib/dmp-utils";
 import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
-import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
+import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, ErrosForm, inputCls, textareaCls } from "./ui";
+import { inteiroDe, numeroDe, vPeriodo } from "@/lib/validacao";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { usePodeEditar } from "@/lib/permissoes";
@@ -68,9 +70,9 @@ export default function Atas({ data, refresh }) {
   }
 
   async function excluir(a) {
-    if (contratos.some(c => c.ataId === a.id)) return alert("Há contratos vinculados a esta ata. Exclua-os primeiro.");
     if (!confirm("Excluir esta ata e seus itens?")) return;
-    await base44.entities.Ata.delete(a.id);
+    const r = await excluirComDependencias("Ata", a.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 
@@ -242,6 +244,7 @@ function FormAta({ a, data, refresh, onClose }) {
     prazoEntrega: a?.prazoEntrega ?? "", localEntrega: a?.localEntrega || "", observacaoEntrega: a?.observacaoEntrega || ""
   });
   const [itens, setItens] = useState(a ? (a.itens || []).map(it => ({ ...it })) : [{ id: uid(), benId: catalog.filter(b => !b.oculto && b.categoria === catCatalog(a?.categoria || CAT_ARP[0]))[0]?.id || catalog.filter(b => !b.oculto)[0]?.id || catalog[0]?.id || "", numItem: "1", qtd: "", valor: "" }]);
+  const [erros, setErros] = useState([]);
 
 
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
@@ -290,13 +293,26 @@ function FormAta({ a, data, refresh, onClose }) {
   }
 
   async function salvar() {
-    if (!form.numero.trim()) return alert("Informe o número da ata.");
-    if (atas.some(x => x.id !== a?.id && norm(x.numero) === norm(form.numero))) return alert(`Já existe uma ata com o número ${form.numero.trim()}.`);
-    const semBem = itens.filter(it => nQtd(it.qtd) > 0 && !it.benId);
-    if (semBem.length) return alert(`${semBem.length} item(ns) sem correspondência no catálogo (marcados em vermelho). Escolha o item do catálogo ou remova a linha.`);
-    const itensVal = itens.filter(it => nQtd(it.qtd) > 0).map(it => ({ id: it.id || uid(), benId: it.benId, numItem: String(it.numItem || "").trim(), qtd: nQtd(it.qtd), valor: nVal(it.valor) }));
-    if (!itensVal.length) return alert("Registre ao menos um item com quantidade.");
-    if (!form.fornecedorId) return alert("Selecione o fornecedor.");
+    const lista = [];
+    if (!form.numero.trim()) lista.push("Número da ata: campo obrigatório.");
+    if (atas.some(x => x.id !== a?.id && norm(x.numero) === norm(form.numero))) lista.push(`Já existe uma ata com o número ${form.numero.trim()}.`);
+    if (!form.fornecedorId) lista.push("Fornecedor: campo obrigatório.");
+    const erroPeriodo = vPeriodo(form.inicio, form.fim, { rotuloInicio: "Início da vigência", rotuloFim: "Fim da vigência" });
+    if (erroPeriodo) lista.push(erroPeriodo);
+    const itensVal = [];
+    itens.forEach((it, i) => {
+      const bruto = String(it.qtd ?? "").trim();
+      if (bruto === "") return;
+      const nome = catalog.find(b => b.id === it.benId)?.objeto || `item ${i + 1}`;
+      if (!it.benId) { lista.push(`Item ${i + 1}: sem correspondência no catálogo — escolha o item ou remova a linha.`); return; }
+      const q = inteiroDe(bruto);
+      if (Number.isNaN(q) || q <= 0) { lista.push(`"${nome}": quantidade deve ser um número inteiro maior que zero.`); return; }
+      if (String(it.valor ?? "").trim() !== "" && (Number.isNaN(numeroDe(it.valor)) || numeroDe(it.valor) < 0)) { lista.push(`"${nome}": valor unitário inválido — use apenas números.`); return; }
+      itensVal.push({ id: it.id || uid(), benId: it.benId, numItem: String(it.numItem || "").trim(), qtd: q, valor: nVal(it.valor) });
+    });
+    if (!itensVal.length && !lista.length) lista.push("Registre ao menos um item com quantidade.");
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
     if (a) {
       // Todo item original já usado em contratos precisa continuar na ata com quantidade suficiente
       for (const orig of a.itens || []) {
@@ -304,9 +320,9 @@ function FormAta({ a, data, refresh, onClose }) {
         if (c <= 0) continue;
         const novo = itensVal.find(x => x.id === orig.id);
         const nome = catalog.find(b => b.id === orig.benId)?.objeto || "item";
-        if (!novo) return alert(`O item "${nome}" já foi usado em contratos (${fmtQ(c)} un. consumidas) e não pode ser removido nem zerado.`);
-        if (novo.qtd < c) return alert(`Quantidade menor que o já consumido em "${nome}" (${fmtQ(c)} un.).`);
-        if (novo.benId !== orig.benId) return alert(`O item "${nome}" já foi usado em contratos e não pode ter o bem trocado.`);
+        if (!novo) { setErros([`O item "${nome}" já foi usado em contratos (${fmtQ(c)} un. consumidas) e não pode ser removido nem zerado.`]); return; }
+        if (novo.qtd < c) { setErros([`Quantidade menor que o já consumido em "${nome}" (${fmtQ(c)} un.).`]); return; }
+        if (novo.benId !== orig.benId) { setErros([`O item "${nome}" já foi usado em contratos e não pode ter o bem trocado.`]); return; }
       }
     }
     const fornecedorId = form.fornecedorId;
@@ -338,6 +354,7 @@ function FormAta({ a, data, refresh, onClose }) {
   return (
     <Modal sobre="Registro de preços" titulo={a ? "Editar ata" : "Cadastrar ata"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar ata</Btn></>}>
+      <ErrosForm itens={erros} />
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Número da ata"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 12/2026" /></Campo>
         <Campo label="Processo"><input className={inputCls} value={form.processo} onChange={e => setF("processo", e.target.value)} /></Campo>

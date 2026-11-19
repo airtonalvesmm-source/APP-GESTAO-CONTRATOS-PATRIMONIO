@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { norm, isoData, hoje } from "@/lib/dmp-utils";
-import { Modal, Btn, Campo, Vazio, inputCls, textareaCls } from "../ui";
+import { norm } from "@/lib/dmp-utils";
+import { Modal, Btn, Campo, Vazio, ErrosForm, inputCls, textareaCls } from "../ui";
 import { Check, Search } from "lucide-react";
 import BuscarDepartamento from "./BuscarDepartamento";
 
@@ -11,6 +11,7 @@ export default function FormSaida({ data, refresh, onClose }) {
   const [sel, setSel] = useState(new Set());
   const [depId, setDepId] = useState("");
   const [obs, setObs] = useState("");
+  const [erros, setErros] = useState([]);
 
   const disponiveis = useMemo(() => (bens || []).filter(u => u.situacao === "em estoque"), [bens]);
 
@@ -33,28 +34,30 @@ export default function FormSaida({ data, refresh, onClose }) {
   }
 
   async function confirmar() {
-    if (sel.size === 0) return alert("Selecione ao menos um bem para dar saída.");
-    if (!depId) return alert("Escolha o departamento de destino.");
+    const lista = [];
+    if (sel.size === 0) lista.push("Selecione ao menos um bem para dar saída.");
+    if (!depId) lista.push("Escolha o departamento de destino.");
+    if (lista.length) { setErros(lista); return; }
     const dep = departamentos.find(d => d.id === depId);
+    if (!dep) { setErros(["Departamento de destino não encontrado. Atualize a tela e tente novamente."]); return; }
     if (!confirm(`Transferir ${sel.size} bem(ns) definitivamente para ${dep.sigla ? dep.sigla + " — " : ""}${dep.nome}? Eles sairão do saldo de estoque.`)) return;
-    const ids = Array.from(sel);
-    const hojeIso = isoData(hoje());
-    await base44.entities.BemPatrimonial.bulkUpdate(ids.map(id => ({ id, situacao: "transferido", departamentoId: depId, dataSaida: hojeIso })));
-    const movs = ids.map(id => {
-      const u = bens.find(x => x.id === id);
-      return { bemId: u?.placa || id, tipo: "saida", departamentoId: depId, data: hojeIso, observacao: obs.trim() || `Saída para ${dep.nome}` };
-    });
-    for (let i = 0; i < movs.length; i += 100) {
-      await base44.entities.MovimentacaoEstoque.bulkCreate(movs.slice(i, i + 100));
+    setErros([]);
+    try {
+      // A conferência do saldo e a gravação (bens + movimentações) acontecem no servidor
+      const resp = await base44.functions.invoke("movimentarEstoque", { acao: "saida", ids: Array.from(sel), departamentoId: depId, observacao: obs });
+      if (resp?.data?.error) { setErros([resp.data.error]); return; }
+      await refresh();
+      onClose();
+      alert(`${resp?.data?.transferidos || sel.size} bem(ns) transferido(s) para ${dep.nome}.`);
+    } catch (e) {
+      setErros([e?.response?.data?.error || e?.message || String(e)]);
     }
-    await refresh();
-    onClose();
-    alert(`${ids.length} bem(ns) transferido(s) para ${dep.nome}.`);
   }
 
   return (
     <Modal sobre="Estoque" titulo="Dar saída de bens" onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={confirmar} disabled={sel.size === 0 || !depId}>Transferir {sel.size > 0 ? `${sel.size} bem(ns)` : ""}</Btn></>}>
+      <ErrosForm itens={erros} />
       {departamentos.length === 0 ? (
         <Vazio titulo="Sem departamentos cadastrados" texto="Importe os departamentos antes de dar saída dos bens." />
       ) : (

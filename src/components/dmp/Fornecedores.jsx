@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { fmtM, baixarCSV, norm, soDigitos, cnpjValido } from "@/lib/dmp-utils";
 import { CAT_ARP } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Vazio, inputCls, Modal } from "./ui";
@@ -19,12 +20,9 @@ export default function Fornecedores({ data, refresh }) {
   const lista = catFiltro ? fornecedores.filter(f => (f.categoria || "") === catFiltro) : fornecedores;
 
   async function excluir(f) {
-    const usos = [];
-    atas.forEach(a => { if (a.fornecedorId === f.id) usos.push("ata " + a.numero); });
-    contratos.forEach(c => { if (c.fornecedorId === f.id) usos.push(c.tipo + " " + c.numero); });
-    if (usos.length) return alert("Fornecedor vinculado a: " + usos.join(", ") + ".");
     if (!confirm("Excluir este fornecedor?")) return;
-    await base44.entities.Fornecedor.delete(f.id);
+    const r = await excluirComDependencias("Fornecedor", f.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { ORDEM } from "@/lib/dmp-data";
 import { Btn, MiniBtn, Campo, Modal, inputCls } from "./ui";
 import { subcatsDeCategoria } from "@/lib/subcat-utils";
@@ -34,7 +35,8 @@ export default function GerenciarSubcategorias({ subcategorias, categorias, cata
     } else {
       if (!confirm(`Remover a sugestão "${s.nome}"?`)) return;
     }
-    await base44.entities.Subcategoria.delete(s.id);
+    const r = await excluirComDependencias("Subcategoria", s.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

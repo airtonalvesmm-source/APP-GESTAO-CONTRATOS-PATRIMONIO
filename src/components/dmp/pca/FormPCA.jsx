@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { fmtM, fmtQ, nQtd, nVal, anoAtual } from "@/lib/dmp-utils";
 import { opcoesBensTodasCategorias } from "@/lib/subcat-utils";
-import { Btn, Campo, Modal, inputCls, textareaCls } from "../ui";
+import { Btn, Campo, Modal, ErrosForm, inputCls, textareaCls } from "../ui";
+import { inteiroDe, numeroDe } from "@/lib/validacao";
 
 export default function FormPCA({ r, data, exercicio, refresh, onClose, benId }) {
   const { catalog, pca } = data;
@@ -10,13 +11,22 @@ export default function FormPCA({ r, data, exercicio, refresh, onClose, benId })
     benId: r?.benId || benId || catalog[0]?.id || "", exercicio: r?.exercicio || exercicio || anoAtual,
     codigo: r?.codigo || "", qtd: r?.qtd || "", valor: r?.valor ? fmtM(r.valor) : "", justificativa: r?.justificativa || ""
   });
-  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  function setF(k, v) { setForm(f => ({ ...f, [k]: v })); setErros([]); }
   const b = catalog.find(x => x.id === form.benId);
+  const [erros, setErros] = useState([]);
 
   async function salvar() {
-    if (!nQtd(form.qtd)) return alert("Informe uma quantidade maior que zero.");
-    if (r && nQtd(r.qtdSobrestada) > nQtd(form.qtd)) return alert(`A quantidade autorizada (${fmtQ(nQtd(form.qtd))}) não pode ser menor que a quantidade sobrestada (${fmtQ(nQtd(r.qtdSobrestada))}). Remova ou ajuste o sobrestamento primeiro.`);
-    const dados = { benId: form.benId, exercicio: +form.exercicio || anoAtual, codigo: form.codigo.trim(), qtd: nQtd(form.qtd), valor: nVal(form.valor), justificativa: form.justificativa.trim() };
+    const lista = [];
+    if (!form.benId) lista.push("Item do catálogo: campo obrigatório.");
+    const q = inteiroDe(form.qtd);
+    if (Number.isNaN(q) || q <= 0) lista.push("Quantidade: informe um número inteiro maior que zero.");
+    const ex = inteiroDe(form.exercicio);
+    if (Number.isNaN(ex) || ex < 2020 || ex > 2099) lista.push("Exercício: informe um ano entre 2020 e 2099.");
+    if (String(form.valor ?? "").trim() !== "" && (Number.isNaN(numeroDe(form.valor)) || numeroDe(form.valor) < 0)) lista.push("Valor unitário: informe apenas números, com vírgula para os centavos.");
+    if (r && nQtd(r.qtdSobrestada) > nQtd(form.qtd)) lista.push(`A quantidade autorizada (${fmtQ(nQtd(form.qtd))}) não pode ser menor que a quantidade sobrestada (${fmtQ(nQtd(r.qtdSobrestada))}). Remova ou ajuste o sobrestamento primeiro.`);
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
+    const dados = { benId: form.benId, exercicio: ex, codigo: form.codigo.trim(), qtd: q, valor: nVal(form.valor), justificativa: form.justificativa.trim() };
     const repetido = pca.find(p => p.id !== r?.id && p.benId === dados.benId && +p.exercicio === dados.exercicio);
     if (repetido && !confirm(`Este bem já está no plano de ${dados.exercicio}${repetido.codigo ? ` (código ${repetido.codigo})` : ""}. Incluir mesmo assim como item separado?`)) return;
     if (r) {
@@ -32,6 +42,7 @@ export default function FormPCA({ r, data, exercicio, refresh, onClose, benId })
   return (
     <Modal sobre="Plano Anual de Contratações" titulo={r ? "Editar item do plano" : "Incluir item no plano"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar item</Btn></>}>
+      <ErrosForm itens={erros} />
       <div className="grid gap-3 md:grid-cols-2 mb-3">
         <Campo label="Item do catálogo"><select className={inputCls} value={form.benId} onChange={e => setF("benId", e.target.value)}>{opcoesBensTodasCategorias(catalog, form.benId)}</select></Campo>
       </div>

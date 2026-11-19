@@ -176,27 +176,51 @@ export function baixarCSV(nome, linhas) {
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// Parser de CSV (separador ; ou ,) — retorna array de objetos keyed por cabeçalho
+// Detecta o separador (; , ou tab) contando as ocorrências fora de aspas na primeira linha
+function detectarSeparador(texto) {
+  let dentroAspas = false, contagem = { ";": 0, ",": 0, "\t": 0 };
+  for (let i = 0; i < texto.length; i++) {
+    const ch = texto[i];
+    if (ch === '"') dentroAspas = !dentroAspas;
+    else if (!dentroAspas && (ch === "\n" || ch === "\r")) break;
+    else if (!dentroAspas && contagem[ch] != null) contagem[ch]++;
+  }
+  const melhor = Object.entries(contagem).sort((a, b) => b[1] - a[1])[0];
+  return melhor[1] > 0 ? melhor[0] : ";";
+}
+
+// Parser de CSV — respeita aspas escapadas ("") e campos multilinha; retorna objetos keyed por cabeçalho
 export function parsearCSV(texto) {
-  const sep = (texto.split("\n")[0] || "").split(";").length > texto.split("\n")[0].split(",").length ? ";" : ",";
-  const linhas = texto.replace(/^\uFEFF/, "").split(/\r?\n/).filter(l => l.trim() !== "");
-  if (linhas.length < 2) return [];
-  const dividir = (linha) => {
-    const out = []; let cur = ""; let asp = false;
-    for (let i = 0; i < linha.length; i++) {
-      const ch = linha[i];
-      if (ch === '"') { asp = !asp; continue; }
-      if (ch === sep && !asp) { out.push(cur); cur = ""; continue; }
-      cur += ch;
-    }
-    out.push(cur);
-    return out.map(c => c.trim());
-  };
-  const cab = dividir(linhas[0]);
-  return linhas.slice(1).map(linha => {
-    const vals = dividir(linha);
+  const src = String(texto == null ? "" : texto).replace(/^\uFEFF/, "");
+  if (!src.trim()) return [];
+  const sep = detectarSeparador(src);
+  const linhas = [];
+  let campo = "", linha = [], aspas = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (aspas) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') { campo += '"'; i++; }
+        else aspas = false;
+      } else campo += ch;
+    } else if (ch === '"') {
+      aspas = true;
+    } else if (ch === sep) {
+      linha.push(campo); campo = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && src[i + 1] === "\n") i++;
+      linha.push(campo); campo = "";
+      linhas.push(linha); linha = [];
+    } else campo += ch;
+  }
+  if (campo !== "" || linha.length) { linha.push(campo); linhas.push(linha); }
+  // Descarta linhas totalmente vazias (comuns no fim do arquivo)
+  const uteis = linhas.filter(l => l.some(c => String(c).trim() !== ""));
+  if (uteis.length < 2) return [];
+  const cab = uteis[0].map(c => String(c).trim());
+  return uteis.slice(1).map(l => {
     const obj = {};
-    cab.forEach((c, i) => { obj[c] = vals[i] != null ? vals[i] : ""; });
+    cab.forEach((c, i) => { obj[c] = String(l[i] == null ? "" : l[i]).trim(); });
     return obj;
   });
 }

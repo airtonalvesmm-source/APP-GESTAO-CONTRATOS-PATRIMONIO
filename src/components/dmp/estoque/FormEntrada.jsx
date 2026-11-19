@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { nQtd, norm, isoData, hoje } from "@/lib/dmp-utils";
-import { Modal, Btn, Campo, Vazio, inputCls } from "../ui";
+import { Modal, Btn, Campo, Vazio, ErrosForm, inputCls } from "../ui";
+import { inteiroDe } from "@/lib/validacao";
 import { ChevronDown, Check, Boxes, Search, Upload } from "lucide-react";
 import ImportarBensCSV from "./ImportarBensCSV";
 
@@ -18,6 +19,7 @@ export default function FormEntrada({ data, refresh, onClose }) {
   const [importarCSV, setImportarCSV] = useState(false);
   const [modoPlaca, setModoPlaca] = useState("auto"); // "auto" | "manual"
   const [placasManuais, setPlacasManuais] = useState("");
+  const [erros, setErros] = useState([]);
 
   function sugestaoPlaca(bens) {
     let max = 0;
@@ -103,62 +105,90 @@ export default function FormEntrada({ data, refresh, onClose }) {
   }
 
   async function confirmar() {
-    if (totalSelecionado === 0) return alert("Selecione ao menos um item para registrar a entrada.");
+    const lista = [];
+    const grupos = Object.entries(selecao).map(([contratoId, map]) => {
+      const c = contratosEntregues.find(x => x.id === contratoId);
+      const itens = [];
+      Object.entries(map).forEach(([benId, qtdStr]) => {
+        const it = c?.itens.find(x => x.benId === benId);
+        const nome = catalog.find(b => b.id === benId)?.objeto || "item";
+        if (String(qtdStr ?? "").trim() === "") return;
+        const q = inteiroDe(qtdStr);
+        if (Number.isNaN(q) || q <= 0) { lista.push(`"${nome}": informe uma quantidade inteira maior que zero.`); return; }
+        if (!it || q > it.restante) { lista.push(`"${nome}": quantidade acima do saldo do contrato (máximo ${it ? it.restante : 0}).`); return; }
+        itens.push({ benId, qtd: q });
+      });
+      return { contratoId, itens, pagamentoId: nfSel[contratoId] || "" };
+    }).filter(g => g.itens.length);
+    if (!grupos.length && !lista.length) lista.push("Selecione ao menos um item para registrar a entrada.");
+
+    const total = grupos.reduce((t, g) => t + g.itens.reduce((s, i) => s + i.qtd, 0), 0);
     const placasExistentes = new Set((bens || []).map(b => String(b.placa)));
     const placasAtribuir = [];
-    if (modoPlaca === "auto") {
-      if (!isFinite(base) || base <= 0) return alert("Informe uma placa inicial válida (número inteiro positivo).");
-      let prox = base;
-      for (let i = 0; i < totalSelecionado; i++) {
-        let placa = String(prox++);
-        while (placasExistentes.has(placa)) placa = String(prox++);
-        placasExistentes.add(placa);
-        placasAtribuir.push(placa);
-      }
-    } else {
-      const brutas = placasManuais.split(/[\s,;]+/).map(s => s.replace(/\D/g, "")).filter(Boolean);
-      if (brutas.length !== totalSelecionado) return alert(`Foram informadas ${brutas.length} placa(s), mas você selecionou ${totalSelecionado} bem(ns). Ajuste a lista para coincidir.`);
-      const vistos = new Set();
-      for (const p of brutas) {
-        if (vistos.has(p)) return alert(`Placa duplicada na lista: ${p}.`);
-        if (placasExistentes.has(p)) return alert(`A placa ${p} já existe no estoque.`);
-        vistos.add(p); placasExistentes.add(p);
-        placasAtribuir.push(p);
-      }
-    }
-    const registros = [];
-    let idx = 0;
-    Object.entries(selecao).forEach(([contratoId, map]) => {
-      const pg = nfSel[contratoId] ? pagamentos.find(p => p.id === nfSel[contratoId]) : null;
-      Object.entries(map).forEach(([benId, qtdStr]) => {
-        const qtd = nQtd(qtdStr);
-        if (qtd <= 0) return;
-        for (let i = 0; i < qtd; i++) {
-          registros.push({
-            benId, contratoId, pagamentoId: pg?.id || "",
-            numeroNF: pg?.nf || "", dataNF: pg?.dataNF || "",
-            placa: placasAtribuir[idx++], situacao: "em estoque", dataEntrada: isoData(hoje())
-          });
+    if (!lista.length) {
+      if (modoPlaca === "auto") {
+        const baseNum = inteiroDe(placaInicial);
+        if (Number.isNaN(baseNum) || baseNum <= 0) lista.push("Placa inicial: informe um número inteiro positivo.");
+        else {
+          let prox = baseNum;
+          for (let i = 0; i < total; i++) {
+            let placa = String(prox++);
+            while (placasExistentes.has(placa)) placa = String(prox++);
+            placasExistentes.add(placa);
+            placasAtribuir.push(placa);
+          }
         }
-      });
-    });
-    const prim = placasAtribuir[0], ult = placasAtribuir[placasAtribuir.length - 1];
-    if (!confirm(`Registrar ${registros.length} bem(ns) patrimonial(is) no estoque (placas ${prim}${modoPlaca === "auto" ? ` a ${ult}` : ""})?`)) return;
-    for (let i = 0; i < registros.length; i += 100) {
-      await base44.entities.BemPatrimonial.bulkCreate(registros.slice(i, i + 100));
+      } else {
+        const brutas = placasManuais.split(/[\s,;]+/).map(s => s.replace(/\D/g, "")).filter(Boolean);
+        if (brutas.length !== total) lista.push(`Foram informadas ${brutas.length} placa(s), mas você selecionou ${total} bem(ns). Ajuste a lista para coincidir.`);
+        else {
+          const vistos = new Set();
+          for (const p of brutas) {
+            if (vistos.has(p)) { lista.push(`Placa duplicada na lista: ${p}.`); break; }
+            if (placasExistentes.has(p)) { lista.push(`A placa ${p} já existe no estoque.`); break; }
+            vistos.add(p); placasAtribuir.push(p);
+          }
+        }
+      }
     }
-    const movs = registros.map(r => ({ bemId: r.placa, tipo: "entrada", data: r.dataEntrada, observacao: "Entrada por contrato" }));
-    for (let i = 0; i < movs.length; i += 100) {
-      await base44.entities.MovimentacaoEstoque.bulkCreate(movs.slice(i, i + 100));
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
+
+    const prim = placasAtribuir[0], ult = placasAtribuir[placasAtribuir.length - 1];
+    if (!confirm(`Registrar ${total} bem(ns) patrimonial(is) no estoque (placas ${prim}${modoPlaca === "auto" ? ` a ${ult}` : ""})?`)) return;
+
+    // Cada contrato é gravado de forma atômica no servidor (bens + movimentações ou nada)
+    let registrados = 0;
+    const falhas = [];
+    let pos = 0;
+    for (const g of grupos) {
+      const qtdGrupo = g.itens.reduce((s, i) => s + i.qtd, 0);
+      const placasGrupo = placasAtribuir.slice(pos, pos + qtdGrupo);
+      pos += qtdGrupo;
+      try {
+        const resp = await base44.functions.invoke("movimentarEstoque", {
+          acao: "entrada", contratoId: g.contratoId, itens: g.itens, placas: placasGrupo,
+          pagamentoId: g.pagamentoId, dataEntrada: isoData(hoje())
+        });
+        if (resp?.data?.error) falhas.push(resp.data.error);
+        else registrados += resp?.data?.criados || qtdGrupo;
+      } catch (e) {
+        falhas.push(e?.response?.data?.error || e?.message || String(e));
+      }
     }
     await refresh();
+    if (falhas.length) {
+      setErros([...falhas, registrados ? `${registrados} bem(ns) já foram registrados com sucesso.` : "Nenhum bem foi registrado."]);
+      return;
+    }
     onClose();
-    alert(`${registros.length} bem(ns) patrimoniado(s) com sucesso.`);
+    alert(`${registrados} bem(ns) patrimoniado(s) com sucesso.`);
   }
 
   return (
     <Modal sobre="Estoque" titulo="Registrar entrada de bens" onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={confirmar} disabled={totalSelecionado === 0}>Registrar {totalSelecionado > 0 ? `${totalSelecionado} bem(ns)` : "entrada"}</Btn></>}>
+      <ErrosForm itens={erros} />
       <div className="mb-4 p-3.5 border border-slate-300 bg-stone-50 rounded-sm">
         <div className="flex gap-1.5 mb-3">
           <button onClick={() => setModoPlaca("auto")} aria-pressed={modoPlaca === "auto"}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { carregarDados } from "@/lib/carregar-dados";
 import { calcularRelatorio, agruparPorPDM, agruparPorSubcategoria } from "@/lib/relatorio-calc";
-import { fmtData } from "@/lib/dmp-utils";
+import { fmtData, csvLinha } from "@/lib/dmp-utils";
 import { Btn, inputCls } from "@/components/dmp/ui";
 import BlocoItem from "@/components/dmp/relatorio/BlocoItem";
 import BlocoConsolidado from "@/components/dmp/relatorio/BlocoConsolidado";
@@ -45,7 +45,8 @@ export default function RelatorioEstatistico() {
       const preco = [...r.serie].reverse().find(s => s.precoMedio > 0)?.precoMedio || 0;
       l.push([r.ben.objeto, r.ben.catmat, ...r.serie.map(s => s.contratado), tot, r.statsContr.media.toFixed(1), r.statsContr.mediana.toFixed(1), r.statsContr.cv.toFixed(0), preco, r.saldo.saldoTotal]);
     });
-    const csv = "\uFEFF" + l.map(row => row.map(c => String(c ?? "").replace(/[;\n]/g, " ")).join(";")).join("\r\n");
+    // csvLinha preserva o conteúdo (aspas, quebras de linha) e prefixa fórmulas com apóstrofo
+    const csv = csvLinha(l);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "relatorio-estatistico.csv";

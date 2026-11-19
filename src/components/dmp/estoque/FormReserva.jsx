@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { nQtd, isoData, hoje, norm } from "@/lib/dmp-utils";
 import { saldoLivre } from "@/lib/reservas-utils";
-import { Modal, Btn, Campo, Vazio, inputCls, textareaCls } from "../ui";
+import { Modal, Btn, Campo, Vazio, ErrosForm, inputCls, textareaCls } from "../ui";
+import { inteiroDe } from "@/lib/validacao";
 import { Desenho } from "../Desenho";
 import BuscarDepartamento from "./BuscarDepartamento";
 
@@ -20,6 +21,7 @@ export default function FormReserva({ data, refresh, onClose, benIdFixo, reserva
   const [depId, setDepId] = useState(reservaEdicao?.departamentoId || "");
   const [obs, setObs] = useState(reservaEdicao?.observacao || "");
   const [salvando, setSalvando] = useState(false);
+  const [erros, setErros] = useState([]);
 
   const item = catalog.find(x => x.id === benId);
   // Em edição, a quantidade já reservada deste item volta a ficar disponível.
@@ -27,11 +29,15 @@ export default function FormReserva({ data, refresh, onClose, benIdFixo, reserva
   const livre = editando && reservaEdicao?.benId === benId ? livreBase + nQtd(reservaEdicao.quantidade) : livreBase;
 
   async function salvar() {
-    const q = nQtd(qtd);
-    if (!benId) return alert("Selecione o item a reservar.");
-    if (q <= 0) return alert("Informe a quantidade a reservar.");
-    if (!depId) return alert("Escolha o local de destino.");
-    if (q > livre) return alert(`Saldo livre insuficiente. Há apenas ${livre} unidade(s) disponível(is) para reserva deste item.`);
+    const lista = [];
+    if (!benId) lista.push("Selecione o item a reservar.");
+    if (String(qtd ?? "").trim() === "") lista.push("Quantidade a reservar: campo obrigatório.");
+    const q = inteiroDe(qtd);
+    if (String(qtd ?? "").trim() !== "" && (Number.isNaN(q) || q <= 0)) lista.push("Quantidade a reservar: informe um número inteiro maior que zero.");
+    if (!depId) lista.push("Local de destino: escolha o departamento.");
+    if (!Number.isNaN(q) && q > livre) lista.push(`Quantidade acima do saldo livre: há ${livre} unidade(s) disponível(is) para reserva deste item.`);
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
     const dep = departamentos.find(d => d.id === depId);
     if (!confirm(`${editando ? "Atualizar" : "Reservar"} ${q} unidade(s) de "${item?.objeto}" para ${dep.sigla ? dep.sigla + " — " : ""}${dep.nome}?`)) return;
     setSalvando(true);
@@ -65,6 +71,7 @@ export default function FormReserva({ data, refresh, onClose, benIdFixo, reserva
   return (
     <Modal sobre="Estoque" titulo={editando ? "Editar reserva" : "Reservar item"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Reservar"}</Btn></>}>
+      <ErrosForm itens={erros} />
       {departamentos.length === 0 ? (
         <Vazio titulo="Sem departamentos cadastrados" texto="Importe os departamentos antes de reservar itens — eles são o destino de cada reserva." />
       ) : itensComEstoque.length === 0 ? (

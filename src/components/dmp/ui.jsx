@@ -135,6 +135,21 @@ export function Campo({ label, children, ajuda, className = "" }) {
 export const inputCls = "border border-slate-300 rounded-sm px-2.5 py-2 font-sans text-sm bg-white text-slate-800 w-full focus:border-slate-600 focus:outline-none";
 export const textareaCls = inputCls + " font-serif text-[14.5px] min-h-[74px] resize-y";
 
+// Lista de erros exibida no topo do formulário (validação de campos)
+export function ErrosForm({ itens }) {
+  if (!itens || !itens.length) return null;
+  return (
+    <div className="mb-3 border border-red-300 bg-red-50 rounded-sm px-3 py-2.5" role="alert">
+      <p className="font-sans font-semibold text-[12px] text-red-900 mb-1">
+        {itens.length === 1 ? "Corrija o campo abaixo:" : `Corrija os ${itens.length} campos abaixo:`}
+      </p>
+      <ul className="m-0 pl-4 text-[12.5px] text-red-800 space-y-0.5 list-disc">
+        {itens.map((m, i) => <li key={i}>{m}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 export function Alertas({ itens }) {
   const [aberto, setAberto] = useState(true);
   if (!itens.length) return null;

@@ -6,7 +6,8 @@ import { fmtM, fmtQ, fmtData, nQtd, nVal, norm, diasAte, saldoItem, consumido, u
 import { opcoesBensAgrupadas, opcoesAgrupadas, opcoesBensTodasCategorias } from "@/lib/subcat-utils";
 import { rotuloUO } from "@/lib/unidade-orcamentaria";
 import { ADITIVOS, FALTAS, TIPOS_OCORRENCIA } from "@/lib/dmp-data";
-import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, inputCls, textareaCls } from "./ui";
+import { Btn, MiniBtn, Campo, Vazio, Pill, Barra, Modal, ErrosForm, inputCls, textareaCls } from "./ui";
+import { inteiroDe, numeroDe, vPeriodo } from "@/lib/validacao";
 import { TelaCab } from "./Catalogo";
 import ImportarCSV from "./ImportarCSV";
 import { usePodeEditar } from "@/lib/permissoes";
@@ -302,6 +303,7 @@ function FormContrato({ c, data, refresh, onClose }) {
     portariaFiscalizacao: c?.portariaFiscalizacao || "", pgeaFiscalizacao: c?.pgeaFiscalizacao || ""
   });
   const [itens, setItens] = useState(c ? (c.itens || []).map(i => ({ ...i })) : []);
+  const [erros, setErros] = useState([]);
 
   const anoContrato = (() => {
     if (form.inicio) return Number(form.inicio.slice(0, 4));
@@ -373,13 +375,21 @@ function FormContrato({ c, data, refresh, onClose }) {
   function rmItem(i) { setItens(arr => arr.filter((_, idx) => idx !== i)); }
 
   async function salvar() {
-    if (!form.numero.trim()) return alert("Informe o número do contrato ou empenho.");
+    const lista = [];
+    if (!form.numero.trim()) lista.push("Número do contrato ou empenho: campo obrigatório.");
     const a = form.ataId ? atas.find(x => x.id === form.ataId) : null;
-    if (!a && !form.fornecedorId) return alert("Selecione a ata vinculada ou o fornecedor (para contratação direta).");
+    if (!a && !form.fornecedorId) lista.push("Selecione a ata vinculada ou o fornecedor (para contratação direta).");
+    const erroPeriodo = vPeriodo(form.inicio, form.fim, { rotuloInicio: "Início da vigência", rotuloFim: "Fim da vigência" });
+    if (erroPeriodo) lista.push(erroPeriodo);
     // Consolida linhas repetidas do mesmo item antes de validar o saldo
     const porChave = new Map();
     for (const it of itens) {
-      const q = nQtd(it.qtd); if (!q) continue;
+      const bruto = String(it.qtd ?? "").trim();
+      if (bruto === "") continue;
+      const q = inteiroDe(bruto);
+      const nome = catalog.find(b => b.id === it.benId)?.objeto || "item";
+      if (Number.isNaN(q) || q <= 0) { lista.push(`"${nome}": quantidade deve ser um número inteiro maior que zero.`); continue; }
+      if (String(it.valor ?? "").trim() !== "" && (Number.isNaN(numeroDe(it.valor)) || numeroDe(it.valor) < 0)) { lista.push(`"${nome}": valor unitário inválido — use apenas números.`); continue; }
       if (a) {
         const x = (a.itens || []).find(y => y.id === it.itemAtaId);
         if (!x) continue;
@@ -394,14 +404,16 @@ function FormContrato({ c, data, refresh, onClose }) {
       }
     }
     const itensVal = Array.from(porChave.values());
-    if (!itensVal.length) return alert("Informe ao menos um item com quantidade.");
+    if (!itensVal.length && !lista.length) lista.push("Informe ao menos um item com quantidade.");
     if (a) {
       for (const it of itensVal) {
         const x = (a.itens || []).find(y => y.id === it.itemAtaId);
         const disp = saldoItem(a, x, contratos, ctEmEdicao);
-        if (it.qtd > disp) return alert(`Quantidade acima do saldo em ${catalog.find(b => b.id === it.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
+        if (it.qtd > disp) lista.push(`Quantidade acima do saldo em ${catalog.find(b => b.id === it.benId)?.objeto || "item"}: disponível ${fmtQ(disp)}.`);
       }
     }
+    if (lista.length) { setErros(lista); return; }
+    setErros([]);
     let fornecedorId = "", fornecedor = "", cnpj = "";
     if (a) { fornecedorId = a.fornecedorId || ""; fornecedor = a.fornecedor; cnpj = a.cnpj; }
     else { const f = fornecedores.find(x => x.id === form.fornecedorId); fornecedorId = f?.id || ""; fornecedor = f?.razao || ""; cnpj = f?.cnpj || ""; }
@@ -411,12 +423,12 @@ function FormContrato({ c, data, refresh, onClose }) {
     try {
       // A gravação e a conferência do saldo são feitas no servidor
       const resp = await base44.functions.invoke("salvarContrato", { contratoId: c?.id || null, dados });
-      if (resp?.data?.error) return alert(resp.data.error);
+      if (resp?.data?.error) { setErros([resp.data.error]); return; }
       await refresh();
       onClose();
       alert(c ? "Lançamento atualizado." : "Lançamento registrado e saldo baixado.");
     } catch (e) {
-      alert(e?.response?.data?.error || e?.message || String(e));
+      setErros([e?.response?.data?.error || e?.message || String(e)]);
     }
   }
 
@@ -444,6 +456,7 @@ function FormContrato({ c, data, refresh, onClose }) {
   return (
     <Modal sobre={form.ataId ? "Execução do registro de preços" : "Contratação direta"} titulo={c ? "Editar lançamento" : "Cadastrar contrato ou empenho"} onClose={onClose}
       footer={<><Btn onClick={onClose}>Cancelar</Btn><Btn variant="forte" onClick={salvar}>Salvar lançamento</Btn></>}>
+      <ErrosForm itens={erros} />
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))] mb-3">
         <Campo label="Tipo"><select className={inputCls} value={form.tipo} onChange={e => setF("tipo", e.target.value)}><option>Contrato</option><option>Nota de empenho</option></select></Campo>
         <Campo label="Número"><input className={inputCls} value={form.numero} onChange={e => setF("numero", e.target.value)} placeholder="ex.: 45/2026" /></Campo>

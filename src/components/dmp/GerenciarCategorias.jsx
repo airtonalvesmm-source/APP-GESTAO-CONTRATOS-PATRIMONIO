@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { excluirComDependencias } from "@/lib/exclusao";
 import { Btn, MiniBtn, Campo, Modal, inputCls } from "./ui";
 import { Plus, Trash2, Pencil } from "lucide-react";
 
@@ -49,7 +50,8 @@ export default function GerenciarCategorias({ categorias, subcategorias, catalog
     const emUso = contagem(c.nome);
     if (emUso > 0) return alert(`Há ${emUso} item(ns) do catálogo usando "${c.nome}". Reatribua esses itens a outra categoria antes de excluí-la.`);
     if (!confirm(`Remover a categoria "${c.nome}"?`)) return;
-    await base44.entities.Categoria.delete(c.id);
+    const r = await excluirComDependencias("Categoria", c.id);
+    if (!r.ok) return alert(r.mensagem);
     await refresh();
   }
 

@@ -79,16 +79,37 @@ export default function ImportarBensCSV({ data, refresh, onClose }) {
     setProcessando(true); setErro(""); setStatus("");
     try {
       const regs = preview.validas;
-      for (let i = 0; i < regs.length; i += 100) {
-        await base44.entities.BemPatrimonial.bulkCreate(regs.slice(i, i + 100));
+      // Agrupa por contrato preservando a ordem das linhas (uma unidade por linha).
+      // O servidor confere o saldo contratado e grava bens + movimentações de forma atômica.
+      const porContrato = new Map();
+      regs.forEach(r => {
+        if (!porContrato.has(r.contratoId)) porContrato.set(r.contratoId, { itens: [], placas: [], pagamentoId: "", dataEntrada: r.dataEntrada });
+        const g = porContrato.get(r.contratoId);
+        g.itens.push({ benId: r.benId, qtd: 1 });
+        g.placas.push(r.placa);
+        if (!g.pagamentoId && r.pagamentoId) g.pagamentoId = r.pagamentoId;
+      });
+      let criados = 0;
+      const falhas = [];
+      for (const [contratoId, g] of porContrato) {
+        try {
+          const resp = await base44.functions.invoke("movimentarEstoque", {
+            acao: "entrada", contratoId, itens: g.itens, placas: g.placas,
+            pagamentoId: g.pagamentoId, dataEntrada: g.dataEntrada
+          });
+          if (resp?.data?.error) falhas.push(resp.data.error);
+          else criados += resp?.data?.criados || g.placas.length;
+        } catch (e) {
+          falhas.push(e?.response?.data?.error || e?.message || String(e));
+        }
       }
-      const movs = regs.map(r => ({ bemId: r.placa, tipo: "entrada", data: r.dataEntrada, observacao: "Entrada por CSV" }));
-      for (let i = 0; i < movs.length; i += 100) {
-        await base44.entities.MovimentacaoEstoque.bulkCreate(movs.slice(i, i + 100));
+      if (falhas.length) {
+        setErro(`${criados ? `${criados} bem(ns) importado(s). ` : "Nenhum bem foi importado. "}Falha em ${falhas.length} contrato(s): ${falhas.join(" ")}`);
+      } else {
+        setStatus(`${criados} bem(ns) patrimoniado(s) com sucesso.`);
+        setPreview(null);
+        if (fileRef.current) fileRef.current.value = "";
       }
-      setStatus(`${regs.length} bem(ns) patrimoniado(s) com sucesso.`);
-      setPreview(null);
-      if (fileRef.current) fileRef.current.value = "";
       await refresh();
     } catch (e) {
       setErro("Erro ao importar: " + (e.message || e));
